@@ -1,0 +1,65 @@
+# GoReleaser 配置：构建 cc-select 三平台单二进制。
+# 见 docs/tech-stack.md §8 与 docs/distribution.md。
+version: 2
+
+project_name: cc-select
+
+before:
+  hooks:
+    # 前端构建：产出会被 internal/web embed。
+    - cmd: sh -c "cd internal/frontend && npm ci && npm run build"
+
+builds:
+  - id: cc-select
+    main: .
+    binary: cc-select
+    # 纯 Go（go-keyring 无 CGO），关闭 CGO 保证交叉编译简单 + Windows 零运行时。
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      # Windows arm64 暂不构建（需求小，减少构建矩阵）。
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X github.com/cc-select/cc-select/internal/version.Version={{.Version}}
+
+archives:
+  - id: default
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  use: git
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: cc-select
+    name: cc-select
+  draft: true
+  prerelease: auto

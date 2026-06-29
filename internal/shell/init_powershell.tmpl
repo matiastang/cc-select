@@ -1,0 +1,10 @@
+# cc-select shell 集成（PowerShell）
+# 由 `cc-select init` 生成。加入 $PROFILE 后即可用 ccs 命令。
+# ccs 是 cc-select 的短别名：use 走 Invoke-Expression 注入当前会话，其余子命令直接转发。
+function ccs {
+  if ($args.Count -gt 0 -and $args[0] -eq 'use') {
+    Invoke-Expression (& "{{.BinaryPath}}" use @($args | Select-Object -Skip 1))
+  } else {
+    & "{{.BinaryPath}}" @args
+  }
+}

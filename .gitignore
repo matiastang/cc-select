@@ -1,0 +1,30 @@
+# Go
+/cc-select
+/bin/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# 前端构建产物（由 internal/frontend 构建生成，不提交）
+internal/frontend/node_modules/
+internal/frontend/dist/
+
+# Playwright E2E 产物
+internal/frontend/test-results/
+internal/frontend/playwright-report/
+internal/frontend/blob-report/
+internal/frontend/.playwright/
+
+# GoReleaser
+/dist-release/
+
+# 编辑器/系统
+.DS_Store
+.idea/
+.vscode/
+*.swp

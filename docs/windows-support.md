@@ -1,0 +1,117 @@
+# Windows 支持评估
+
+> 本文评估 `cc-select` 在 Windows 上的可行性，回答需求 [Q6](./requirements.md#待用户确认的开放问题含已定决策)（macOS/Linux/Windows 三平台）。
+> 结论先行：**可行 ✅**，Windows 上 shell 级隔离与 Unix 同构。本文给出机制对照、唯一限制、与 `cc-select` 各层的对接方式。
+
+---
+
+## 1. 结论
+
+Windows 完全可行，无需降级需求。核心原因：PowerShell 的环境变量存在 **process scope**，语义与 Unix `export` 一致——只影响当前会话及其子进程，关闭即失，不污染全局。这正好是 `cc-select` 追求的 shell 级隔离。
+
+**唯一限制**：Windows 上 **仅支持 PowerShell，不支持 CMD**。
+
+| 平台 | 支持的 shell | 状态 |
+|---|---|---|
+| macOS / Linux | zsh（MVP）、bash/fish（扩展） | ✅ |
+| Windows | **PowerShell**（5.1+ / 7） | ✅ |
+| Windows | CMD（cmd.exe） | ❌ 不支持（见 §4） |
+
+---
+
+## 2. 机制对照：Unix vs Windows
+
+| 概念 | macOS/Linux | Windows (PowerShell) | 等价? |
+|---|---|---|---|
+| 进程级环境变量（不持久） | `export VAR=value` | `$env:VAR = "value"` | ✅ 同义 |
+| 清除环境变量 | `unset VAR` | `Remove-Item Env:\VAR` | ✅ |
+| 持久化（**我们不用**） | — | `[Environment]::SetEnvironmentVariable("VAR","v","User")` 写注册表 | （对照用，禁用） |
+| shell 启动脚本 | `~/.zshrc` | PowerShell `$PROFILE` | ✅ 对应 |
+| 子进程继承环境变量 | ✅ | ✅ | ✅ |
+| 切换函数注入 | `eval "$(cc-select use glm)"` | `Invoke-Expression (cc-select use glm)` 或点 sourcing | ✅ 等价 |
+
+> **微软官方原文**（[about_Environment_Variables](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell/core/about/about_environment_variables)）：
+> *"When you change environment variables in PowerShell, the change affects only the current session."*
+>
+> 即 `$env:` 设的是 **process scope**，不会出现在「系统属性 → 环境变量」里，关闭 PowerShell 即消失。这正是我们要的隔离语义。
+
+---
+
+## 3. 与 cc-select 各层对接
+
+### 3.1 `use` 命令（切换）
+
+Unix 二进制输出 `export CLAUDE_CONFIG_DIR=...`；Windows 输出等价 PowerShell 语句。CLI 按调用方 shell 类型（由 `init` 时记录或运行时检测）决定输出语法：
+
+```
+# Unix 输出
+export CLAUDE_CONFIG_DIR='/Users/xxx/.cc-select/profiles/glm'
+export CC_SELECT_ACTIVE='glm'
+
+# Windows 输出（PowerShell）
+$env:CLAUDE_CONFIG_DIR = '/Users/xxx/.cc-select/profiles/glm'
+$env:CC_SELECT_ACTIVE = 'glm'
+```
+
+清理上一个 provider：Unix `unset CLAUDE_CONFIG_DIR`，Windows `Remove-Item Env:\CLAUDE_CONFIG_DIR`。
+
+### 3.2 shell 集成（`init`）
+
+`cc-select init` 按目标 shell 输出不同代码（[Q5](./requirements.md#待用户确认的开放问题含已定决策) 的可扩展设计在此落地）：
+
+```powershell
+# Windows: 写入 $PROFILE（PowerShell 的 .zshrc 等价物）
+function ccs {
+  if ($args[0] -eq 'use') {
+    Invoke-Expression (cc-select use $args[1..($args.Length-1)])
+  } else {
+    cc-select @args
+  }
+}
+```
+
+`Invoke-Expression`（iex）是 PowerShell 的 `eval` 等价物——在当前会话执行 `cc-select use` 输出的 `$env:...` 语句，使变量注入本会话。
+
+### 3.3 Claude Code 兼容性
+
+Claude Code 官方支持 **native Windows**（PowerShell/CMD 直接安装运行，无需 WSL/Admin），且 `ANTHROPIC_BASE_URL` 是官方支持的路由变量。因此在 PowerShell 里 `$env:ANTHROPIC_BASE_URL = "..."` 后启动 `claude`，与 Unix 行为一致。
+
+### 3.4 Web GUI 与存储
+
+- **Web GUI**：HTTP 服务 + 浏览器跨平台天然，零额外成本。
+- **存储**：配置目录用 `%USERPROFILE%\.cc-select\`（等价 `~/.cc-select/`），JSON 格式跨平台一致。
+
+---
+
+## 4. 为何不支持 CMD
+
+旧版 cmd.exe **没有函数和启动 profile 机制**，唯一的环境变量设置方式：
+
+- `set VAR=value` —— 仅当前 cmd 进程内，但 cmd 无函数无法包装 `eval`，`ccs` 命令无从实现；
+- `setx VAR value` —— 写注册表，**全局持久化、污染所有新进程**，正是 cc-select 要避免的"全局切换"。
+
+因此 CMD 无法实现 shell 级隔离。**PowerShell 是 Windows 上的现代默认 shell**，Claude Code native Windows 也以 PowerShell 为主，故只支持 PowerShell 是合理且足够的限制。
+
+---
+
+## 5. 实现期的注意点
+
+1. **`init` 须检测 shell 类型**：检测当前是 PowerShell 还是 zsh/bash，输出对应代码。PowerShell 下写到 `$PROFILE`，并提供路径提示。
+2. **跨平台路径**：用语言的标准库处理 home 目录（不要硬编码 `~`），Windows 取 `USERPROFILE`。
+3. **换行符**：PowerShell 语句用 `;` 分隔或换行；注意 CRLF。
+4. **iex 安全**：`Invoke-Expression` 执行的是本工具自己生成的语句（非用户自由输入），安全可控；但仍应确保 `use` 输出做引号转义，避免 provider 名/值含特殊字符。
+
+---
+
+## 6. 验收
+
+Windows 隔离用例并入 [acceptance-tests.md](./acceptance-tests.md) 的 AC1（隔离性）与 AC9（多 shell）：在 PowerShell 中两个窗口分别 `ccs use` 互不影响，行为与 zsh 对齐。
+
+---
+
+## 来源
+
+- [about_Environment_Variables — Microsoft Learn](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell/core/about/about_environment_variables)
+- [Claude Code 环境变量文档](https://code.claude.com/docs/en/env-vars)（`ANTHROPIC_BASE_URL`）
+- [Claude Code Advanced setup — Native Windows](https://code.claude.com/docs/en/setup)
+- [Setting Windows PowerShell environment variables — Stack Overflow](https://stackoverflow.com/questions/714877/setting-windows-powershell-environment-variables)
