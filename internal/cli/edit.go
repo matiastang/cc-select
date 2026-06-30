@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cc-select/cc-select/internal/app"
+	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/spf13/cobra"
 )
@@ -38,7 +39,22 @@ var editCmd = &cobra.Command{
 			fl.apiKey = oldEnv["ANTHROPIC_AUTH_TOKEN"] // 留空则保持
 		}
 
-		if err := upsertProvider(a, id, fl); err != nil {
+		// 解析 per-provider 隔离模式：未传 --mode = 保持旧值；default/inherit = 清除覆盖；其余 = 设置。
+		var providerMode prefs.Mode
+		switch editFl.mode {
+		case "":
+			providerMode = old.IsolationMode
+		case "default", "inherit":
+			providerMode = ""
+		default:
+			pm, err := normalizeProviderMode(editFl.mode)
+			if err != nil {
+				return err
+			}
+			providerMode = pm
+		}
+
+		if err := upsertProvider(a, id, fl, providerMode); err != nil {
 			return err
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "✓ 已更新 provider %s\n", id)

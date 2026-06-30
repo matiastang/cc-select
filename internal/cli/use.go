@@ -5,6 +5,7 @@ import (
 
 	"github.com/cc-select/cc-select/internal/app"
 	"github.com/cc-select/cc-select/internal/config"
+	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/shell"
 	"github.com/cc-select/cc-select/internal/switcher"
@@ -12,6 +13,7 @@ import (
 )
 
 var useShellFlag string
+var useModeFlag string
 
 var useCmd = &cobra.Command{
 	Use:   "use <provider>",
@@ -35,6 +37,8 @@ func init() {
 	rootCmd.AddCommand(useCmd)
 	useCmd.Flags().StringVar(&useShellFlag, "shell", "",
 		"目标 shell 语法（zsh/bash/powershell），默认自动检测")
+	useCmd.Flags().StringVar(&useModeFlag, "mode", "",
+		"一次性隔离模式（settings-only|full），仅本次、不落盘")
 }
 
 func runUse(cmd *cobra.Command, args []string) error {
@@ -48,15 +52,16 @@ func runUse(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// 普通 provider 校验 profile 目录存在（避免 export 一个不存在的目录）。
-	// 官方 provider 无 profile，跳过校验。
-	if target.ID != config.OfficialProviderID {
-		exists, err := profile.Exists(target.ID)
-		if err != nil {
-			return fmt.Errorf("检查 profile: %w", err)
-		}
-		if !exists {
-			return fmt.Errorf("provider %q 的 profile 缺失，请重新 cc-select add %s", target.ID, target.ID)
+	// 解析最终隔离模式：一次性 --mode > provider 覆盖 > 全局 > 默认(Mode B)。
+	mode := prefs.ResolveMode(prefs.Mode(useModeFlag), target.IsolationMode, a.Prefs.IsolationMode)
+
+	// 按模式（幂等）构建 profile：Mode B 重合并 settings + 自愈链接，Mode A 仅写 env。
+	// 官方 provider 的 Sync 为 no-op。env=nil 表示沿用现有 profile 的 env（缺失则报错）。
+	if _, warnings, serr := profile.Sync(target.ID, nil, mode); serr != nil {
+		return serr
+	} else {
+		for _, w := range warnings {
+			fmt.Fprintf(cmd.ErrOrStderr(), "⚠ %s\n", w)
 		}
 	}
 

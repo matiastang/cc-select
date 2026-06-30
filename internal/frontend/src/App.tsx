@@ -6,6 +6,7 @@ type Provider = {
   env: Record<string, string>;
   hasKey: boolean;
   varKeys: string[];
+  isolationMode: string;
 };
 
 // providerDetail 对应后端 GET /providers/{id}：含磁盘 settings.json 原文（明文）。
@@ -13,9 +14,13 @@ type ProviderDetail = {
   id: string;
   name: string;
   settings: unknown;
+  isolationMode: string;
 };
 
+type IsolationMode = "" | "settings-only" | "full";
+
 const API = "/api/v1/providers";
+const MODE_API = "/api/v1/mode";
 
 // 内置官方 provider 的 id。它使用系统默认配置（~/.claude），不建独立 profile，
 // 故不可删除、也不可自定义 settings——切到它等于 unset CLAUDE_CONFIG_DIR。
@@ -34,8 +39,16 @@ const NEW_TEMPLATE = JSON.stringify(
   2,
 );
 
+const MODE_LABELS: Record<IsolationMode, string> = {
+  "": "继承全局",
+  "settings-only": "仅 settings.json 隔离（共享历史/插件）",
+  full: "整目录隔离（完全独立）",
+};
+
 export default function App() {
   const [providers, setProviders] = useState<Record<string, Provider>>({});
+  const [globalMode, setGlobalMode] = useState<IsolationMode>("settings-only");
+  const [globalModeLoading, setGlobalModeLoading] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string>("");
@@ -51,9 +64,43 @@ export default function App() {
     }
   };
 
+  const loadGlobalMode = async () => {
+    try {
+      const r = await fetch(MODE_API);
+      const data = await r.json();
+      setGlobalMode(data.isolationMode || "settings-only");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setGlobalModeLoading(false);
+    }
+  };
+
   useEffect(() => {
     refresh();
+    loadGlobalMode();
   }, []);
+
+  const saveGlobalMode = async (mode: IsolationMode) => {
+    setGlobalMode(mode);
+    try {
+      const r = await fetch(MODE_API, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isolationMode: mode }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        setError(j.error || "保存全局模式失败");
+        await loadGlobalMode(); // 回显服务端真实值
+      } else {
+        setError("");
+      }
+    } catch (e) {
+      setError(String(e));
+      await loadGlobalMode();
+    }
+  };
 
   const remove = async (id: string) => {
     if (!confirm(`删除 provider ${id}？`)) return;
@@ -73,6 +120,23 @@ export default function App() {
       </div>
 
       {error && <div className="notice" style={{ background: "rgba(209,36,47,0.1)", borderLeftColor: "var(--danger)" }}>{error}</div>}
+
+      <div className="card">
+        <h2 style={{ marginTop: 0 }}>全局隔离模式</h2>
+        <p className="muted">默认对所有 provider 生效；单个 provider 可单独覆盖。</p>
+        {globalModeLoading ? (
+          <p className="muted">加载中…</p>
+        ) : (
+          <select
+            value={globalMode}
+            onChange={(e) => saveGlobalMode(e.target.value as IsolationMode)}
+            style={{ width: "100%", padding: "0.5rem", fontSize: "0.95rem" }}
+          >
+            <option value="settings-only">{MODE_LABELS["settings-only"]}</option>
+            <option value="full">{MODE_LABELS["full"]}</option>
+          </select>
+        )}
+      </div>
 
       {Object.values(providers)
         .sort((a, b) => a.id.localeCompare(b.id))
@@ -101,6 +165,8 @@ export default function App() {
                       <>
                         {(p.env.ANTHROPIC_BASE_URL && `URL: ${p.env.ANTHROPIC_BASE_URL}`) || "（无 base url）"}
                         {(p.env.ANTHROPIC_MODEL && ` · 模型: ${p.env.ANTHROPIC_MODEL}`) || ""}
+                        {" · "}
+                        模式: {p.isolationMode ? MODE_LABELS[p.isolationMode as IsolationMode] : "继承全局"}
                       </>
                     )}
                   </div>
@@ -151,6 +217,7 @@ function JsonForm(props: JsonFormProps) {
   const [id, setId] = useState(isEdit ? props.id : "");
   const [name, setName] = useState("");
   const [jsonText, setJsonText] = useState(isEdit ? "" : NEW_TEMPLATE);
+  const [isolationMode, setIsolationMode] = useState<IsolationMode>("");
   const [loading, setLoading] = useState(isEdit);
   const [err, setErr] = useState("");
 
@@ -165,6 +232,7 @@ function JsonForm(props: JsonFormProps) {
         if (cancelled) return;
         setName(detail.name || "");
         setJsonText(JSON.stringify(detail.settings ?? {}, null, 2));
+        setIsolationMode((detail.isolationMode as IsolationMode) || "");
       } catch (e) {
         if (!cancelled) setErr(String(e));
       } finally {
@@ -195,16 +263,17 @@ function JsonForm(props: JsonFormProps) {
       return;
     }
 
+    const body = { name, settings, isolationMode };
     const r = isEdit
       ? await fetch(`${API}/${props.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, settings }),
+          body: JSON.stringify(body),
         })
       : await fetch(API, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: id.trim(), name, settings }),
+          body: JSON.stringify({ id: id.trim(), ...body }),
         });
     if (!r.ok) {
       const j = await r.json().catch(() => ({}));
@@ -225,6 +294,16 @@ function JsonForm(props: JsonFormProps) {
       )}
       <label>展示名（可留空，默认用 id）</label>
       <input value={name} onChange={(e) => setName(e.target.value)} placeholder="智谱 GLM" />
+      <label>隔离模式</label>
+      <select
+        value={isolationMode}
+        onChange={(e) => setIsolationMode(e.target.value as IsolationMode)}
+        style={{ width: "100%", padding: "0.5rem", marginBottom: "1rem", fontSize: "0.95rem" }}
+      >
+        <option value="">{MODE_LABELS[""]}</option>
+        <option value="settings-only">{MODE_LABELS["settings-only"]}</option>
+        <option value="full">{MODE_LABELS["full"]}</option>
+      </select>
       <label>settings.json（完整内容；env、permissions、model 等均可）</label>
       {loading ? (
         <p className="muted">加载磁盘真实配置中…</p>

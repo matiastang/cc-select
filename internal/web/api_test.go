@@ -200,7 +200,7 @@ func TestCreate_FullSettingsPersist(t *testing.T) {
 	defer srv.Close()
 	defer os.Unsetenv("CC_SELECT_CONFIG")
 
-	body := `{"id":"full","name":"Full","settings":{` +
+	body := `{"id":"full","name":"Full","isolationMode":"full","settings":{` +
 		`"env":{"ANTHROPIC_BASE_URL":"https://full"},` +
 		`"model":"opusplan",` +
 		`"permissions":{"allow":["Bash(ls:*)"]}}}`
@@ -326,5 +326,71 @@ func TestUpdate_RejectsOfficial(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("PUT 官方 provider 应 400，got %d", resp.StatusCode)
+	}
+}
+
+// ---- 隔离模式端点 ----
+
+func TestModeEndpoint_GetDefault(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	resp, err := http.Get(srv.URL + "/api/v1/mode")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out map[string]any
+	json.NewDecoder(resp.Body).Decode(&out)
+	if out["isolationMode"] != "settings-only" {
+		t.Errorf("默认应 settings-only, got %v", out["isolationMode"])
+	}
+}
+
+func TestModeEndpoint_Put(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/mode",
+		strings.NewReader(`{"isolationMode":"full"}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("PUT want 200 got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	// 再 GET 应为 full（已落盘 prefs.json）。
+	resp2, err := http.Get(srv.URL + "/api/v1/mode")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp2.Body.Close()
+	var out map[string]any
+	json.NewDecoder(resp2.Body).Decode(&out)
+	if out["isolationMode"] != "full" {
+		t.Errorf("PUT 后应 full, got %v", out["isolationMode"])
+	}
+}
+
+func TestModeEndpoint_RejectsInvalid(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/mode",
+		strings.NewReader(`{"isolationMode":"bogus"}`))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("非法值应 400, got %d", resp.StatusCode)
 	}
 }

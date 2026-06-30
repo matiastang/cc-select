@@ -18,6 +18,7 @@
 | AC7 PS1 可视化 | R6 | 阶段 3 |
 | AC8 key 安全 | R7 | 阶段 4 |
 | AC9 多 shell | R2（扩展） | 阶段 5 |
+| AC10 隔离粒度 | [isolation-modes.md](./isolation-modes.md) / [04 §7](./engineering-decisions.md#7-隔离粒度全隔离-vs-仅-settingsjson-隔离双模式) | 后 MVP |
 
 ---
 
@@ -80,8 +81,11 @@
 | 1. 启动 `cc-select gui` | 打开 GUI 配置界面 |
 | 2. 在 GUI 中新增/编辑/删除一个 provider | 操作成功，保存后反映到共享存储 |
 | 3. 终端执行 `ccs list` | 能看到 GUI 刚改的 provider |
+| 4. GUI 顶部「全局隔离模式」选择器 | 可切换 `settings-only` / `full`，保存后写入 `~/.cc-select/prefs.json` |
+| 5. 编辑 provider 时「隔离模式」选择器 | 可选「继承全局 / 仅 settings.json 隔离 / 整目录隔离」，保存后写入 `providers.json` |
+| 6. 重新打开 GUI 或切换编辑/列表 | 全局模式和每个 provider 的模式回显为上次保存的值 |
 
-**判定**：GUI 能完成 provider 增删改查，且与 CLI 共享同一份配置存储。
+**判定**：GUI 能完成 provider 增删改查，能设置并回显全局与 per-provider 隔离模式，且与 CLI 共享同一份配置存储。
 
 ---
 
@@ -128,6 +132,33 @@
 | 4. PowerShell 中 `ccs use glm` 后 `claude` | 走对应服务商（process-scope 隔离生效） |
 | 5. 两个 PowerShell 窗口分别 `ccs use` 不同 provider | 互不影响（与 zsh 行为对齐） |
 | 6. CMD 中尝试 `ccs` | **不支持**（明确提示用户使用 PowerShell，见 [windows-support §4](./windows-support.md#4-为何不支持-cmd)） |
+
+---
+
+## AC10. 隔离粒度（双模式）—— Mode A / Mode B
+
+> 设计见 [isolation-modes.md](./isolation-modes.md)；机制见 [工程细节 §7](./engineering-decisions.md#7-隔离粒度全隔离-vs-仅-settingsjson-隔离双模式)。
+
+| 步骤 | 预期 |
+|---|---|
+| 1. `cc-select mode`（未设置过） | 输出 `settings-only`，提示「未显式设置，使用默认」 |
+| 2. 用户已有 `~/.claude`（含 permissions 的 settings.json + projects/）；`cc-select add glm` 后 `ccs use glm` | profile `settings.json` 含 provider env **且保留全局** permissions/model；`projects/` 等为指向 `~/.claude/` 的软链（Mode B 共享） |
+| 3. 经 profile 软链写入 `projects/x` | 内容落到共享的 `~/.claude/projects/x`（共享生效） |
+| 4. 全局 `cc-select mode full` 后 `ccs use glm` | profile 目录回到只剩 `settings.json`（软链被清理，真隔离） |
+| 5. 全局 full，但 `cc-select edit glm --mode settings-only` 后 `ccs use glm` | glm 仍为共享（per-provider 覆盖胜过全局） |
+| 6. `ccs use glm --mode full`（一次性，不落盘） | 本次全隔离；`cc-select mode` 全局值不变 |
+| 7. `cc-select edit glm --mode default` | 清除 glm 的 per-provider 覆盖（继承全局） |
+| 8. 从未装 claude（无 `~/.claude`）时 `ccs use glm` | 不报错；profile 仅 settings.json（无东西可共享），后续产生 `~/.claude` 内容后下次 use 自愈共享 |
+| 9. 全局或 provider 模式为 B 时 `ccs use X` 改全局 settings.json/装插件后再次 use | 自愈：profile 自动反映最新全局 + 链接修复 |
+| 10. Windows：目录型条目用 junction（免特权）共享；文件型无开发者模式则跳过+告警 | 不强制退化为 Mode A；不报错中断 |
+| 11. Web GUI 中 provider 设为 Mode A（full）后保存含 `permissions`/`model` 的 settings.json | 这些非 env 字段原样持久化到 profile settings.json |
+| 12. Web GUI 中 provider 设为 Mode B（settings-only）后保存含 `permissions`/`model` 的 settings.json | 仅 `env` 被持久化到 profile；非 env 字段来自全局 `~/.claude/settings.json`（Mode B 语义） |
+
+### 已知前置验证（动手前/发版前）
+
+- `~/.claude.json`（sibling 大状态文件）是否被 `CLAUDE_CONFIG_DIR` 重定位——决定是否需纳入共享。
+- 设 `CLAUDE_CONFIG_DIR` 后 claude 是否完全不读全局 `~/.claude/settings.json`——印证合并必要性。
+- 详见 [isolation-modes.md §6](./isolation-modes.md#6-待验证项动手前用真机确认)。
 
 ---
 

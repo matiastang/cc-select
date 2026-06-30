@@ -65,6 +65,8 @@
 
 shell 集成机制（`eval` 注入）不变，只是注入的变量从"一堆 ANTHROPIC_*"换成"一个 `CLAUDE_CONFIG_DIR`"。
 
+> **隔离粒度（双模式）**：`CLAUDE_CONFIG_DIR` 重定位的是整个家目录，默认会把对话历史/插件/全局非 env 配置也一并隔离。cc-select 提供两种粒度，默认 **Mode B（仅 settings.json 隔离）**：profile 目录除真实 `settings.json` 外，其余条目软链回 `~/.claude` 共享；深度用户可切回 **Mode A（全隔离，= 现状）**。机制、边界与切换见 [隔离粒度设计](./isolation-modes.md) 与 [工程细节 §7](./engineering-decisions.md#7-隔离粒度全隔离-vs-仅-settingsjson-隔离双模式)。
+
 ### 2.1 跨平台约束（满足 Q6：macOS/Linux/Windows）
 
 需同时跑在三大平台，架构各层需注意：
@@ -80,9 +82,9 @@ shell 集成机制（`eval` 注入）不变，只是注入的变量从"一堆 AN
 
 ---
 
-## 3. 数据模型（元信息索引 + profile 真值，两层）
+## 3. 数据模型（元信息索引 + profile 真值 + 偏好，三层）
 
-配置分两层存储（都 JSON，原子写，文件 0600）：
+配置分三层存储（都 JSON，原子写；providers.json/profile 文件 0600、prefs.json 0600）：
 
 **① providers.json（元信息索引）** `~/.cc-select/providers.json`：只存 id/name，**不含 env、不含 token**。
 
@@ -96,7 +98,7 @@ shell 集成机制（`eval` 注入）不变，只是注入的变量从"一堆 AN
 }
 ```
 
-**② profile settings.json（env 真值，claude 读这个）** `~/.cc-select/profiles/<id>/settings.json`：含该 provider 的 env（可能含敏感 token）。官方 provider 无 profile（切它 = unset `CLAUDE_CONFIG_DIR`）。
+**② profile settings.json（env 真值，claude 读这个）** `~/.cc-select/profiles/<id>/settings.json`：含该 provider 的 env（可能含敏感 token）。官方 provider 无 profile（切它 = unset `CLAUDE_CONFIG_DIR`）。**Mode B（默认）** 下，该目录还会用链接（Unix 软链 / Windows junction）共享 `~/.claude` 的其余条目（历史/插件/命令/agent/skill/MCP…），且 settings.json = 全局 `~/.claude/settings.json` 的 **env 整体替换**为 provider env；**Mode A** 下目录只有 settings.json。详见 [隔离粒度设计](./isolation-modes.md)。
 
 ```json
 {
@@ -108,7 +110,9 @@ shell 集成机制（`eval` 注入）不变，只是注入的变量从"一堆 AN
 }
 ```
 
-> 关系：providers.json 是权威目录（谁存在、叫什么）；profile 目录是 claude 实际读的运行时配置。add/edit 先写 profile settings.json、再写 providers.json；remove 先删 profile 目录、再删 providers.json 条目。
+**③ prefs.json（cc-select 自身偏好）** `~/.cc-select/prefs.json`：存全局偏好，目前仅全局 `isolationMode`（`settings-only`=Mode B 默认 ｜ `full`=Mode A）。**per-provider 覆盖**存于 `providers.json` 的 `Provider.IsolationMode`（缺省=继承全局）；优先级：一次性 `--mode` > provider > 全局 > 默认(Mode B)。缺文件即默认值。
+
+> 关系：providers.json 是权威目录（谁存在、叫什么）；profile 目录是 claude 实际读的运行时配置；prefs.json 是全局偏好（隔离模式等，per-provider 覆盖则记在 providers.json）。add/edit/use/web 通过统一的 `profile.Sync(id, env, mode)` 构造 profile 目录——mode 由 `prefs.ResolveMode(一次性, provider, 全局)` 三级解析（Mode B 合并 settings + 链接共享，Mode A 仅写 env）——再写 providers.json；remove 先删 profile 目录、再删 providers.json 条目。
 >
 > **API key 存储方式**：当前实现把 token 明文写入 profile settings.json（文件 0600、目录 0700）。代码中已保留 keychain 占位机制（`$keychain:cc-select:<provider>:<var>`）与 `internal/secrets` 抽象，可作为后续升级安全存储的路径。详见 [技术选型 - 存储格式](./tech-stack.md#4-存储格式json-两层元信息-profile-真值q3)。
 

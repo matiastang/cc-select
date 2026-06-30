@@ -8,6 +8,7 @@ import (
 
 	"github.com/cc-select/cc-select/internal/app"
 	"github.com/cc-select/cc-select/internal/config"
+	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/profile"
 )
 
@@ -15,20 +16,22 @@ import (
 // 列表故意脱敏：API key 永远不返回明文，只返回 hasKey 布尔。见 docs/tech-stack.md §5 正确性要点。
 // 完整配置（含明文，供编辑回填）走 GET /providers/{id} 的 providerDetailDTO。
 type providerDTO struct {
-	ID      string            `json:"id"`
-	Name    string            `json:"name"`
-	Env     map[string]string `json:"env"`     // 仅非敏感值，用于列表摘要展示
-	HasKey  bool              `json:"hasKey"`  // 是否配置了敏感变量（如 API key）
-	VarKeys []string          `json:"varKeys"` // env 变量名列表（不含值，便于前端展示）
+	ID            string            `json:"id"`
+	Name          string            `json:"name"`
+	Env           map[string]string `json:"env"`           // 仅非敏感值，用于列表摘要展示
+	HasKey        bool              `json:"hasKey"`        // 是否配置了敏感变量（如 API key）
+	VarKeys       []string          `json:"varKeys"`       // env 变量名列表（不含值，便于前端展示）
+	IsolationMode string            `json:"isolationMode"` // per-provider 覆盖；空串 = 继承全局
 }
 
 // providerDetailDTO 是单个 provider 的完整表示（GET /providers/{id}）。
 // Settings 是 profile settings.json 的磁盘原文——即便用户手改了文件也如实反映。
 // 故意返回明文：编辑页需要展示真实配置（含 token），见用户确认的"明文显示"决策。
 type providerDetailDTO struct {
-	ID       string          `json:"id"`
-	Name     string          `json:"name"`
-	Settings json.RawMessage `json:"settings"` // settings.json 磁盘原文；官方/缺失为 {}
+	ID            string          `json:"id"`
+	Name          string          `json:"name"`
+	Settings      json.RawMessage `json:"settings"`      // settings.json 磁盘原文；官方/缺失为 {}
+	IsolationMode string          `json:"isolationMode"` // per-provider 覆盖；空串 = 继承全局
 }
 
 // apiHandler 持有依赖，处理 /api/v1/* 路由。
@@ -40,6 +43,7 @@ func (h *apiHandler) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/providers", h.handleProvidersCollection)
 	mux.HandleFunc("/api/v1/providers/", h.handleProviderItem)
+	mux.HandleFunc("/api/v1/mode", h.handleMode)
 	return mux
 }
 
@@ -74,6 +78,53 @@ func (h *apiHandler) handleProviderItem(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// handleMode 处理 GET/PUT 全局隔离模式（~/.cc-select/prefs.json）。
+//   - GET  → {"isolationMode": "settings-only" | "full"}（未设置时返回默认）
+//   - PUT  → 同结构，设置全局模式。
+//
+// per-provider 覆盖（providers.json 的 Provider.IsolationMode）暂不在 Web 暴露，
+// 由 CLI（cc-select edit <id> --mode ...）管理；此处只管全局默认。
+func (h *apiHandler) handleMode(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		pr, err := prefs.Load()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		mode := pr.IsolationMode
+		if mode == "" {
+			mode = prefs.DefaultMode
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"isolationMode": string(mode)})
+	case http.MethodPut:
+		var in struct {
+			IsolationMode prefs.Mode `json:"isolationMode"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+			return
+		}
+		if in.IsolationMode != prefs.ModeSettingsOnly && in.IsolationMode != prefs.ModeFull {
+			writeError(w, http.StatusBadRequest, "isolationMode must be settings-only or full")
+			return
+		}
+		pr, err := prefs.Load()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		pr.IsolationMode = in.IsolationMode
+		if err := prefs.Save(pr); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"isolationMode": string(in.IsolationMode)})
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
 func (h *apiHandler) listProviders(w http.ResponseWriter, _ *http.Request) {
 	a, err := app.New()
 	if err != nil {
@@ -89,9 +140,10 @@ func (h *apiHandler) listProviders(w http.ResponseWriter, _ *http.Request) {
 
 func (h *apiHandler) createProvider(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		ID       string          `json:"id"`
-		Name     string          `json:"name"`
-		Settings json.RawMessage `json:"settings"`
+		ID            string          `json:"id"`
+		Name          string          `json:"name"`
+		Settings      json.RawMessage `json:"settings"`
+		IsolationMode prefs.Mode      `json:"isolationMode"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
@@ -104,6 +156,10 @@ func (h *apiHandler) createProvider(w http.ResponseWriter, r *http.Request) {
 	// 校验 id 合法（防路径穿越）——id 来自请求体，会拼进 profile 目录路径。
 	if err := config.ValidateID(in.ID); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if !in.IsolationMode.Valid() {
+		writeError(w, http.StatusBadRequest, "isolationMode must be empty, settings-only or full")
 		return
 	}
 	data, err := normalizeSettings(in.Settings)
@@ -120,7 +176,17 @@ func (h *apiHandler) createProvider(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "provider already exists")
 		return
 	}
-	if err := applySettings(a, in.ID, in.Name, data); err != nil {
+	mode := prefs.ResolveMode("", in.IsolationMode, a.Prefs.IsolationMode)
+	if err := applySettings(in.ID, data, mode); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	a.Config.Providers[in.ID] = config.Provider{
+		ID:            in.ID,
+		Name:          in.Name,
+		IsolationMode: in.IsolationMode,
+	}
+	if err := config.Save(a.Config); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -149,11 +215,16 @@ func (h *apiHandler) updateProvider(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 	var in struct {
-		Name     string          `json:"name"`
-		Settings json.RawMessage `json:"settings"`
+		Name          string          `json:"name"`
+		Settings      json.RawMessage `json:"settings"`
+		IsolationMode prefs.Mode      `json:"isolationMode"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	if !in.IsolationMode.Valid() {
+		writeError(w, http.StatusBadRequest, "isolationMode must be empty, settings-only or full")
 		return
 	}
 	data, err := normalizeSettings(in.Settings)
@@ -170,8 +241,18 @@ func (h *apiHandler) updateProvider(w http.ResponseWriter, r *http.Request, id s
 		writeError(w, http.StatusNotFound, "provider not found")
 		return
 	}
-	// 整体覆盖：EnsureRaw 用新内容替换旧 settings.json。
-	if err := applySettings(a, id, in.Name, data); err != nil {
+	mode := prefs.ResolveMode("", in.IsolationMode, a.Prefs.IsolationMode)
+	// 整体覆盖：按 mode 写 profile。
+	if err := applySettings(id, data, mode); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	a.Config.Providers[id] = config.Provider{
+		ID:            id,
+		Name:          in.Name,
+		IsolationMode: in.IsolationMode,
+	}
+	if err := config.Save(a.Config); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -221,17 +302,33 @@ func normalizeSettings(raw json.RawMessage) ([]byte, error) {
 	return out, nil
 }
 
-// applySettings 把完整 settings.json 写入 profile（明文，含敏感变量）+ providers.json 元信息。
-// data 应是已校验/规范化的 JSON 对象字节。官方 provider 的 EnsureRaw 为 no-op（不落盘）。
-func applySettings(a *app.App, id, name string, data []byte) error {
-	if _, err := profile.EnsureRaw(id, data); err != nil {
-		return err
+// applySettings 按 mode 把 settings 写入 profile。
+//   - Mode A（full）：原文写入 data，保留 env 之外字段（permissions、model 等）。
+//   - Mode B（settings-only）：只取 env 做整体替换，非 env 字段来自全局 ~/.claude/settings.json。
+// data 应是已校验/规范化的 JSON 对象字节。官方 provider 无 profile（no-op）。
+func applySettings(id string, data []byte, mode prefs.Mode) error {
+	switch mode {
+	case prefs.ModeFull:
+		if _, err := profile.EnsureRaw(id, data); err != nil {
+			return err
+		}
+	default:
+		var settings map[string]any
+		if err := json.Unmarshal(data, &settings); err != nil {
+			return fmt.Errorf("解析 settings: %v", err)
+		}
+		envAny, _ := settings["env"].(map[string]any)
+		env := map[string]string{}
+		for k, v := range envAny {
+			if s, ok := v.(string); ok {
+				env[k] = s
+			}
+		}
+		if _, _, err := profile.Sync(id, env, mode); err != nil {
+			return err
+		}
 	}
-	if name == "" {
-		name = id
-	}
-	a.Config.Providers[id] = config.Provider{ID: id, Name: name}
-	return config.Save(a.Config)
+	return nil
 }
 
 // isSensitiveVar 判断变量名是否敏感（用于 toDTO 脱敏：值不回传前端）。
@@ -249,10 +346,11 @@ func isSensitiveVar(name string) bool {
 func toDTO(p config.Provider) providerDTO {
 	env, _ := profile.ReadEnv(p.ID)
 	dto := providerDTO{
-		ID:      p.ID,
-		Name:    p.Name,
-		Env:     map[string]string{},
-		VarKeys: make([]string, 0, len(env)),
+		ID:            p.ID,
+		Name:          p.Name,
+		Env:           map[string]string{},
+		VarKeys:       make([]string, 0, len(env)),
+		IsolationMode: string(p.IsolationMode),
 	}
 	for k, v := range env {
 		dto.VarKeys = append(dto.VarKeys, k)
@@ -274,9 +372,10 @@ func toDetailDTO(p config.Provider, id string) providerDetailDTO {
 		raw = []byte("{}")
 	}
 	return providerDetailDTO{
-		ID:       id,
-		Name:     p.Name,
-		Settings: json.RawMessage(raw),
+		ID:            id,
+		Name:          p.Name,
+		Settings:      json.RawMessage(raw),
+		IsolationMode: string(p.IsolationMode),
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/cc-select/cc-select/internal/app"
 	"github.com/cc-select/cc-select/internal/config"
+	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/secrets"
 	"github.com/spf13/cobra"
@@ -14,10 +15,13 @@ import (
 
 // setTempCfg 把 CC_SELECT_CONFIG 指向临时目录下的 providers.json，
 // 使 config 与 profile 都落在 tempdir（隔离、无副作用）。
+// 同时把 CC_SELECT_CLAUDE_HOME 指向另一个空 tempdir——Mode B 的 Sync 会读 ~/.claude，
+// 这样可避免测试污染真实 claude 环境、也不向真实目录建链接。
 func setTempCfg(t *testing.T) {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("CC_SELECT_CONFIG", dir+"/providers.json")
+	t.Setenv("CC_SELECT_CLAUDE_HOME", t.TempDir())
 }
 
 // resetFlags 清掉 add/edit/use/init/remove 的全局 flag 变量，
@@ -26,6 +30,7 @@ func resetFlags() {
 	addFl = addFlags{}
 	editFl = addFlags{}
 	useShellFlag = ""
+	useModeFlag = ""
 	initShellFlag = ""
 	removeForce = false
 }
@@ -161,9 +166,10 @@ func TestReadProviderInput_FlagsSkipPrompt(t *testing.T) {
 
 func TestWriteAndUpsertProvider(t *testing.T) {
 	setTempCfg(t)
-	a := &app.App{Config: config.Default(), Secrets: secrets.NewFake()}
+	a := &app.App{Config: config.Default(), Prefs: &prefs.Prefs{}, Secrets: secrets.NewFake()}
 	fl := addFlags{name: "GLM", baseURL: "https://glm", model: "glm-4.6", apiKey: "sk-secret"}
-	if err := upsertProvider(a, "glm", fl); err != nil {
+	// 用 ModeFull（全隔离）测试基础写入路径，避免触及 ~/.claude。
+	if err := upsertProvider(a, "glm", fl, prefs.ModeFull); err != nil {
 		t.Fatalf("upsertProvider: %v", err)
 	}
 	// providers.json 应含元信息。
@@ -248,6 +254,26 @@ func TestRunUse_MissingProfile(t *testing.T) {
 	err := runUse(cmd, []string{"glm"})
 	if err == nil || !strings.Contains(err.Error(), "profile 缺失") {
 		t.Errorf("profile 缺失应报错，got %v", err)
+	}
+}
+
+func TestRunUse_OneOffFullMode(t *testing.T) {
+	// --mode full 一次性：不落盘，但本次按 Mode A 构建（不报错、仍导出）。
+	setTempCfg(t)
+	cfg := &config.Config{Providers: map[string]config.Provider{"glm": {ID: "glm"}}}
+	config.Save(cfg)
+	if _, err := profile.Ensure("glm", map[string]string{"ANTHROPIC_BASE_URL": "https://glm"}); err != nil {
+		t.Fatal(err)
+	}
+	resetFlags()
+	useShellFlag = "zsh"
+	useModeFlag = "full"
+	cmd, out, _ := newCmd()
+	if err := runUse(cmd, []string{"glm"}); err != nil {
+		t.Fatalf("use --mode full: %v", err)
+	}
+	if !strings.Contains(out.String(), "export CLAUDE_CONFIG_DIR=") {
+		t.Errorf("应导出 CLAUDE_CONFIG_DIR:\n%s", out.String())
 	}
 }
 
@@ -451,5 +477,70 @@ func TestExecute_ReturnCodes(t *testing.T) {
 	rootCmd.SetArgs([]string{"no-such-command"})
 	if code := Execute(); code != 1 {
 		t.Errorf("未知命令应返回退出码 1，got %d", code)
+	}
+}
+
+// ---- mode 命令 / per-provider 模式 ----
+
+func TestModeCommand_DefaultIsSettingsOnly(t *testing.T) {
+	setTempCfg(t)
+	out, _, err := execRoot(t, "", "mode")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "settings-only") {
+		t.Errorf("默认全局模式应为 settings-only: %s", out)
+	}
+}
+
+func TestModeCommand_SetAndPersist(t *testing.T) {
+	setTempCfg(t)
+	if _, _, err := execRoot(t, "", "mode", "full"); err != nil {
+		t.Fatalf("mode full: %v", err)
+	}
+	pr, _ := prefs.Load()
+	if pr.IsolationMode != prefs.ModeFull {
+		t.Errorf("全局模式应落盘 full, got %q", pr.IsolationMode)
+	}
+	out, _, _ := execRoot(t, "", "mode")
+	if !strings.Contains(out, "full") {
+		t.Errorf("再读应显示 full: %s", out)
+	}
+}
+
+func TestModeCommand_RejectsInvalid(t *testing.T) {
+	setTempCfg(t)
+	if _, _, err := execRoot(t, "", "mode", "bogus"); err == nil {
+		t.Error("无效模式应报错")
+	}
+}
+
+func TestAddCommand_PerProviderMode(t *testing.T) {
+	setTempCfg(t)
+	config.Save(config.Default())
+	if _, _, err := execRoot(t, "\n", "add", "glm",
+		"--base-url", "https://glm", "--mode", "full"); err != nil {
+		t.Fatalf("add --mode full: %v", err)
+	}
+	cfg, _ := config.Load()
+	if got := cfg.Providers["glm"].IsolationMode; got != prefs.ModeFull {
+		t.Errorf("per-provider 模式应落盘 full, got %q", got)
+	}
+}
+
+func TestEditCommand_DefaultClearsOverride(t *testing.T) {
+	setTempCfg(t)
+	config.Save(config.Default())
+	// 先设 per-provider full。
+	if _, _, err := execRoot(t, "\n", "add", "glm", "--base-url", "https://glm", "--mode", "full"); err != nil {
+		t.Fatal(err)
+	}
+	// edit --mode default 清除覆盖（继承全局）。
+	if _, _, err := execRoot(t, "\n", "edit", "glm", "--mode", "default"); err != nil {
+		t.Fatalf("edit --mode default: %v", err)
+	}
+	cfg, _ := config.Load()
+	if got := cfg.Providers["glm"].IsolationMode; got != "" {
+		t.Errorf("default 应清除覆盖（空=继承全局）, got %q", got)
 	}
 }

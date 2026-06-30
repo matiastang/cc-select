@@ -67,7 +67,7 @@ func TestUpdateProvider_Success(t *testing.T) {
 	defer srv.Close()
 	defer os.Unsetenv("CC_SELECT_CONFIG")
 
-	body := `{"name":"GLM-2","settings":{"env":{"ANTHROPIC_BASE_URL":"https://glm2"},"model":"glm-4.6"}}`
+	body := `{"name":"GLM-2","isolationMode":"full","settings":{"env":{"ANTHROPIC_BASE_URL":"https://glm2"},"model":"glm-4.6"}}`
 	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/providers/glm",
 		bytes.NewReader([]byte(body)))
 	req.Header.Set("Content-Type", "application/json")

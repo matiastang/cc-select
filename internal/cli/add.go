@@ -8,6 +8,7 @@ import (
 
 	"github.com/cc-select/cc-select/internal/app"
 	"github.com/cc-select/cc-select/internal/config"
+	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/spf13/cobra"
 )
@@ -18,6 +19,7 @@ type addFlags struct {
 	baseURL string
 	apiKey  string
 	model   string
+	mode    string
 }
 
 var addFl addFlags
@@ -42,7 +44,11 @@ var addCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := upsertProvider(a, id, fl); err != nil {
+		providerMode, err := normalizeProviderMode(fl.mode)
+		if err != nil {
+			return err
+		}
+		if err := upsertProvider(a, id, fl, providerMode); err != nil {
 			return err
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "✓ 已添加 provider %s\n", id)
@@ -61,6 +67,24 @@ func registerProviderFlags(c *cobra.Command, fl *addFlags) {
 	c.Flags().StringVar(&fl.baseURL, "base-url", "", "ANTHROPIC_BASE_URL")
 	c.Flags().StringVar(&fl.apiKey, "api-key", "", "ANTHROPIC_AUTH_TOKEN（明文传入；交互模式可省略，从终端安全读取）")
 	c.Flags().StringVar(&fl.model, "model", "", "ANTHROPIC_MODEL")
+	c.Flags().StringVar(&fl.mode, "mode", "", "该 provider 的隔离模式覆盖（settings-only|full|default=继承全局）")
+}
+
+// normalizeProviderMode 把 --mode 的输入归一化为可存储的 per-provider 模式值。
+//   - "" / "default" / "inherit" → ""（继承全局，即不设覆盖）；
+//   - "settings-only" / "full" → 原样；
+//   - 其他 → 报错。
+//
+// 注意：edit 命令的「未传 --mode = 保持旧值」语义由 edit 自行处理，不在此函数。
+func normalizeProviderMode(raw string) (prefs.Mode, error) {
+	switch raw {
+	case "", "default", "inherit":
+		return "", nil
+	case string(prefs.ModeSettingsOnly), string(prefs.ModeFull):
+		return prefs.Mode(raw), nil
+	default:
+		return "", fmt.Errorf("无效 --mode %q（可选：settings-only | full | default）", raw)
+	}
 }
 
 // readProviderInput 合并 flag 与交互式补全：flag 未提供的字段从 stdin 提示读取。
@@ -99,9 +123,10 @@ func readProviderInput(in io.Reader, out io.Writer, fl addFlags, id string) (add
 	return fl, nil
 }
 
-// upsertProvider 把输入组装成 provider：env（含明文 token）写入 profile 的 settings.json，
-// providers.json 只存 id/name 元信息。官方 id 不应走到这里（add 禁止、use 不建）。
-func upsertProvider(a *app.App, id string, fl addFlags) error {
+// upsertProvider 把输入组装成 provider：按解析后的隔离模式写入 profile（profile.Sync），
+// providers.json 存 id/name + per-provider 模式覆盖。官方 id 不应走到这里（add 禁止、use 不建）。
+// providerMode 是要持久化的 per-provider 覆盖（空=继承全局）。
+func upsertProvider(a *app.App, id string, fl addFlags, providerMode prefs.Mode) error {
 	env := map[string]string{}
 	if fl.baseURL != "" {
 		env["ANTHROPIC_BASE_URL"] = fl.baseURL
@@ -113,21 +138,23 @@ func upsertProvider(a *app.App, id string, fl addFlags) error {
 		// token 明文进 profile settings.json（claude 读 settings.json 的 env）。
 		env["ANTHROPIC_AUTH_TOKEN"] = fl.apiKey
 	}
-	if err := writeProvider(a, id, fl.name, env); err != nil {
+	if err := writeProvider(a, id, fl.name, env, providerMode); err != nil {
 		return err
 	}
 	return config.Save(a.Config)
 }
 
-// writeProvider 把 env 写入 profile settings.json，并把 id/name 元信息记入 providers.json。
+// writeProvider 按解析后的隔离模式构建 profile（profile.Sync），并把 id/name + 模式覆盖记入 providers.json。
 // env 含明文敏感值（token）。供 add/edit 共用。
-func writeProvider(a *app.App, id, name string, env map[string]string) error {
-	if _, err := profile.Ensure(id, env); err != nil {
+func writeProvider(a *app.App, id, name string, env map[string]string, providerMode prefs.Mode) error {
+	// 实际生效模式 = per-provider 覆盖（若有）> 全局 > 默认。
+	resolved := prefs.ResolveMode("", providerMode, a.Prefs.IsolationMode)
+	if _, _, err := profile.Sync(id, env, resolved); err != nil {
 		return fmt.Errorf("写入 profile: %w", err)
 	}
 	if name == "" {
 		name = id
 	}
-	a.Config.Providers[id] = config.Provider{ID: id, Name: name}
+	a.Config.Providers[id] = config.Provider{ID: id, Name: name, IsolationMode: providerMode}
 	return nil
 }

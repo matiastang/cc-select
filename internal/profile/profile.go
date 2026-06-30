@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 
 	"github.com/cc-select/cc-select/internal/config"
+	"github.com/cc-select/cc-select/internal/prefs"
 )
 
 // ConfigVar 是切换时唯一要 export 的环境变量名（claude 官方支持）。
@@ -63,17 +64,12 @@ type claudeSettings struct {
 // env 即该 provider 要给 claude 的 env（含明文 token）。目录 chmod 0700，文件 chmod 0600。
 // 官方 provider（id == config.OfficialProviderID）：返回 ("", nil) 且不创建任何文件。
 //
-// 这是 EnsureRaw 的便捷封装，仅写 env 字段。需要写入完整 settings.json（含
-// permissions/hooks/model 等任意字段）时，请用 EnsureRaw。
-func Ensure(id string, env map[string]string) (dir string, err error) {
-	if id == config.OfficialProviderID {
-		return "", nil // 官方不建 profile
-	}
-	data, err := json.MarshalIndent(claudeSettings{Env: env}, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("序列化 profile: %w", err)
-	}
-	return EnsureRaw(id, data)
+// 这是 Sync 的 ModeFull（全隔离）薄封装，保留给既有调用方/测试；新代码应直接用 Sync
+// 以支持 Mode B（仅 settings.json 隔离）。需要写入完整 settings.json（含 permissions/hooks
+// 等任意字段）时，用 EnsureRaw。
+func Ensure(id string, env map[string]string) (string, error) {
+	dir, _, err := Sync(id, env, prefs.ModeFull)
+	return dir, err
 }
 
 // EnsureRaw 为 provider 写入（覆盖）其 profile 目录的 settings.json，内容为 data 原文。
