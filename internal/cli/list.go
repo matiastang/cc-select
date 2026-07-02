@@ -51,5 +51,12 @@ func listProviders(w io.Writer, cfg *config.Config) {
 	}
 	if active == "" {
 		fmt.Fprintln(w, "\n（当前 shell 未激活任何 provider，运行 ccs use <id> 切换）")
+	} else {
+		// 尝试补全展示名（若该 provider 仍在配置中）。
+		name := active
+		if p, ok := cfg.Providers[active]; ok && p.Name != "" {
+			name = p.Name
+		}
+		fmt.Fprintf(w, "\n（当前已激活 %s，运行 ccs use <id> 可切换到其它 provider）\n", name)
 	}
 }

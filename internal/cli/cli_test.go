@@ -99,6 +99,10 @@ func TestListProviders(t *testing.T) {
 	if !strings.Contains(out, "GLM") {
 		t.Errorf("应展示 GLM 名称:\n%s", out)
 	}
+	// 已激活时也应给出切换提示。
+	if !strings.Contains(out, "可切换到其它 provider") {
+		t.Errorf("已激活时应给出切换提示:\n%s", out)
+	}
 }
 
 func TestListProviders_NoneActive(t *testing.T) {
