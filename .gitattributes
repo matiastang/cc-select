@@ -1,0 +1,10 @@
+# 行尾与构建产物规范。
+# 背景：Windows 上 core.autocrlf 会让 vite 生成的前端产物产生 CRLF/LF 差异，
+# 污染 git diff / status（表现为整文件重写但内容相同）。以下规则根治该噪声。
+
+# 前端入口：保留可读 diff，但强制 LF 行尾，杜绝 CRLF/LF 切换噪声。
+internal/web/assets/index.html text eol=lf
+
+# 前端构建产物（minified，无意义 diff）：按二进制处理，
+# git 不做行尾转换、也不把行尾变化计入内容 diff。
+internal/web/assets/assets/* binary
