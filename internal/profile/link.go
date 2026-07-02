@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 )
 
 // skipEntry 记录一个未能链接的条目及原因（供调用方告警，非致命）。
@@ -88,7 +90,7 @@ func shareEntries(profileDir, claudeHome string, deny []string) ([]skipEntry, er
 // 返回 (skipped, err)：skipped=true 表示因非空真实条目而未链接（非致命）。
 func ensureLink(profileDir, name, target string, isDir bool) (skipped bool, err error) {
 	link := filepath.Join(profileDir, name)
-	li, statErr := os.Lstat(link)
+	_, statErr := os.Lstat(link)
 	if os.IsNotExist(statErr) {
 		return false, makeLink(target, link, isDir)
 	}
@@ -96,11 +98,13 @@ func ensureLink(profileDir, name, target string, isDir bool) (skipped bool, err 
 		return false, statErr
 	}
 
-	// 已存在：链接 or 真实条目。
-	if li.Mode()&os.ModeSymlink != 0 {
-		cur, _ := os.Readlink(link)
-		if cur == target {
-			return false, nil // 正确，空操作
+	// 已存在：链接（symlink 或 Windows junction）or 真实条目。
+	// 用 Readlink 判定链接，而非 ModeSymlink：Windows junction（mklink /J，目录共享的主力）
+	// 不设 ModeSymlink，但 Readlink 能读到其目标（Go 1.22+）。仅凭 ModeSymlink 会把已正确
+	// junction 的目录误判成"非空真实条目"而告警跳过。
+	if cur, rerr := os.Readlink(link); rerr == nil {
+		if sameLink(cur, target) {
+			return false, nil // 正确指向，空操作
 		}
 		// 陈旧链接 → 重建。
 		if err := os.Remove(link); err != nil {
@@ -109,7 +113,7 @@ func ensureLink(profileDir, name, target string, isDir bool) (skipped bool, err 
 		return false, makeLink(target, link, isDir)
 	}
 
-	// 真实条目（非链接）→ 权威化。
+	// Readlink 失败 → 真实条目（非链接）→ 权威化。
 	if isEmptyReal(link) {
 		if err := os.RemoveAll(link); err != nil {
 			return false, fmt.Errorf("清空 %s: %w", name, err)
@@ -118,6 +122,20 @@ func ensureLink(profileDir, name, target string, isDir bool) (skipped bool, err 
 	}
 	// 非空真实条目：跳过，交由调用方告警。
 	return true, nil
+}
+
+// sameLink 比较两个链接目标是否相同，容忍路径格式差异（分隔符、大小写）。
+// filepath.Clean 统一分隔符；Windows 路径不区分大小写，额外用 EqualFold 兜底。
+func sameLink(a, b string) bool {
+	a = filepath.Clean(a)
+	b = filepath.Clean(b)
+	if a == b {
+		return true
+	}
+	if runtime.GOOS == "windows" {
+		return strings.EqualFold(a, b)
+	}
+	return false
 }
 
 // isEmptyReal 判断一个真实（非链接）路径是否为空（空文件或空目录）。
