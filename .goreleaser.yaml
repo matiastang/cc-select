@@ -58,8 +58,7 @@ changelog:
       - "^chore:"
 
 release:
-  github:
-    owner: cc-select
-    name: cc-select
+  # 不显式指定 github.owner/name：GoReleaser 从 git remote(origin = matiastang/cc-select) 自动推断。
+  # 显式写错 owner（如硬编码 "cc-select"）会导致发布到不存在的仓库而失败。
   draft: true
   prerelease: auto
