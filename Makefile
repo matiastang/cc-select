@@ -4,8 +4,9 @@
 #   1. CGO 用 `export` 注入环境，避免 `CGO_ENABLED=0 cmd` 这种 sh 专有写法；
 #   2. 建目录用 `-mkdir bin`：mkdir 在 sh/cmd 都存在，`-` 让 Make 忽略"已存在"错误（等价 mkdir -p）；
 #   3. 版本号用 `$(shell ...)` 解析期取值，命令替换不写进 recipe；
-#   4. install 用 `go install`，跨平台编译并装入 GOPATH/bin，无需 ln/copy；
-#   5. clean 的 rm/rmdir 无跨平台等价：用 MSYSTEM 区分 Windows 上的 git-bash(sh) 与 cmd。
+#   4. 二进制名用 `$(GOEXE)`：Windows 补 .exe，Unix 为空——让 cmd/PowerShell 也能直接调用 bin/ 产物；
+#   5. install 用 `go install`，跨平台编译并装入 GOPATH/bin，无需 ln/copy；
+#   6. clean 的 rm/rmdir 无跨平台等价：用 MSYSTEM 区分 Windows 上的 git-bash(sh) 与 cmd。
 #      （不能用 $(OS)：git bash 也运行在 Windows，$(OS) 同为 Windows_NT，会误选 cmd 分支。）
 .PHONY: all build frontend dev test integration e2e vet install clean
 
@@ -14,6 +15,8 @@ export CGO_ENABLED := 0
 
 # 版本号：无 tag 时回退 dev。$(shell) 解析期执行，git 是跨平台 exe。
 VERSION := $(shell git describe --tags --always --dirty || echo dev)
+# 二进制后缀：Windows=.exe，Unix=空。用于 -o 让产物名符合平台惯例。
+GOEXE := $(shell go env GOEXE)
 
 # Windows 上区分 shell：cmd.exe（MSYSTEM 为空）需用 cmd 命令；
 # git bash（MSYSTEM 非空）走 sh 命令。macOS/Linux 无 OS=Windows_NT，天然走 sh 分支。
@@ -30,15 +33,15 @@ all: frontend build
 frontend:
 	cd internal/frontend && npm install && npm run build
 
-# 构建 cc-select 二进制到 ./bin/（Windows 上 go 自动补 .exe）。
+# 构建 cc-select 二进制到 ./bin/（Windows 为 cc-select.exe，Unix 为 cc-select）。
 build:
 	-mkdir bin
-	go build -ldflags "-X github.com/cc-select/cc-select/internal/version.Version=$(VERSION)" -o bin/cc-select .
+	go build -ldflags "-X github.com/cc-select/cc-select/internal/version.Version=$(VERSION)" -o bin/cc-select$(GOEXE) .
 
 # 快速开发构建：跳过前端，用已有/占位 assets。
 dev:
 	-mkdir bin
-	go build -o bin/cc-select .
+	go build -o bin/cc-select$(GOEXE) .
 
 # 运行 Go 单元测试。
 test:
