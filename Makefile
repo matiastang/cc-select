@@ -1,4 +1,27 @@
-.PHONY: all build frontend test vet clean install e2e
+# 跨平台构建脚本：macOS / Linux / Windows（git bash 与 cmd 均支持）。
+#
+# 跨平台要点（让同一份 Makefile 不依赖某平台独有 shell）：
+#   1. CGO 用 `export` 注入环境，避免 `CGO_ENABLED=0 cmd` 这种 sh 专有写法；
+#   2. 建目录用 `-mkdir bin`：mkdir 在 sh/cmd 都存在，`-` 让 Make 忽略"已存在"错误（等价 mkdir -p）；
+#   3. 版本号用 `$(shell ...)` 解析期取值，命令替换不写进 recipe；
+#   4. install 用 `go install`，跨平台编译并装入 GOPATH/bin，无需 ln/copy；
+#   5. clean 的 rm/rmdir 无跨平台等价：用 MSYSTEM 区分 Windows 上的 git-bash(sh) 与 cmd。
+#      （不能用 $(OS)：git bash 也运行在 Windows，$(OS) 同为 Windows_NT，会误选 cmd 分支。）
+.PHONY: all build frontend dev test integration e2e vet install clean
+
+# 关闭 CGO（go-keyring 纯 Go 无需 CGO）：export 让所有 recipe 子进程继承，跨平台。
+export CGO_ENABLED := 0
+
+# 版本号：无 tag 时回退 dev。$(shell) 解析期执行，git 是跨平台 exe。
+VERSION := $(shell git describe --tags --always --dirty || echo dev)
+
+# Windows 上区分 shell：cmd.exe（MSYSTEM 为空）需用 cmd 命令；
+# git bash（MSYSTEM 非空）走 sh 命令。macOS/Linux 无 OS=Windows_NT，天然走 sh 分支。
+ifeq ($(OS),Windows_NT)
+  ifndef MSYSTEM
+    CMD_SHELL := 1
+  endif
+endif
 
 # 默认目标：构建含最新前端的二进制。
 all: frontend build
@@ -7,15 +30,17 @@ all: frontend build
 frontend:
 	cd internal/frontend && npm install && npm run build
 
-# 构建 cc-select 二进制到 ./bin/cc-select。
+# 构建 cc-select 二进制到 ./bin/（Windows 上 go 自动补 .exe）。
 build:
-	mkdir -p bin
-	CGO_ENABLED=0 go build -ldflags "-X github.com/cc-select/cc-select/internal/version.Version=$$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o bin/cc-select .
+	-mkdir bin
+	go build -ldflags "-X github.com/cc-select/cc-select/internal/version.Version=$(VERSION)" -o bin/cc-select .
 
 # 快速开发构建：跳过前端，用已有/占位 assets。
 dev:
-	CGO_ENABLED=0 go build -o bin/cc-select .
+	-mkdir bin
+	go build -o bin/cc-select .
 
+# 运行 Go 单元测试。
 test:
 	go test ./internal/...
 
@@ -23,17 +48,24 @@ test:
 integration:
 	go test -tags integration ./...
 
-# 端到端测试：Playwright 驱动真实浏览器访问真二进制 serve 的配置页。
-# globalSetup 会自动构建前端 + 二进制，故无需先 make all。
-# 首次运行需先 `cd internal/frontend && npm ci && npx playwright install chromium`。
+# 端到端测试（Playwright）。首次需：cd internal/frontend && npx playwright install chromium
 e2e:
 	cd internal/frontend && npm run test:e2e
 
+# 静态检查。
 vet:
 	go vet ./...
 
-install: all
-	ln -sf $$(pwd)/bin/cc-select $$(go env GOPATH)/bin/cc-select
+# 安装到 GOPATH/bin：go install 跨平台编译并装入，无需 ln/copy。
+install:
+	go install -ldflags "-X github.com/cc-select/cc-select/internal/version.Version=$(VERSION)" .
 
+# 清理构建产物。
 clean:
+ifdef CMD_SHELL
+	-rmdir /s /q bin
+	-rmdir /s /q internal\frontend\node_modules
+	-rmdir /s /q internal\frontend\dist
+else
 	rm -rf bin internal/frontend/node_modules internal/frontend/dist
+endif
