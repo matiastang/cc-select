@@ -3,6 +3,7 @@ package profile
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -16,6 +17,15 @@ func setTempRoot(t *testing.T) string {
 	cfgPath := filepath.Join(dir, "providers.json")
 	t.Setenv("CC_SELECT_CONFIG", cfgPath)
 	return dir
+}
+
+// wantFilePerm 返回当前平台下秘密文件的期望权限。
+// Unix/macOS 为 0600；Windows 上 os.Chmod 只控制 read-only 位，Perm() 返回 0666。
+func wantFilePerm() os.FileMode {
+	if runtime.GOOS == "windows" {
+		return 0o666
+	}
+	return 0o600
 }
 
 func TestEnsure_WritesSettingsJSON(t *testing.T) {
@@ -38,10 +48,10 @@ func TestEnsure_WritesSettingsJSON(t *testing.T) {
 	if !strings.Contains(body, "https://api.minimaxi.com/anthropic") || !strings.Contains(body, "sk-secret") {
 		t.Errorf("settings.json 应含 env 值：%s", body)
 	}
-	// 权限 0600。
+	// 权限：Unix/macOS 0600，Windows 0666（Chmod 仅控制 read-only）。
 	info, _ := os.Stat(p)
-	if perm := info.Mode().Perm(); perm != 0o600 {
-		t.Errorf("文件权限 want 0600 got %#o", perm)
+	if perm := info.Mode().Perm(); perm != wantFilePerm() {
+		t.Errorf("文件权限 want %#o got %#o", wantFilePerm(), perm)
 	}
 }
 

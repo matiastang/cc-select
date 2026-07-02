@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"testing"
 )
@@ -21,6 +22,15 @@ func setTempConfig(t *testing.T) (path string, cleanup func()) {
 			os.Unsetenv("CC_SELECT_CONFIG")
 		}
 	}
+}
+
+// wantFilePerm 返回当前平台下秘密文件的期望权限。
+// Unix/macOS 为 0600；Windows 上 os.Chmod 只控制 read-only 位，Perm() 返回 0666。
+func wantFilePerm() os.FileMode {
+	if runtime.GOOS == "windows" {
+		return 0o666
+	}
+	return 0o600
 }
 
 func TestLoad_MissingReturnsDefault(t *testing.T) {
@@ -55,8 +65,8 @@ func TestSaveLoad_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if perm := info.Mode().Perm(); perm != 0o600 {
-		t.Errorf("文件权限 want 0600 got %#o", perm)
+	if perm := info.Mode().Perm(); perm != wantFilePerm() {
+		t.Errorf("文件权限 want %#o got %#o", wantFilePerm(), perm)
 	}
 
 	out, err := Load()

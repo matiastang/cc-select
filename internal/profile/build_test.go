@@ -3,6 +3,7 @@ package profile
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -193,14 +194,36 @@ func TestSync_SettingsOnly_SharesClaudeJSONSibling(t *testing.T) {
 	setTempRoot(t)
 	t.Setenv("CC_SELECT_CLAUDE_HOME", claudeHome)
 
-	dir, _, err := Sync("glm", map[string]string{"ANTHROPIC_MODEL": "glm"}, prefs.ModeSettingsOnly)
+	dir, warns, err := Sync("glm", map[string]string{"ANTHROPIC_MODEL": "glm"}, prefs.ModeSettingsOnly)
 	if err != nil {
 		t.Fatalf("Sync B: %v", err)
 	}
 	// profile/.claude.json 应软链到 home 根 sibling，内容可达（共享生效）。
+	// Windows 文件符号链接需开发者模式或管理员权限；无权限时生产代码会降级并告警，
+	// 测试验证该降级行为而非强制要求链接成功。
 	got, err := os.ReadFile(filepath.Join(dir, ".claude.json"))
 	if err != nil {
-		t.Fatalf("读 profile/.claude.json: %v（应已软链共享）", err)
+		if runtime.GOOS != "windows" {
+			t.Fatalf("读 profile/.claude.json: %v（应已软链共享）", err)
+		}
+		found := false
+		for _, w := range warns {
+			if strings.Contains(w, ".claude.json") {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("Windows 无符号链接权限时应告警 .claude.json，warnings=%v", warns)
+		}
+		src, serr := os.ReadFile(filepath.Join(root, ".claude.json"))
+		if serr != nil {
+			t.Fatalf("读源 .claude.json: %v", serr)
+		}
+		if !strings.Contains(string(src), "acct-X") {
+			t.Errorf("源 .claude.json 内容丢失: %s", src)
+		}
+		return
 	}
 	if !strings.Contains(string(got), "acct-X") {
 		t.Errorf(".claude.json 应共享 home 根 sibling: %s", got)
