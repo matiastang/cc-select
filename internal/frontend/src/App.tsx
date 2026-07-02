@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ShellIntegrationBanner } from "./ShellIntegrationBanner";
 
 type Provider = {
   id: string;
@@ -113,6 +114,8 @@ export default function App() {
     <div className="container">
       <h1>cc-select 配置</h1>
       <p className="muted">管理各 AI 服务商配置。切换请在终端用 <code>ccs use &lt;id&gt;</code>。</p>
+
+      <ShellIntegrationBanner />
 
       <div className="notice">
         配置以完整 <code>settings.json</code> 形式编辑（不止 <code>env</code>，<code>permissions</code>、<code>model</code> 等均可）。

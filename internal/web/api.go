@@ -10,6 +10,7 @@ import (
 	"github.com/cc-select/cc-select/internal/config"
 	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/profile"
+	"github.com/cc-select/cc-select/internal/rcinteg"
 )
 
 // providerDTO 是列表视图（GET /providers）里单个 provider 的精简表示。
@@ -44,6 +45,8 @@ func (h *apiHandler) routes() *http.ServeMux {
 	mux.HandleFunc("/api/v1/providers", h.handleProvidersCollection)
 	mux.HandleFunc("/api/v1/providers/", h.handleProviderItem)
 	mux.HandleFunc("/api/v1/mode", h.handleMode)
+	mux.HandleFunc("/api/v1/shell-integration", h.handleShellIntegration)
+	mux.HandleFunc("/api/v1/shell-integration/install", h.handleShellIntegrationInstall)
 	return mux
 }
 
@@ -123,6 +126,48 @@ func (h *apiHandler) handleMode(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 	}
+}
+
+// handleShellIntegration 处理 GET：报告当前 shell 集成安装状态（供前端 banner 判定）。
+func (h *apiHandler) handleShellIntegration(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	st := rcinteg.DetectStatus()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"supported":      st.Supported,
+		"shell":          st.Shell,
+		"installed":      st.Installed,
+		"legacy":         st.Legacy,
+		"rcPath":         st.RCPath,
+		"canAutoInstall": st.CanAutoInstall,
+	})
+}
+
+// handleShellIntegrationInstall 处理 POST：一键安装 shell 集成。
+// 无法自动写（PowerShell 未装等）时降级为 manual，返回 snippet 给前端展示。
+func (h *apiHandler) handleShellIntegrationInstall(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var in struct {
+		Shell string `json:"shell"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&in) // shell 可选，空=自动检测
+	res, err := rcinteg.Install(in.Shell)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"action":  res.Action,
+		"shell":   res.Shell,
+		"rcPath":  res.RCPath,
+		"snippet": res.Snippet,
+		"message": res.Message,
+	})
 }
 
 func (h *apiHandler) listProviders(w http.ResponseWriter, _ *http.Request) {

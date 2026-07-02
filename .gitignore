@@ -28,3 +28,6 @@ internal/frontend/.playwright/
 .idea/
 .vscode/
 *.swp
+
+# 前端测试覆盖率（vitest）
+internal/frontend/coverage/

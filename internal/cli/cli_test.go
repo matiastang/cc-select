@@ -297,6 +297,10 @@ func TestRunInit_Zsh(t *testing.T) {
 	if !strings.Contains(body, "eval") {
 		t.Errorf("init 应含 eval:\n%s", body)
 	}
+	// marker 化后，输出应含受管块标记（CLI 与 Web 共用 RenderInit）。
+	if !strings.Contains(body, "cc-select shell integration") {
+		t.Errorf("init 输出应含 marker 块:\n%s", body)
+	}
 }
 
 // ---- 命令级（经 rootCmd 执行）----

@@ -1,5 +1,4 @@
-# cc-select shell 集成（zsh/bash）
-# 由 `cc-select init` 生成。source 后即可用 ccs 命令。
+# >>> cc-select shell integration (managed by cc-select; do not edit between markers) >>>
 # ccs 是 cc-select 的短别名：use 走 eval 注入当前 shell，其余子命令直接转发。
 ccs() {
   if [ "$#" -gt 0 ] && [ "$1" = "use" ]; then
@@ -8,3 +7,4 @@ ccs() {
     "{{.BinaryPath}}" "$@"
   fi
 }
+# <<< cc-select shell integration <<<

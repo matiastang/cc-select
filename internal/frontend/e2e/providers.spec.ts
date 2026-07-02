@@ -18,6 +18,8 @@ test("添加 provider：只有 JSON 表单，完整 settings（含非 env 字段
   await page.locator("textarea").fill(
     JSON.stringify({ env: { ANTHROPIC_BASE_URL: "https://e2e-add" }, model: "opusplan" }, null, 2),
   );
+  // 选 full 模式：默认 settings-only 只持久化 env，会让非 env 字段（model）丢失。
+  await page.locator("select").last().selectOption("full");
   await page.getByRole("button", { name: "保存" }).click();
 
   // 列表出现新 provider。
@@ -48,11 +50,13 @@ test("编辑：textarea 反映磁盘真实内容（含手动改的文件）", as
   await expect(page.locator("textarea")).toHaveValue(/sonnet-MANUAL/);
 });
 
-test("官方 provider：编辑/删除按钮禁用，显示专属文案", async ({ page, server }) => {
+test("官方 provider：不渲染编辑/删除按钮，显示专属文案", async ({ page, server }) => {
   await page.goto(server.baseURL);
   const card = page.locator(".card", { hasText: "claude-official" });
-  await expect(card.getByRole("button", { name: "编辑" })).toBeDisabled();
-  await expect(card.getByRole("button", { name: "删除" })).toBeDisabled();
+  await expect(card).toBeVisible();
+  // 官方 provider 无可编辑 settings，前端直接不渲染编辑/删除按钮（后端 PUT/DELETE 同样拒绝）。
+  await expect(card.getByRole("button", { name: "编辑" })).toHaveCount(0);
+  await expect(card.getByRole("button", { name: "删除" })).toHaveCount(0);
   await expect(card).toContainText("使用系统默认配置");
 });
 

@@ -19,6 +19,7 @@
 | AC8 key 安全 | R7 | 阶段 4 |
 | AC9 多 shell | R2（扩展） | 阶段 5 |
 | AC10 隔离粒度 | [isolation-modes.md](./isolation-modes.md) / [04 §7](./engineering-decisions.md#7-隔离粒度全隔离-vs-仅-settingsjson-隔离双模式) | 后 MVP |
+| AC11 shell 集成一键安装 | [distribution §2](./distribution.md#2-web-配置页一键安装-shell-集成已实现) | 阶段 2 |
 
 ---
 
@@ -159,6 +160,22 @@
 - `~/.claude.json`（sibling 大状态文件）是否被 `CLAUDE_CONFIG_DIR` 重定位——决定是否需纳入共享。
 - 设 `CLAUDE_CONFIG_DIR` 后 claude 是否完全不读全局 `~/.claude/settings.json`——印证合并必要性。
 - 详见 [isolation-modes.md §6](./isolation-modes.md#6-待验证项动手前用真机确认)。
+
+---
+
+## AC11. Web 一键安装 shell 集成
+
+| 步骤 | 预期 |
+|---|---|
+| 1. 全新环境（rc 无 `ccs`）启动 `cc-select gui` | 顶部 banner 显示「检测到尚未安装 shell 集成」+ 一键安装按钮 |
+| 2. 点击「一键安装」（macOS/Linux） | 写入 `~/.zshrc` / `~/.bashrc`，banner 变成功提示，含「新开终端或 source」提醒 |
+| 3. 再次打开配置页 | banner 不再出现（marker 检测到已装） |
+| 4. 重复点击安装 | 幂等：rc 中只有一个 marker 块（不重复写入） |
+| 5. 已装旧版后升级 cc-select 再安装 | 整块替换为新 snippet（updated），块外用户配置不变 |
+| 6. Windows PowerShell 点击安装 | 自动写入 `$PROFILE`；不可写则降级为「复制 snippet 手动粘贴」 |
+| 7. fish 用户打开配置页 | 显示「fish 暂不支持」 |
+
+**判定**：macOS/Linux 完全自动、幂等、不破坏用户 rc；Windows best-effort 降级；不支持 shell 有明确提示。
 
 ---
 

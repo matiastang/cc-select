@@ -2,9 +2,8 @@ package cli
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
+	"github.com/cc-select/cc-select/internal/rcinteg"
 	"github.com/cc-select/cc-select/internal/shell"
 	"github.com/spf13/cobra"
 )
@@ -36,28 +35,14 @@ func init() {
 }
 
 func runInit(cmd *cobra.Command) error {
-	// 取 cc-select 自身绝对路径，写入函数体（避免依赖 PATH/别名）。
-	bin, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("定位 cc-select 可执行文件: %w", err)
-	}
-	// 解析符号链接拿到真实路径；失败时保留原路径（EvalSymlinks 出错会返回空串，
-	// 故必须用临时变量承接，不能直接覆盖 bin）。
-	if resolved, err := filepath.EvalSymlinks(bin); err == nil {
-		bin = resolved
-	}
-
-	s := shell.Shell(initShellFlag)
-	if s == shell.Unknown {
-		s = shell.Detect()
-	}
-	emitter, err := shell.For(s)
+	// 渲染复用 rcinteg.RenderInit（CLI 与 Web 安装共用，杜绝漂移）。
+	snippet, s, err := rcinteg.RenderInit(initShellFlag)
 	if err != nil {
 		return err
 	}
 
 	// 函数定义走 stdout（用户重定向到 rc 文件）；使用提示走 stderr。
-	fmt.Fprint(cmd.OutOrStdout(), emitter.InitSnippet(bin))
+	fmt.Fprint(cmd.OutOrStdout(), snippet)
 	fmt.Fprintf(cmd.ErrOrStderr(),
 		"\n已生成 %s 集成代码。请将其追加到启动脚本并 source：\n", s)
 	switch s {

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -392,5 +393,86 @@ func TestModeEndpoint_RejectsInvalid(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("非法值应 400, got %d", resp.StatusCode)
+	}
+}
+
+// ---- shell 集成端点 ----
+
+// setTestShellEnv 让 DetectStatus/Install 在临时 home 上确定地工作（zsh）。
+func setTestShellEnv(t *testing.T) string {
+	t.Helper()
+	t.Setenv("CC_SELECT_SHELL", "zsh")
+	home := t.TempDir()
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", home)
+	} else {
+		t.Setenv("HOME", home)
+	}
+	return home
+}
+
+func TestShellIntegration_GetStatus(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	setTestShellEnv(t)
+
+	resp, err := http.Get(srv.URL + "/api/v1/shell-integration")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out map[string]any
+	json.NewDecoder(resp.Body).Decode(&out)
+	if out["supported"] != true {
+		t.Errorf("zsh 应 supported, got %v", out["supported"])
+	}
+	if out["installed"] == true {
+		t.Errorf("临时 home 应未安装, got installed=%v", out["installed"])
+	}
+	if out["canAutoInstall"] != true {
+		t.Errorf("zsh 应可自动安装, got %v", out["canAutoInstall"])
+	}
+}
+
+func TestShellIntegration_InstallAppended(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	home := setTestShellEnv(t)
+
+	resp, err := http.Post(srv.URL+"/api/v1/shell-integration/install",
+		"application/json", strings.NewReader(`{"shell":"zsh"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out map[string]any
+	json.NewDecoder(resp.Body).Decode(&out)
+	if out["action"] != "appended" {
+		t.Errorf("首次应 appended, got %v", out["action"])
+	}
+	data, err := os.ReadFile(filepath.Join(home, ".zshrc"))
+	if err != nil {
+		t.Fatalf("zshrc 应存在: %v", err)
+	}
+	if !strings.Contains(string(data), "cc-select shell integration") {
+		t.Errorf("zshrc 应含 marker: %s", data)
+	}
+}
+
+func TestShellIntegration_MethodNotAllowed(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/shell-integration", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("DELETE 应 405, got %d", resp.StatusCode)
 	}
 }
