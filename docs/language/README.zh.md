@@ -6,6 +6,26 @@ Shell 级 AI 服务商隔离 —— 每个终端窗口自选其 provider。
 
 `cc-select` 让同一台机器上的不同终端窗口在使用 Claude Code 时选择不同的 AI 模型服务商。它是 [cc-switch](https://github.com/farion1231/cc-switch) 的 shell 级对应方案：cc-switch 通过改写 `~/.claude/settings.json` 做全局切换，而 `cc-select` 只影响当前终端及其子进程。
 
+## 安装
+
+### macOS / Linux（Homebrew）
+
+```bash
+brew tap matiastang/cc-select
+brew install cc-select
+```
+
+### Windows（Scoop）
+
+```powershell
+scoop bucket add cc-select https://github.com/matiastang/scoop-cc-select
+scoop install cc-select
+```
+
+### 手动安装
+
+从 [GitHub Releases](https://github.com/matiastang/cc-select/releases) 下载对应平台的压缩包，将 `cc-select`（Windows 为 `cc-select.exe`）解压到 `PATH` 中的某个目录，然后继续下面的 shell 集成步骤。
+
 ## 快速开始
 
 ```bash

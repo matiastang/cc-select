@@ -6,6 +6,26 @@ Shell-level AI provider isolation — each terminal window picks its own.
 
 `cc-select` lets different terminal windows on the same machine use different AI model providers with Claude Code. It is the shell-scoped counterpart to [cc-switch](https://github.com/farion1231/cc-switch), which changes providers globally by rewriting `~/.claude/settings.json`.
 
+## Install
+
+### macOS / Linux (Homebrew)
+
+```bash
+brew tap matiastang/cc-select
+brew install cc-select
+```
+
+### Windows (Scoop)
+
+```powershell
+scoop bucket add cc-select https://github.com/matiastang/scoop-cc-select
+scoop install cc-select
+```
+
+### Manual
+
+Download the archive for your platform from [GitHub Releases](https://github.com/matiastang/cc-select/releases), extract `cc-select` (or `cc-select.exe` on Windows) to a directory on your `PATH`, then follow the shell integration step below.
+
 ## Quick start
 
 ```bash

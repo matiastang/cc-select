@@ -6,6 +6,26 @@
 
 `cc-select` を使うと、同じマシン上の異なるターミナルウィンドウで、Claude Code と共に異なる AI モデルプロバイダーを使用できます。これは [cc-switch](https://github.com/farion1231/cc-switch) のシェルスコープ版です。cc-switch は `~/.claude/settings.json` を書き換えてグローバルにプロバイダーを切り替えますが、`cc-select` は現在のターミナルとその子プロセスにのみ影響します。
 
+## インストール
+
+### macOS / Linux（Homebrew）
+
+```bash
+brew tap matiastang/cc-select
+brew install cc-select
+```
+
+### Windows（Scoop）
+
+```powershell
+scoop bucket add cc-select https://github.com/matiastang/scoop-cc-select
+scoop install cc-select
+```
+
+### 手動インストール
+
+[GitHub Releases](https://github.com/matiastang/cc-select/releases) からプラットフォームに応じたアーカイブをダウンロードし、`cc-select`（Windows の場合は `cc-select.exe`）を `PATH` の通ったディレクトリに展開してから、以下の shell 統合手順を実行してください。
+
 ## クイックスタート
 
 ```bash

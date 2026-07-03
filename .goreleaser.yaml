@@ -62,3 +62,43 @@ release:
   # 显式写错 owner（如硬编码 "cc-select"）会导致发布到不存在的仓库而失败。
   draft: true
   prerelease: auto
+
+# Homebrew Tap：macOS / Linux 一键安装。
+# 目标仓库：https://github.com/matiastang/homebrew-cc-select
+brews:
+  - name: cc-select
+    repository:
+      owner: matiastang
+      name: homebrew-cc-select
+      branch: main
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    url_template: "https://github.com/matiastang/cc-select/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
+    homepage: "https://github.com/matiastang/cc-select"
+    description: "Shell-level AI provider isolation for Claude Code"
+    license: "Apache-2.0"
+    install: |
+      bin.install "cc-select"
+    test: |
+      system "#{bin}/cc-select", "--version"
+    caveats: |
+      To enable shell integration, run:
+        cc-select init >> ~/.zshrc
+      Then reload your shell or run `source ~/.zshrc`.
+      On bash use ~/.bashrc instead.
+
+# Scoop Bucket：Windows 一键安装。
+# 目标仓库：https://github.com/matiastang/scoop-cc-select
+scoops:
+  - name: cc-select
+    repository:
+      owner: matiastang
+      name: scoop-cc-select
+      branch: main
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    url_template: "https://github.com/matiastang/cc-select/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    commit_msg_template: "Scoop manifest update for {{ .ProjectName }} version {{ .Tag }}"
+    homepage: "https://github.com/matiastang/cc-select"
+    description: "Shell-level AI provider isolation for Claude Code"
+    license: "Apache-2.0"

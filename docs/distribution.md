@@ -17,9 +17,9 @@
 
 | 平台 | 推荐方式 |
 |---|---|
-| macOS / Linux | 下载 Release 二进制并放入 `PATH`；或后续 Homebrew formula |
-| Windows | 下载 Release `.zip` 并放入 `PATH`；或后续 `winget` / `scoop` |
-| 通用 | 从源码构建：`make all` → `./bin/cc-select` |
+| macOS / Linux | `brew tap matiastang/cc-select && brew install cc-select` |
+| Windows | `scoop bucket add cc-select https://github.com/matiastang/scoop-cc-select && scoop install cc-select` |
+| 通用 | 下载 Release 二进制放入 PATH；或从源码构建 `make all` → `./bin/cc-select` |
 
 Release 构建由 `.goreleaser.yaml` + GitHub Actions（见 `.github/workflows/release.yml`）自动完成，产物覆盖 darwin/linux/windows 的 amd64/arm64。
 
@@ -37,6 +37,15 @@ cc-select init >> ~/.zshrc && source ~/.zshrc
 ccs use glm          # 切换
 cc-select gui        # 开浏览器配置页
 ```
+
+### ④ 包管理器发布机制
+
+- **Homebrew Tap**：`matiastang/homebrew-cc-select`，Formula 路径 `Formula/cc-select.rb`。
+- **Scoop Bucket**：`matiastang/scoop-cc-select`，manifest 路径 `cc-select.json`。
+
+两个仓库的 manifest 均由 `.goreleaser.yaml` 中的 `brews` / `scoops` 发布器在 Release 工作流中**自动更新**：GoReleaser 在发布 GitHub Release 后，自动计算各平台 archive 的 SHA-256，提交并推送更新后的 Formula / manifest 到对应仓库。日常无需手动维护。
+
+> 注意：即使通过包管理器安装，首次仍需执行 `cc-select init`（或打开 `cc-select gui` 一键安装）注入 `ccs` shell 函数。
 
 ---
 
@@ -101,3 +110,9 @@ winget install cc-select             # Windows
 
 - **macOS/Linux**：`export`/`unset` + `.zshrc`/`.bashrc`，机制一致。
 - **Windows**：PowerShell 集成已实现，含 `$PROFILE` 委托探测、UTF-8 BOM 写入与加载验证，由 CI 的「Windows PowerShell integration」步骤覆盖。CMD 不支持（见 [windows-support §4](./windows-support.md#4-为何不支持-cmd)）。
+
+---
+
+## 5. 维护者参考
+
+包管理器 manifest 的自动发布、Token 配置、发版验证等维护者流程，详见 [docs/release.md](./release.md)。

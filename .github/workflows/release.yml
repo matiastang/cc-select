@@ -36,3 +36,5 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 用于向 Homebrew Tap / Scoop Bucket 仓库提交 manifest，默认 GITHUB_TOKEN 无法跨仓。
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}

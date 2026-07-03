@@ -32,8 +32,9 @@
 | 6 | [engineering-decisions.md](./engineering-decisions.md) | 横切的工程细节与正确性保证。 |
 | 7 | [tech-stack.md](./tech-stack.md) | 选型决策与待定项汇总（语言、GUI 框架、存储格式）。 |
 | 8 | [distribution.md](./distribution.md) | 怎么装到用户机器上。 |
-| 9 | [roadmap.md](./roadmap.md) | 按什么顺序交付。 |
-| 10 | [acceptance-tests.md](./acceptance-tests.md) | 怎么验证"做对了"。 |
+| 9 | [release.md](./release.md) | 维护者如何发版、配置 Token、验证包管理器 manifest。 |
+| 10 | [roadmap.md](./roadmap.md) | 按什么顺序交付。 |
+| 11 | [acceptance-tests.md](./acceptance-tests.md) | 怎么验证"做对了"。 |
 
 ---
 
