@@ -14,7 +14,7 @@
 | **2. key 安全** | key 迁入系统 Keychain（[R7](./requirements.md#隐含-派生需求)）。 | R7 | [engineering §5](./engineering-decisions.md#5-api-key-安全满足-r7) | [验收 - 安全](./acceptance-tests.md) | 🟡 部分完成：keychain 抽象与占位机制已实现，但 CLI/Web 写入路径仍为明文 |
 | **3. PS1 集成** | `init` 自动注入提示符 hook，显示当前 provider。 | R6 | [engineering §4](./engineering-decisions.md#4-提示符可视化满足-r6) | [验收 - 可视化](./acceptance-tests.md) | ⏳ 未开始 |
 | **4. 跨 shell** | 在 zsh 基础上扩展 bash / fish 的 wrapper（init 按 shell 分发）。 | R2（扩展） | [cli-design](./cli-design.md) | [验收 - 多 shell](./acceptance-tests.md) | 🟡 部分完成：zsh/bash 共用 emitter、PowerShell emitter 已实现；fish 未支持 |
-| **5. 跨平台完善** | macOS/Linux/Windows 全覆盖；尤其 Windows 的环境变量隔离机制单独评估。 | Q6 | [architecture §2.1](./architecture.md#21-跨平台约束满足-q6macoslinuxwindows) | [验收 - 多 shell](./acceptance-tests.md) | 🟡 部分完成：PowerShell emitter 已实现，但缺少 CI 集成测试与真机验证 |
+| **5. 跨平台完善** | macOS/Linux/Windows 全覆盖；尤其 Windows 的环境变量隔离机制单独评估。 | Q6 | [architecture §2.1](./architecture.md#21-跨平台约束满足-q6macoslinuxwindows) | [验收 - 多 shell](./acceptance-tests.md) | 🟡 部分完成：PowerShell emitter、`$PROFILE` 写入（含 BOM/加载）与 CI 集成测试已实现；fish 未支持 |
 
 ---
 

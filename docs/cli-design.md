@@ -1,6 +1,6 @@
 # CLI 设计
 
-> 本文聚焦命令行这一方向：`cc-select` 与 `ccs` 别名的关系、8 个子命令各自功能、`use` 为何需要 shell 函数。
+> 本文聚焦命令行这一方向：`cc-select` 与 `ccs` 别名的关系、9 个子命令各自功能、`use` 为何需要 shell 函数。
 > 上游：需求 [R2](./requirements.md#r2-命令行切换ccs)/[R3](./requirements.md#r3-cc-select-与-ccs-两个命令都要能用ccs-是-cc-select-的别名)，架构见 [架构设计](./architecture.md)。
 
 ---
@@ -33,10 +33,15 @@
 | `add <name>` | 交互式添加一个 provider | ❌ | `cc-select add glm` |
 | `edit <name>` | 编辑指定 provider 的配置 | ❌ | `cc-select edit glm` |
 | `remove <name>` | 删除指定 provider | ❌ | `cc-select remove glm` |
-| `init` | 输出要追加到 `.zshrc`/`.bashrc` 的别名 + shell 函数代码 | ❌ | `cc-select init >> ~/.zshrc` |
-| `gui` | 启动 GUI 配置界面（桌面 App 或本地 Web 服务，见 [架构 §4](./architecture.md#4-gui-配置界面)） | ❌ | `cc-select gui` |
+| `mode [settings-only\|full]` | 查看或设置**全局**隔离模式 | ❌ | `cc-select mode settings-only` |
+| `init` | 输出要追加到 `.zshrc`/`.bashrc`/`$PROFILE` 的 `ccs()` 函数代码 | ❌ | `cc-select init >> ~/.zshrc` |
+| `gui` | 启动 GUI 配置界面（本地 Web 服务，见 [架构 §4](./architecture.md#4-gui-配置界面)） | ❌ | `cc-select gui` |
 
-> 注：不带参数的 `ccs`（即 `cc-select`）可设计为交互式 provider 选择菜单（方向键选、回车切换），作为 `use` 的便捷入口。
+> 注：不带参数的 `ccs`（即 `cc-select`）可设计为交互式 provider 选择菜单（方向键选、回车切换），作为 `use` 的便捷入口（MVP 之后）。
+
+`add` / `edit` / `use` 均支持 `--mode settings-only|full|default` 以设置/覆盖隔离模式：
+- `cc-select edit glm --mode full`：把 `glm` 的 per-provider 模式设为 Mode A（落盘到 `providers.json`）。
+- `cc-select use glm --mode full`：**一次性**以 Mode A 切换，不落盘。
 
 ---
 
@@ -50,12 +55,10 @@ export CLAUDE_CONFIG_DIR='/Users/xxx/.cc-select/profiles/glm'
 export CC_SELECT_ACTIVE='glm'
 ```
 
-为免去手敲 `eval`，并让 `ccs use` 与 `cc-select use` 体验等价，`init` 注入的代码同时定义**别名**与**切换函数**：
+为免去手敲 `eval`，并让 `ccs use` 与 `cc-select use` 体验等价，`init` 注入的代码定义一个 `ccs()` shell 函数（由 `internal/rcinteg` 渲染为带 marker 块的启动脚本片段，见 [分发 §2](./distribution.md#2-web-配置页一键安装-shell-集成已实现)）。其逻辑等价于：
 
 ```bash
-# ~/.zshrc（由 `cc-select init` 生成）
-alias cc-select-use='cc-select use'   # 直跑二进制，会打印 export 语句（不自动生效）
-
+# ~/.zshrc（由 `cc-select init` 生成，实际输出为带 marker 的完整代码块）
 ccs() {
   if [ "$1" = "use" ]; then
     eval "$(command cc-select use "${@:2}")"   # 切换：eval 注入环境

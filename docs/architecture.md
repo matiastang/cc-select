@@ -74,11 +74,11 @@ shell 集成机制（`eval` 注入）不变，只是注入的变量从"一堆 AN
 | 层 | 跨平台要点 |
 |---|---|
 | 环境变量隔离机制 | macOS/Linux 用 `export`/`unset`；Windows PowerShell 用 `$env:VAR`（process scope，**与 `export` 同义**）。详见 [Windows 评估](./windows-support.md)。 |
-| shell 集成 | MVP 先做 **zsh**（[Q5](./requirements.md#待用户确认的开放问题含已定决策)），`init` 输出按 shell 类型分发（zsh/bash/fish/PowerShell）。 |
+| shell 集成 | 已实现 zsh / bash（共用 emitter）、PowerShell；`init` 按 shell 类型分发（zsh/bash/fish/PowerShell）。fish 待后续接入。 |
 | 存储位置 | 配置目录按 OS 惯例（`~/.cc-select/` 可统一，或 Windows 用 `%USERPROFILE%`）。 |
 | Web GUI | HTTP 服务 + 浏览器跨平台天然一致，无额外成本。 |
 
-> **Windows 评估结论：可行 ✅**。经评估，Windows 上 shell 级隔离与 Unix 同构——PowerShell 的 `$env:VAR`（process scope，不持久）等价于 `export`，子进程同样继承；Claude Code 官方支持 native Windows + `ANTHROPIC_BASE_URL` 路由。唯一限制：**仅支持 PowerShell，不支持 CMD**（CMD 无函数/profile 机制，只有全局污染的 `setx`）。详见 [Windows 支持评估](./windows-support.md)。
+> **Windows 评估结论：可行 ✅**。Windows 上 shell 级隔离与 Unix 同构——PowerShell 的 `$env:VAR`（process scope，不持久）等价于 `export`，子进程同样继承；Claude Code 官方支持 native Windows + `ANTHROPIC_BASE_URL` 路由。PowerShell 集成与 `$PROFILE` 写入（含 UTF-8 BOM 处理）已由 CI 的「Windows PowerShell integration」步骤覆盖。唯一限制：**仅支持 PowerShell，不支持 CMD**（CMD 无函数/profile 机制，只有全局污染的 `setx`）。详见 [Windows 支持评估](./windows-support.md)。
 
 ---
 

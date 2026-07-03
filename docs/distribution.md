@@ -100,4 +100,4 @@ winget install cc-select             # Windows
 ## 4. 跨平台注意（Q6）
 
 - **macOS/Linux**：`export`/`unset` + `.zshrc`/`.bashrc`，机制一致。
-- **Windows**：环境变量隔离语义不同（`setx` 写注册表 vs 进程级；PowerShell profile vs `.zshrc`），shell 集成与隔离机制需单独设计（见 [architecture §2.1](./architecture.md#21-跨平台约束满足-q6macoslinuxwindows)）。Windows 支持可能在 MVP 之后单独完善。
+- **Windows**：PowerShell 集成已实现，含 `$PROFILE` 委托探测、UTF-8 BOM 写入与加载验证，由 CI 的「Windows PowerShell integration」步骤覆盖。CMD 不支持（见 [windows-support §4](./windows-support.md#4-为何不支持-cmd)）。

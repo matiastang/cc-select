@@ -3,8 +3,9 @@
 // 配置存于单个 JSON 文件（~/.cc-select/providers.json），采用原子写
 // （写临时文件 + rename）保证多进程并发安全。详见 docs/architecture.md §3。
 //
-// API key 不以明文落盘：JSON 里存形如 "$keychain:<service>" 的占位，
-// 真值由 internal/secrets 从系统 Keychain 取。见 docs/tech-stack.md §4。
+// API key 当前以明文落入 profile settings.json（见 docs/engineering-decisions.md §5）；
+// 本包已预留 keychain 占位机制（$keychain:<service>），未来可由 internal/secrets
+// 解析为真值后再写入 profile。
 package config
 
 import (

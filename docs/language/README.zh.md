@@ -23,6 +23,8 @@ ccs use glm
 cc-select gui
 ```
 
+> 已支持的 shell：zsh / bash / PowerShell。Windows 的 CMD 不支持。
+
 ## Windows 首次运行（SmartScreen / Smart App Control）
 
 cc-select 是**未签名的开源**二进制。在 Windows 上：
@@ -38,6 +40,13 @@ cc-select 是**未签名的开源**二进制。在 Windows 上：
 2. `ccs()` shell 函数（由 `cc-select init` 注入到 `~/.zshrc` 等启动脚本）在当前 shell 中 `eval` 这些语句。
 
 `cc-select use <provider>` 会导出 `CLAUDE_CONFIG_DIR`，指向独立的 profile 目录（`~/.cc-select/profiles/<provider>/settings.json`）。Claude Code 启动时读取该目录的 env，从而实现“每个终端各自的服务商”。
+
+## 隔离模式
+
+- **Mode B — `settings-only`（默认）**：每个 provider 仅隔离 `settings.json`；历史、插件、commands 等通过链接共享回 `~/.claude`。
+- **Mode A — `full`**：整个 profile 目录完全隔离。
+
+使用 `cc-select mode` 查看/设置全局默认；用 `cc-select edit <id> --mode ...` 或 `ccs use <id> --mode ...` 做 per-provider 覆盖或一次性覆盖。详见 [docs/isolation-modes.md](../isolation-modes.md)。
 
 ## 安全说明
 

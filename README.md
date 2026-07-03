@@ -23,6 +23,8 @@ ccs use glm
 cc-select gui
 ```
 
+> Supported shells: zsh / bash / PowerShell. CMD is not supported on Windows.
+
 ## First run on Windows (SmartScreen / Smart App Control)
 
 cc-select is an **unsigned open-source** binary. On Windows:
@@ -38,6 +40,13 @@ A child process cannot modify its parent shell's environment. `cc-select` theref
 2. The `ccs()` shell function (injected by `cc-select init`) `eval`s those statements in the current shell.
 
 `cc-select use <provider>` exports `CLAUDE_CONFIG_DIR` to point at an isolated profile directory (`~/.cc-select/profiles/<provider>/settings.json`). Claude Code reads the env from that directory, giving per-terminal provider isolation.
+
+## Isolation modes
+
+- **Mode B — `settings-only` (default)**: only `settings.json` is isolated per provider; history, plugins, commands, etc. are shared via links back to `~/.claude`.
+- **Mode A — `full`**: the entire profile directory is isolated.
+
+Use `cc-select mode` to view/set the global default, or `cc-select edit <id> --mode ...` / `ccs use <id> --mode ...` for per-provider or one-time overrides. See [docs/isolation-modes.md](docs/isolation-modes.md) for details.
 
 ## Security note
 

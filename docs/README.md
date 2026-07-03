@@ -65,5 +65,5 @@
 
 - **项目阶段**：MVP 实现已完成，进入迭代完善期（见 [roadmap.md](./roadmap.md)）。
 - **已确定选型**：Go、本地 Web 服务 GUI、JSON 存储 + profile 目录、`CLAUDE_CONFIG_DIR` 切换机制、zsh/bash/PowerShell 支持（见 [tech-stack.md](./tech-stack.md)）。
-- **剩余主要工作**：PS1 提示符集成、fish shell 支持、Windows 深度验证、API key 存储方式统一（keychain 占位 vs 明文）。
+- **剩余主要工作**：PS1 提示符集成、fish shell 支持、API key 存储方式统一（keychain 占位 vs 明文）。Windows PowerShell 集成已由 CI 覆盖。
 - **本文档集由** `technical-design.md`（单篇长文档）拆分而来；旧文件已删除。

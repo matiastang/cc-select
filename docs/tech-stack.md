@@ -11,7 +11,7 @@
 |---|---|---|---|
 | GUI 形态（[Q2](./requirements.md#待用户确认的开放问题含已定决策)） | **本地 Web 服务 + 浏览器** | ✅ 已定 | 桌面 App（Tauri/Electron/Wails） |
 | 存储格式（[Q3](./requirements.md#待用户确认的开放问题含已定决策)） | **单个 JSON 文件**（原子写）+ key 走 Keychain | ✅ 已定 | SQLite / 多文件拆分 |
-| 目标 shell（[Q5](./requirements.md#待用户确认的开放问题含已定决策)） | **先做 zsh**，集成层需可扩展 | ✅ 已定（范围） | bash / fish（后续接入） |
+| 目标 shell（[Q5](./requirements.md#待用户确认的开放问题含已定决策)） | **zsh / bash / PowerShell**（fish 后续接入） | ✅ 已定 | fish |
 | 目标 OS（[Q6](./requirements.md#待用户确认的开放问题含已定决策)） | **macOS / Linux / Windows** | ✅ 已定 | — |
 | 语言（[Q1](./requirements.md#待用户确认的开放问题含已定决策)） | **Go**（单二进制、跨平台编译省心、启动快） | ✅ 已定 | Node+TS / Rust（纯脚本已排除） |
 
@@ -37,7 +37,7 @@
 
 ---
 
-## 2. 语言选型（待定，Q1，含评估与推荐）
+## 2. 语言选型（Q1，已定：Go）
 
 GUI 已定 Web 路线，与语言解耦，故语言按 **MVP 关键动作**权衡：① 生成 shell 函数（zsh/PowerShell）② 起 Web 配置页 ③ 跨三平台分发 ④ 读写 JSON ⑤ eval/iex 注入。
 

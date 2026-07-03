@@ -115,24 +115,26 @@
 
 ## AC8. key 安全（R7）
 
+> 当前阶段：API key **以明文**落入 `~/.cc-select/profiles/<id>/settings.json`（文件权限 `0600`、目录 `0700`），风险等级同 `~/.claude/settings.json`。`internal/secrets` 与 keychain 占位机制已预留，尚未完全接入 CLI/Web 写入路径。
+
 | 步骤 | 预期 |
 |---|---|
-| 1. 查看配置存储文件 | API key **不以明文**落盘（走 Keychain/加密） |
-| 2. `ccs use <provider>` 仍能正确注入 key | key 从安全存储读取后正确 export |
-| 3. 退而求其次方案（明文） | 文件权限为 `600`，README 已说明风险 |
+| 1. 查看配置存储文件 | API key 以明文存储；文件权限 `0600`、目录 `0700` |
+| 2. `ccs use <provider>` 仍能正确注入 key | key 从 profile settings.json 读取后通过 `CLAUDE_CONFIG_DIR` 生效 |
+| 3. keychain 升级后 | API key **不以明文**落盘（走 Keychain/加密）；`ccs use` 仍正确 export |
 
 ---
 
-## AC9. 多 shell 支持（阶段 5）
+## AC9. 多 shell 支持
 
 | 步骤 | 预期 |
 |---|---|
-| 1. 在 zsh / bash / fish 中分别 `cc-select init` 并 source | 各 shell 均生成可用的 `ccs` 函数 |
+| 1. 在 zsh / bash 中分别 `cc-select init` 并 source | 各 shell 均生成可用的 `ccs` 函数 |
 | 2. 各 shell 中 `ccs use glm` | 均能切换生效 |
 | 3. **Windows**：在 PowerShell 中 `cc-select init`（写入 `$PROFILE`）并重载 | 生成可用的 `ccs` 函数 |
 | 4. PowerShell 中 `ccs use glm` 后 `claude` | 走对应服务商（process-scope 隔离生效） |
 | 5. 两个 PowerShell 窗口分别 `ccs use` 不同 provider | 互不影响（与 zsh 行为对齐） |
-| 6. CMD 中尝试 `ccs` | **不支持**（明确提示用户使用 PowerShell，见 [windows-support §4](./windows-support.md#4-为何不支持-cmd)） |
+| 6. CMD / fish 中尝试 `ccs` | **不支持**（CMD 见 [windows-support §4](./windows-support.md#4-为何不支持-cmd)；fish 暂未实现） |
 
 ---
 

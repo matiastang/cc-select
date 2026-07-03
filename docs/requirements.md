@@ -82,7 +82,7 @@
 | Q2 | GUI 形态（桌面 App / 本地 Web 服务） | **已定：本地 Web 服务**。桌面 App（Tauri/Electron/Wails）作为备选保留。 |
 | Q3 | 存储格式（JSON / SQLite / 多文件） | **已定：JSON**（原子写）+ key 走 Keychain。SQLite/多文件作为备选保留。 |
 | Q4 | 派生需求 R6/R7/R8 是否纳入 | **已纳入**（见上文 R6/R7/R8，验收见 [acceptance-tests.md](./acceptance-tests.md)）。 |
-| Q5 | 目标 shell 范围 | **已定：先做 zsh**，但 `init` 生成的 shell 集成需**设计成可扩展**（bash/fish 后续接入）。 |
+| Q5 | 目标 shell 范围 | **已定：zsh / bash / PowerShell**；fish 作为后续扩展。`init` 与 shell 发射器按 shell 类型可扩展设计。 |
 | Q6 | 目标 OS | **已定：macOS、Linux、Windows 三平台都要能跑**。影响：环境变量机制、shell 函数、打包产物需覆盖三平台。 |
 
 > 备选方案保留在 [技术选型](./tech-stack.md)，日后调整实现方案时可回看。
