@@ -34,3 +34,9 @@ jobs:
       - name: Integration tests
         if: runner.os != 'Windows'
         run: go test -tags integration ./...
+
+      # Windows PowerShell 集成：实跑升级链路（Install → 写 $PROFILE），断言带 UTF-8 BOM
+      # 且 PS 5.1/7 能加载并定义 ccs。防「PS 5.1 按 GBK 读无 BOM 中文注释破坏语法」回归。
+      - name: Windows PowerShell integration
+        if: runner.os == 'Windows'
+        run: go test -tags integration ./internal/rcinteg/...
