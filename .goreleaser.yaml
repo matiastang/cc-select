@@ -7,7 +7,7 @@ project_name: cc-select
 before:
   hooks:
     # 前端构建：产出会被 internal/web embed。
-    - cmd: sh -c "cd internal/frontend && npm ci && npm run build"
+    - sh -c "cd internal/frontend && npm ci && npm run build"
 
 builds:
   - id: cc-select
