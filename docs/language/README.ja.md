@@ -23,6 +23,13 @@ ccs use glm
 cc-select gui
 ```
 
+## Windows での初回実行（SmartScreen / Smart App Control）
+
+cc-select は**未署名のオープンソース**バイナリです。Windows では：
+
+- **SmartScreen**（すべてのユーザー）：初回実行時に「Windows によって PC は保護されました」と表示されることがあります——「詳細情報」→「実行」をクリック。
+- **Smart App Control (SAC)**（有効にしている場合のみ）：SAC は未署名・不明な exe をブロックし、「実行」オプションは**ありません**。有効な場合は、SAC をオフにする（永続的・元に戻せない）か、SAC が無効な環境で実行してください。詳細は [docs/windows-support.md §7](../windows-support.md#7-smart-app-control-与未签名可执行文件) を参照。
+
 ## 仕組み
 
 子プロセスは親 shell の環境変数を変更できません。そのため `cc-select` は 2 つの層に分かれています：

@@ -23,6 +23,13 @@ ccs use glm
 cc-select gui
 ```
 
+## Windows 首次运行（SmartScreen / Smart App Control）
+
+cc-select 是**未签名的开源**二进制。在 Windows 上：
+
+- **SmartScreen**（所有用户）：首次运行可能提示「Windows 已保护你的电脑」——点「更多信息」→「仍要运行」。
+- **Smart App Control (SAC)**（仅当你开启时）：SAC 会拦截未签名/未知 exe，且**没有**「仍要运行」选项。若已开启，需关闭 SAC（永久不可逆）或在未开启 SAC 的机器上运行。详见 [docs/windows-support.md §7](../windows-support.md#7-smart-app-control-与未签名可执行文件)。
+
 ## 工作原理
 
 子进程无法修改父 shell 的环境变量，因此 `cc-select` 拆成两层协作：
