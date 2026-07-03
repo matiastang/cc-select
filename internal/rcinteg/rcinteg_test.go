@@ -1,6 +1,7 @@
 package rcinteg
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -513,5 +514,48 @@ func TestInstall_PwshManualReturnsSnippet(t *testing.T) {
 	}
 	if !strings.Contains(res.Snippet, "function ccs") {
 		t.Errorf("manual 应附 PS snippet 供用户粘贴: %q", res.Snippet)
+	}
+}
+
+// ---- atomicWriteRC 的 PowerShell BOM 处理 ----
+
+func TestAtomicWriteRC_PowerShellProfileGetsBOM(t *testing.T) {
+	dir := t.TempDir()
+	ps1 := filepath.Join(dir, "Microsoft.PowerShell_profile.ps1")
+	if err := atomicWriteRC(ps1, []byte("function ccs {}\n")); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(ps1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.HasPrefix(got, utf8BOM) {
+		t.Error(".ps1 应写 UTF-8 BOM（PS 5.1 靠它识别 UTF-8）")
+	}
+}
+
+func TestAtomicWriteRC_UnixRCNoBOM(t *testing.T) {
+	dir := t.TempDir()
+	rc := filepath.Join(dir, ".zshrc")
+	if err := atomicWriteRC(rc, []byte("ccs(){}\n")); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(rc)
+	if bytes.HasPrefix(got, utf8BOM) {
+		t.Error(".zshrc 不应写 BOM")
+	}
+}
+
+func TestAtomicWriteRC_NoDoubleBOM(t *testing.T) {
+	dir := t.TempDir()
+	ps1 := filepath.Join(dir, "profile.ps1")
+	data := append([]byte{}, utf8BOM...)
+	data = append(data, []byte("function ccs {}\n")...)
+	if err := atomicWriteRC(ps1, data); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(ps1)
+	if c := bytes.Count(got, utf8BOM); c != 1 {
+		t.Errorf("已有 BOM 不应重复，应只一个，got %d", c)
 	}
 }

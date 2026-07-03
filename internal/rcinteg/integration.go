@@ -12,6 +12,7 @@
 package rcinteg
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -28,6 +29,11 @@ const (
 	markerBegin = "# >>> cc-select shell integration"
 	markerEnd   = "# <<< cc-select shell integration <<<"
 )
+
+// utf8BOM 是 UTF-8 字节顺序标记。Windows PowerShell 5.1 靠它把 .ps1 识别为 UTF-8
+// （无 BOM 则按系统 ANSI——中文 Windows 即 GBK——读取，UTF-8 中文注释字节错位会
+// 破坏语法）。Unix rc 不需要。
+var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
 
 // 安装动作枚举。
 const (
@@ -252,6 +258,12 @@ func composeManaged(original, snippet string) string {
 // 若 rc 是符号链接（dotfiles 仓库常见），写到链接指向的真实文件，保留软链
 // （回归等价于 shell 的 `>>` 跟随软链行为；避免 os.Rename 把软链替换成普通文件）。
 func atomicWriteRC(path string, data []byte) error {
+	// .ps1（PowerShell $PROFILE）写 UTF-8 BOM：Windows PowerShell 5.1 靠 BOM 识别 UTF-8，
+	// 否则按系统 ANSI(GBK)读，UTF-8 中文注释字节错位会破坏语法。已有 BOM 则不重复加。
+	// Unix rc（.zshrc/.bashrc）维持无 BOM。
+	if strings.HasSuffix(strings.ToLower(path), ".ps1") && !bytes.HasPrefix(data, utf8BOM) {
+		data = append(utf8BOM, data...)
+	}
 	writePath := path
 	if fi, err := os.Lstat(path); err == nil && fi.Mode()&os.ModeSymlink != 0 {
 		if resolved, err := filepath.EvalSymlinks(path); err == nil {
