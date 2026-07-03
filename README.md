@@ -23,6 +23,13 @@ ccs use glm
 cc-select gui
 ```
 
+## First run on Windows (SmartScreen / Smart App Control)
+
+cc-select is an **unsigned open-source** binary. On Windows:
+
+- **SmartScreen** (all users): the first run may show "Windows protected your PC" — click **More info** → **Run anyway**.
+- **Smart App Control (SAC)** (only if you enabled it): SAC blocks unsigned/unknown exes with **no** "run anyway" option. If enabled, you must turn SAC off (permanent, irreversible) or run on a machine without SAC. See [docs/windows-support.md §7](./docs/windows-support.md#7-smart-app-control-与未签名可执行文件).
+
 ## How it works
 
 A child process cannot modify its parent shell's environment. `cc-select` therefore splits into two layers:

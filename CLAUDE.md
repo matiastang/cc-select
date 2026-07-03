@@ -93,7 +93,8 @@ This is the same `eval "$(tool ...)"` pattern used by `nvm`, `pyenv`, and `diren
 - **API-key storage consistency**: `internal/secrets/` and keychain placeholders exist, but `add`/`edit`/`web` currently write plaintext `ANTHROPIC_AUTH_TOKEN` into profile `settings.json`. Decide whether to fully switch to keychain placeholders or accept plaintext with documented risks.
 - **PS1 integration**: `init` does not yet inject a prompt hook to display the active provider.
 - **Fish shell support**: only zsh/bash/PowerShell emitters exist.
-- **Windows validation**: PowerShell emitter is implemented but not yet covered by CI integration tests.
+- **Windows validation**: PowerShell emitter + 升级 `$PROFILE`（BOM/加载）由 CI 的「Windows PowerShell integration」步骤覆盖（`.github/workflows/ci.yml`，windows-latest runner，默认不开 SAC）。
+- **Smart App Control (SAC) / 未签名 exe**: dev build（`go build`/`make`）与 release 均未签名。开启 SAC 的 Windows 上 dev build 无法本机跑；release 用户若开 SAC 同样被拦（多数用户只遇 SmartScreen，可绕过）。详见 [docs/windows-support.md §7](./docs/windows-support.md#7-smart-app-control-与未签名可执行文件)。
 
 ## When making changes
 
