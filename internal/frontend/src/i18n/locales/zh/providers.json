@@ -1,0 +1,37 @@
+{
+  "globalModeTitle": "全局隔离模式",
+  "globalModeHint": "默认对所有 provider 生效；单个 provider 可单独覆盖。",
+  "mode": {
+    "inherit": "继承全局",
+    "settingsOnly": "仅 settings.json 隔离（共享历史/插件）",
+    "full": "整目录隔离（完全独立）"
+  },
+  "configuredKey": "已配置 key",
+  "officialNotice": "使用系统默认配置（~/.claude），不可自定义",
+  "noBaseUrl": "（无 base url）",
+  "urlLabel": "URL: {{url}}",
+  "modelLabel": " · 模型: {{model}}",
+  "modeLabel": " · 模式: {{mode}}",
+  "editTitle": "编辑 {{id}}",
+  "addTitle": "添加 provider",
+  "addButton": "+ 添加 provider",
+  "deleteConfirm": "删除 provider {{id}}？",
+  "form": {
+    "idLabel": "ID（短标识，如 glm）",
+    "idPlaceholder": "glm",
+    "nameLabel": "展示名（可留空，默认用 id）",
+    "namePlaceholder": "智谱 GLM",
+    "modeLabel": "隔离模式",
+    "jsonLabel": "settings.json（完整内容；env、permissions、model 等均可）",
+    "loadingRealConfig": "加载磁盘真实配置中…"
+  },
+  "errors": {
+    "missingId": "缺少 id（短标识，如 glm）",
+    "jsonParse": "JSON 解析失败：{{message}}",
+    "jsonObject": "settings 必须是 JSON 对象",
+    "saveFailed": "保存失败（{{status}}）",
+    "loadFailed": "加载失败（{{status}}）",
+    "deleteFailed": "删除失败",
+    "saveGlobalModeFailed": "保存全局模式失败"
+  }
+}

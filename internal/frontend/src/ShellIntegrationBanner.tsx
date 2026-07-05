@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
-// ShellIntegrationBanner：首访检测 shell 集成是否已装，未装则提供一键安装。
-// 自包含状态机；平台/shell 判断全在后端——前端只按 Status/InstallResult 渲染。
-// 已装或不支持的 shell（fish 等）→ 隐藏，零干扰。
+// ShellIntegrationBanner: detects whether shell integration is installed on first visit;
+// if not, offers one-click install.
+// Self-contained state machine; platform/shell judgement is all on the backend — frontend
+// just renders according to Status/InstallResult.
+// Already installed or unsupported shell (fish, etc.) → hidden, zero interference.
 export function ShellIntegrationBanner() {
+  const { t } = useTranslation("shell");
   const [state, setState] = useState<
     "loading" | "needed" | "installing" | "done" | "manual" | "unsupported" | "hidden"
   >("loading");
@@ -31,7 +35,7 @@ export function ShellIntegrationBanner() {
           setState("needed");
         }
       } catch {
-        setState("hidden"); // 静默失败，不影响主配置页。
+        setState("hidden"); // fail silently, do not block the main config page.
       }
     })();
     return () => {
@@ -50,7 +54,7 @@ export function ShellIntegrationBanner() {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
-        setErr(d.error || "安装失败");
+        setErr(d.error || t("installFailed"));
         setState("needed");
         return;
       }
@@ -58,7 +62,7 @@ export function ShellIntegrationBanner() {
         setManual({ snippet: d.snippet || "", message: d.message || "" });
         setState("manual");
       } else {
-        setDoneMsg(d.message || "已安装");
+        setDoneMsg(d.message || t("installed"));
         setState("done");
       }
     } catch (e) {
@@ -76,7 +80,7 @@ export function ShellIntegrationBanner() {
   if (state === "manual") {
     return (
       <div className="notice">
-        <strong>需要手动完成 shell 集成</strong>
+        <strong>{t("manualTitle")}</strong>
         <div className="muted">{manual?.message}</div>
         <textarea
           readOnly
@@ -102,9 +106,11 @@ export function ShellIntegrationBanner() {
   if (state === "unsupported") {
     return (
       <div className="notice">
-        <strong>当前 shell{shell ? `（${shell}）` : ""}暂不支持一键安装</strong>
+        <strong>{t("unsupportedTitle", { shell: shell ? `（${shell}）` : "" })}</strong>
         <div className="muted">
-          请使用 zsh / bash / PowerShell，或在终端手动执行 <code>cc-select init</code>。
+          <Trans i18nKey="unsupportedHint" ns="shell">
+            请使用 zsh / bash / PowerShell，或在终端手动执行 <code>cc-select init</code>。
+          </Trans>
         </div>
       </div>
     );
@@ -114,11 +120,12 @@ export function ShellIntegrationBanner() {
   return (
     <div className="notice">
       <strong>
-        {legacy ? "检测到旧版 shell 集成，建议升级" : "检测到尚未安装 shell 集成"}
-        {shell ? `（${shell}）` : ""}
+        {t(legacy ? "legacyTitle" : "neededTitle", { shell: shell ? `（${shell}）` : "" })}
       </strong>
       <div className="muted">
-        安装后才能在终端用 <code>ccs use &lt;id&gt;</code> 切换 provider。
+        <Trans i18nKey="neededHint" ns="shell">
+          安装后才能在终端用 <code>ccs use <span>&lt;id&gt;</span></code> 切换 provider。
+        </Trans>
       </div>
       {err && (
         <div className="muted" style={{ color: "var(--danger)", marginTop: "0.5rem" }}>
@@ -126,8 +133,8 @@ export function ShellIntegrationBanner() {
         </div>
       )}
       <div style={{ marginTop: "0.5rem" }}>
-        <button onClick={install} disabled={state === "installing"}>
-          {state === "installing" ? "安装中…" : "一键安装"}
+        <button data-testid="shell-install-button" onClick={install} disabled={state === "installing"}>
+          {state === "installing" ? t("installing") : t("installButton")}
         </button>
       </div>
     </div>

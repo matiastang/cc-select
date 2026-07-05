@@ -34,7 +34,10 @@ body {
   padding: 1.25rem 1.5rem;
   margin-bottom: 1rem;
 }
-.row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.row-content { flex: 1; min-width: 0; }
+.row-detail { word-break: break-all; }
+.row-actions { flex-shrink: 0; white-space: nowrap; padding-top: 0.1rem; }
 h1 { font-size: 1.4rem; margin: 0 0 0.5rem; }
 h2 { font-size: 1.05rem; margin: 0 0 1rem; }
 .muted { color: var(--muted); font-size: 0.85rem; }
@@ -73,4 +76,37 @@ label { display: block; font-size: 0.8rem; color: var(--muted); margin: 0.6rem 0
   border-radius: 4px;
   font-size: 0.82rem;
   margin-bottom: 1rem;
+}
+.header-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.language-switcher {
+  display: inline-flex;
+  gap: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.15rem;
+  background: var(--card);
+}
+.language-switcher button {
+  background: transparent;
+  color: var(--text);
+  border: none;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+.language-switcher button.active {
+  background: var(--accent);
+  color: #fff;
+}
+.language-switcher button:not(.active):hover {
+  background: var(--bg);
+}
+@media (max-width: 480px) {
+  .header-title { flex-direction: column; align-items: flex-start; }
 }

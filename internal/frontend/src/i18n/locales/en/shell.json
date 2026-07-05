@@ -1,0 +1,12 @@
+{
+  "installFailed": "Install failed",
+  "installed": "Installed",
+  "manualTitle": "Manual shell integration required",
+  "unsupportedTitle": "Current shell{{shell}} does not support one-click install",
+  "unsupportedHint": "Please use zsh / bash / PowerShell, or run <1>cc-select init</1><2> in the terminal.</2>",
+  "legacyTitle": "Legacy shell integration detected, upgrade recommended{{shell}}",
+  "neededTitle": "Shell integration not yet installed{{shell}}",
+  "neededHint": "After installation, use <1>ccs use <1>&lt;id&gt;</1></1><2> in the terminal to switch provider.</2>",
+  "installing": "Installing…",
+  "installButton": "One-click install"
+}

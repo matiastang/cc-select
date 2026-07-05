@@ -1,0 +1,12 @@
+{
+  "installFailed": "安装失败",
+  "installed": "已安装",
+  "manualTitle": "需要手动完成 shell 集成",
+  "unsupportedTitle": "当前 shell{{shell}} 暂不支持一键安装",
+  "unsupportedHint": "请使用 zsh / bash / PowerShell，或在终端手动执行 <1>cc-select init</1><2>。</2>",
+  "legacyTitle": "检测到旧版 shell 集成，建议升级{{shell}}",
+  "neededTitle": "检测到尚未安装 shell 集成{{shell}}",
+  "neededHint": "安装后才能在终端用 <1>ccs use <1>&lt;id&gt;</1></1><2> 切换 provider。</2>",
+  "installing": "安装中…",
+  "installButton": "一键安装"
+}

@@ -1,0 +1,37 @@
+{
+  "globalModeTitle": "Global Isolation Mode",
+  "globalModeHint": "Applies to all providers by default; each provider can override individually.",
+  "mode": {
+    "inherit": "Inherit global",
+    "settingsOnly": "settings.json only (shared history/extensions)",
+    "full": "Full directory isolation (fully independent)"
+  },
+  "configuredKey": "Key configured",
+  "officialNotice": "Uses system default config (~/.claude); cannot be customized",
+  "noBaseUrl": "(no base url)",
+  "urlLabel": "URL: {{url}}",
+  "modelLabel": " · Model: {{model}}",
+  "modeLabel": " · Mode: {{mode}}",
+  "editTitle": "Edit {{id}}",
+  "addTitle": "Add provider",
+  "addButton": "+ Add provider",
+  "deleteConfirm": "Delete provider {{id}}?",
+  "form": {
+    "idLabel": "ID (short identifier, e.g. glm)",
+    "idPlaceholder": "glm",
+    "nameLabel": "Display name (optional, defaults to id)",
+    "namePlaceholder": "Zhipu GLM",
+    "modeLabel": "Isolation mode",
+    "jsonLabel": "settings.json (full content; env, permissions, model, etc.)",
+    "loadingRealConfig": "Loading real config from disk…"
+  },
+  "errors": {
+    "missingId": "Missing id (short identifier, e.g. glm)",
+    "jsonParse": "JSON parse failed: {{message}}",
+    "jsonObject": "settings must be a JSON object",
+    "saveFailed": "Save failed ({{status}})",
+    "loadFailed": "Load failed ({{status}})",
+    "deleteFailed": "Delete failed",
+    "saveGlobalModeFailed": "Failed to save global mode"
+  }
+}

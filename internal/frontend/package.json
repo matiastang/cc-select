@@ -13,15 +13,18 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "i18next": "^26.3.4",
+    "i18next-browser-languagedetector": "^8.2.1",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-i18next": "^17.0.8"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
-    "@vitest/coverage-v8": "^2.1.8",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "^2.1.8",
     "jsdom": "^25.0.1",
     "vite": "^5.4.10",
     "vitest": "^2.1.8"
