@@ -18,9 +18,7 @@ export function Header() {
         <LanguageSwitcher />
       </div>
       <p className="muted">
-        <Trans i18nKey="subtitle">
-          管理各 AI 服务商配置。切换请在终端用 <code>ccs use <span>&lt;id&gt;</span></code>。
-        </Trans>
+        <Trans i18nKey="subtitle" components={{ code: <code /> }} />
       </p>
     </div>
   );

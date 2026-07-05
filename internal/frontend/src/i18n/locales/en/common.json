@@ -1,7 +1,7 @@
 {
   "appTitle": "cc-select Configuration",
-  "subtitle": "Manage AI provider configurations. Switch in the terminal with <1>ccs use <1>&lt;id&gt;</1></1>.",
-  "notice": "Configure by editing the full <1>settings.json</1> (not only <3>env</3><4>, </4><5>permissions</5><6>, </6><7>model</7><8>, etc.). Changes here modify the \"template\". <9>Already running terminals will not update automatically</9><10>; rerun </10><11>ccs use <1>&lt;id&gt;</1></11><12> in the corresponding terminal to take effect.</12>",
+  "subtitle": "Manage AI provider configurations. Switch in the terminal with <code>ccs use &lt;id&gt;</code>.",
+  "notice": "Configure by editing the full <code>settings.json</code> (not only <code>env</code>, <code>permissions</code>, <code>model</code>, etc.). Changes here modify the \"template\". <strong>Already running terminals will not update automatically</strong>; rerun <code>ccs use &lt;id&gt;</code> in the corresponding terminal to take effect.",
   "save": "Save",
   "cancel": "Cancel",
   "edit": "Edit",

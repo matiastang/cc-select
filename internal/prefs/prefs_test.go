@@ -21,11 +21,14 @@ func TestLoad_MissingReturnsEmpty(t *testing.T) {
 	if pr.IsolationMode != "" {
 		t.Errorf("缺文件 IsolationMode 应为空，got %q", pr.IsolationMode)
 	}
+	if pr.Language != "" {
+		t.Errorf("缺文件 Language 应为空，got %q", pr.Language)
+	}
 }
 
 func TestSaveLoad_RoundTrip(t *testing.T) {
 	setTempPrefs(t)
-	if err := Save(&Prefs{IsolationMode: ModeFull}); err != nil {
+	if err := Save(&Prefs{IsolationMode: ModeFull, Language: "zh"}); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 	pr, err := Load()
@@ -34,6 +37,12 @@ func TestSaveLoad_RoundTrip(t *testing.T) {
 	}
 	if pr.IsolationMode != ModeFull {
 		t.Errorf("往返失败 want %q got %q", ModeFull, pr.IsolationMode)
+	}
+	if pr.Language != "zh" {
+		t.Errorf("Language 往返失败 want zh got %q", pr.Language)
+	}
+	if got := pr.NormalizeLanguage(); got != "zh" {
+		t.Errorf("NormalizeLanguage = %q, want zh", got)
 	}
 }
 

@@ -1,0 +1,195 @@
+{
+  "cli": {
+    "root": {
+      "short": "Shell-level AI provider isolation for Claude Code",
+      "long": "cc-select 让同一台机器上的不同终端窗口使用不同的 AI 模型服务商。\n\n与 cc-switch（全局切换）不同，cc-select 在当前 shell 内 export 环境变量，只影响当前终端及其子进程，实现 shell 级（per-terminal）隔离。\n\n切换通过 ccs 别名（由 cc-select init 注入）完成：ccs use <provider>"
+    },
+    "list": {
+      "short": "列出所有已配置的 provider",
+      "long": "列出所有已配置的 provider，并显示当前 shell 激活的是哪一个。",
+      "header": {
+        "id": "ID",
+        "name": "名称"
+      },
+      "noActiveHint": "（当前 shell 未激活任何 provider，运行 ccs use <id> 切换）",
+      "activeHint": "（当前已激活 %s，运行 ccs use <id> 可切换到其它 provider）"
+    },
+    "current": {
+      "short": "显示当前 shell 激活的 provider",
+      "long": "显示当前 shell 激活的 provider。\n\n只读 $CC_SELECT_ACTIVE 环境变量（反映\"当前终端\"状态），不查磁盘配置——磁盘配置是全局共享的，不能代表某个特定 shell 的激活态。\n详见 docs/engineering-decisions.md §3。",
+      "none": "none（当前 shell 未激活任何 provider）"
+    },
+    "use": {
+      "short": "切换当前 shell 到指定 provider（输出供 eval 的 shell 语句）",
+      "long": "切换当前终端到指定 provider。\n\n机制：ccs use X 导出 CLAUDE_CONFIG_DIR 指向 X 的独立配置目录，claude 启动时读该目录的 settings.json（含 X 的 env），从而走 X 服务商。官方 provider（claude-official）则 unset CLAUDE_CONFIG_DIR，回默认 ~/.claude。\n\n直接调用 cc-select use <provider> 只会打印语句；要生效需：\n  eval \"$(cc-select use <provider>)\"\n或通过别名：ccs use <provider>",
+      "shellFlag": "目标 shell 语法（zsh/bash/powershell），默认自动检测",
+      "modeFlag": "一次性隔离模式（settings-only|full），仅本次、不落盘",
+      "switched": "→ 已切换到 %s（%s）。新终端将继承此环境。",
+      "warningPrefix": "⚠ "
+    },
+    "add": {
+      "short": "交互式添加一个 provider",
+      "long": "交互式添加一个 provider 配置。交互模式下，flag 中缺失的值会从终端安全读取。",
+      "nameFlag": "展示名",
+      "apiKeyFlag": "ANTHROPIC_AUTH_TOKEN（明文传入；交互模式可省略，从终端安全读取）",
+      "modelFlag": "ANTHROPIC_MODEL",
+      "baseURLFlag": "ANTHROPIC_BASE_URL",
+      "modeFlag": "该 provider 的隔离模式覆盖（settings-only|full|default=继承全局）",
+      "exists": "provider %q 已存在，用 cc-select edit %s 修改",
+      "modeInvalid": "无效 --mode %q（可选：settings-only | full | default）",
+      "added": "✓ 已添加 provider %s",
+      "prompts": {
+        "baseURL": "ANTHROPIC_BASE_URL（可留空=官方）: ",
+        "model": "ANTHROPIC_MODEL（可留空）: ",
+        "apiKey": "ANTHROPIC_AUTH_TOKEN（可留空）: "
+      },
+      "profileWriteFailed": "写入 profile: %w"
+    },
+    "edit": {
+      "short": "编辑一个 provider 的配置",
+      "long": "编辑一个已存在的 provider 配置。",
+      "missing": "provider %q 不存在",
+      "updated": "✓ 已更新 provider %s"
+    },
+    "remove": {
+      "short": "删除一个 provider",
+      "long": "删除一个 provider 配置及其隔离 profile 目录。",
+      "forceFlag": "跳过确认（保留位，当前实现无交互确认）",
+      "official": "内置 provider %s 不可删除",
+      "missing": "provider %q 不存在",
+      "profileFailed": "删除 profile: %w",
+      "deleted": "✓ 已删除 provider %s"
+    },
+    "mode": {
+      "short": "查看或设置全局隔离模式",
+      "long": "查看或设置 cc-select 的全局隔离模式（写入 ~/.cc-select/prefs.json）。\n\n  cc-select mode                 查看当前全局模式\n  cc-select mode settings-only   Mode B（默认）：仅 settings.json 隔离，其余内容共享\n  cc-select mode full            Mode A：整目录隔离\n\n单个 provider 可用  cc-select edit <id> --mode ...   做 per-provider 覆盖；\n本次一次性切换可用  cc-select use  <id> --mode ...   （不落盘）。\n优先级：一次性 > provider > 全局 > 默认(Mode B)。",
+      "current": "全局隔离模式: %s",
+      "defaultHint": "（未显式设置，使用默认 %s）",
+      "invalid": "无效模式 %q（可选：settings-only | full）",
+      "set": "✓ 全局隔离模式设为 %s"
+    },
+    "init": {
+      "short": "输出 ccs shell 函数（追加到 shell 启动脚本）",
+      "long": "输出 ccs() shell 函数定义，用于注入 cc-select 的命令别名。\n\n用法：\n  cc-select init >> ~/.zshrc       # zsh/bash\n  cc-select init >> ~/.bashrc      # bash\n  # PowerShell: 把输出加入 $PROFILE\n\nsource 后即可用 ccs use <provider> 切换当前 shell 的 provider。\n\nccs 是 cc-select 的短别名：use 走 eval 注入，其余子命令直接转发。",
+      "shellFlag": "目标 shell（zsh/bash/powershell），默认自动检测",
+      "generated": "已生成 %s 集成代码。请将其追加到启动脚本并 source：",
+      "powershell": {
+        "line1": "  1) 追加到 $PROFILE（若不存在先 New-Item）",
+        "line2": "  2) 重启 PowerShell 或 . $PROFILE"
+      },
+      "zsh": "  cc-select init >> ~/.zshrc && source ~/.zshrc"
+    },
+    "gui": {
+      "short": "启动本地 Web 配置页（浏览器打开）",
+      "long": "启动本地 Web 配置页，通过浏览器可视化管理 provider。\n\n仅监听 127.0.0.1，配置通过 REST API 读写与 CLI 共享的 JSON。\n按 Ctrl+C 停止服务。\n\n注意：在 GUI 改配置是改\"模板\"，已在运行的终端需重新 ccs use 才生效。\n（详见 docs/architecture.md §5 配置生效语义）",
+      "portFlag": "监听端口（0=系统分配）",
+      "noOpenFlag": "不自动打开浏览器",
+      "started": "cc-select 配置页已启动：%s",
+      "openBrowserFailed": "（未能自动打开浏览器：%v，请手动访问上述地址）",
+      "serverExit": "服务退出：%v",
+      "stopping": "正在停止…"
+    },
+    "language": {
+      "short": "查看或设置显示语言",
+      "long": "查看或设置 cc-select 使用的显示语言。偏好设置保存在 ~/.cc-select/prefs.json 中，CLI 与 Web GUI 共享。\n\n  cc-select language       显示当前语言\n  cc-select language en    使用英文\n  cc-select language zh    使用简体中文",
+      "invalid": "无效语言 %q（可选：en、zh）",
+      "current": "语言: %s",
+      "set": "✓ 语言已设为 %s"
+    }
+  },
+  "errors": {
+    "config": {
+      "path": "定位配置文件: %w",
+      "read": "读取配置: %w",
+      "parse": "解析配置（%s）: %w",
+      "createDir": "创建配置目录: %w",
+      "serialize": "序列化配置: %w",
+      "createTemp": "创建临时文件: %w",
+      "writeTemp": "写入临时文件: %w",
+      "chmodTemp": "设置临时文件权限: %w",
+      "closeTemp": "关闭临时文件: %w",
+      "replace": "替换配置文件: %w"
+    },
+    "prefs": {
+      "path": "定位 prefs: %w",
+      "read": "读取 prefs: %w",
+      "parse": "解析 prefs（%s）: %w",
+      "createDir": "创建 prefs 目录: %w",
+      "serialize": "序列化 prefs: %w",
+      "createTemp": "创建临时文件: %w",
+      "writeTemp": "写入临时文件: %w",
+      "chmodTemp": "设置权限: %w",
+      "closeTemp": "关闭临时文件: %w",
+      "replace": "替换 prefs: %w"
+    },
+    "profile": {
+      "createDir": "创建 profile 目录: %w",
+      "createTemp": "创建临时文件: %w",
+      "writeTemp": "写入临时文件: %w",
+      "chmodTemp": "设置权限: %w",
+      "closeTemp": "关闭临时文件: %w",
+      "replace": "替换 profile: %w",
+      "removeDir": "删除 profile 目录: %w",
+      "read": "读取 profile: %w",
+      "parse": "解析 profile: %w"
+    },
+    "provider": {
+      "emptyID": "provider id 不能为空",
+      "invalidID": "provider id 非法: %q",
+      "invalidChars": "provider id %q 含非法字符（仅允许字母、数字、. _ -）",
+      "notFound": "provider %q 不存在",
+      "missingProfile": "provider %q 的 profile 缺失，请先 cc-select add %s",
+      "officialBuiltin": "Claude 官方"
+    },
+    "shell": {
+      "unsupported": "不支持的 shell: %q"
+    },
+    "rcinteg": {
+      "locateExe": "定位 cc-select 可执行文件: %w",
+      "unsupportedShell": "%s 暂不支持一键安装，请使用 zsh / bash / PowerShell",
+      "homeDir": "无法定位用户目录，请手动添加以下内容",
+      "manualPowershell": "未能自动定位 $PROFILE（可能未安装 PowerShell）。请把以下内容加入你的 PowerShell $PROFILE 后执行 . $PROFILE",
+      "manualRc": "未能定位 rc 文件（%v）。请手动添加以下内容",
+      "manualGeneric": "请手动添加以下内容到对应启动脚本",
+      "upToDate": "%s 集成已是最新（%s）",
+      "updated": "已更新 %s 集成（%s）；新开终端使最新版本生效",
+      "writtenPowershell": "已写入 %s。请重启 PowerShell 或执行 . $PROFILE 使 ccs 生效",
+      "writtenUnix": "已写入 %s。请新开终端或执行 source %s 使 ccs 生效",
+      "createDir": "创建目录: %w",
+      "unsupportedUnixShell": "不支持的 unix shell: %s",
+      "powershellNotFound": "未找到 PowerShell（尝试 pwsh / powershell.exe 均失败）",
+      "emptyProfile": "%s 返回空 $PROFILE"
+    },
+    "web": {
+      "listen": "监听 %s: %w",
+      "openBrowser": "打开浏览器: %w",
+      "officialSettings": "官方 provider 使用系统默认配置，不支持自定义 settings",
+      "invalidSettingsJSON": "settings 不是合法 JSON: %v",
+      "settingsMustBeObject": "settings 必须是 JSON 对象",
+      "serializeSettings": "序列化 settings: %v",
+      "invalidLanguage": "language 必须是 en 或 zh"
+    }
+  },
+  "shell": {
+    "init": {
+      "zshComment": "# ccs 是 cc-select 的短别名：use 走 eval 注入当前 shell，其余子命令直接转发。",
+      "powershellComment": "# ccs 是 cc-select 的短别名：use 走 Invoke-Expression 注入当前会话，其余子命令直接转发。"
+    }
+  },
+  "profile": {
+    "serializeEnv": "序列化 env: %w",
+    "cleanIsolation": "清理 profile 隔离: %w",
+    "locateClaudeHome": "定位 ~/.claude: %w",
+    "mergeGlobalSettingsFailed": "读取/合并全局 settings.json 失败，已降级为仅 env: ",
+    "notShared": "未共享 %s：%s",
+    "shareError": "共享条目出错: %s",
+    "preCreateSharedDir": "预创建共享目录失败: ",
+    "removeStaleLink": "移除陈旧链接 %s",
+    "clearDir": "清空 %s",
+    "cleanup": "清理 %s",
+    "parseGlobalSettings": "解析全局 settings.json: %w",
+    "serializeMergedSettings": "序列化合并 settings: %w",
+    "createJunction": "创建 junction %s: %s",
+    "createSymlink": "创建符号链接 %s（需开发者模式/管理员）"
+  }
+}

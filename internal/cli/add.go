@@ -8,6 +8,7 @@ import (
 
 	"github.com/cc-select/cc-select/internal/app"
 	"github.com/cc-select/cc-select/internal/config"
+	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/spf13/cobra"
@@ -26,7 +27,6 @@ var addFl addFlags
 
 var addCmd = &cobra.Command{
 	Use:   "add <id>",
-	Short: "交互式添加一个 provider",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.New()
@@ -38,7 +38,7 @@ var addCmd = &cobra.Command{
 			return err
 		}
 		if _, exists := a.Config.Providers[id]; exists {
-			return fmt.Errorf("provider %q 已存在，用 cc-select edit %s 修改", id, id)
+			return fmt.Errorf(i18n.T("cli.add.exists"), id, id)
 		}
 		fl, err := readProviderInput(cmd.InOrStdin(), cmd.OutOrStdout(), addFl, id)
 		if err != nil {
@@ -51,23 +51,29 @@ var addCmd = &cobra.Command{
 		if err := upsertProvider(a, id, fl, providerMode); err != nil {
 			return err
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "✓ 已添加 provider %s\n", id)
+		fmt.Fprintln(cmd.OutOrStdout(), i18n.T("cli.add.added", id))
 		return nil
 	},
 }
 
 func init() {
+	localizeCmd(addCmd, "cli.add.short", "cli.add.long")
 	rootCmd.AddCommand(addCmd)
 	registerProviderFlags(addCmd, &addFl)
 }
 
 // registerProviderFlags 给 add/edit 命令注册共用的 provider 字段 flag。
 func registerProviderFlags(c *cobra.Command, fl *addFlags) {
-	c.Flags().StringVar(&fl.name, "name", "", "展示名")
-	c.Flags().StringVar(&fl.baseURL, "base-url", "", "ANTHROPIC_BASE_URL")
-	c.Flags().StringVar(&fl.apiKey, "api-key", "", "ANTHROPIC_AUTH_TOKEN（明文传入；交互模式可省略，从终端安全读取）")
-	c.Flags().StringVar(&fl.model, "model", "", "ANTHROPIC_MODEL")
-	c.Flags().StringVar(&fl.mode, "mode", "", "该 provider 的隔离模式覆盖（settings-only|full|default=继承全局）")
+	c.Flags().StringVar(&fl.name, "name", "", "")
+	c.Flags().StringVar(&fl.baseURL, "base-url", "", "")
+	c.Flags().StringVar(&fl.apiKey, "api-key", "", "")
+	c.Flags().StringVar(&fl.model, "model", "", "")
+	c.Flags().StringVar(&fl.mode, "mode", "", "")
+	localizeFlag(c, "name", "cli.add.nameFlag")
+	localizeFlag(c, "base-url", "cli.add.baseURLFlag")
+	localizeFlag(c, "api-key", "cli.add.apiKeyFlag")
+	localizeFlag(c, "model", "cli.add.modelFlag")
+	localizeFlag(c, "mode", "cli.add.modeFlag")
 }
 
 // normalizeProviderMode 把 --mode 的输入归一化为可存储的 per-provider 模式值。
@@ -83,7 +89,7 @@ func normalizeProviderMode(raw string) (prefs.Mode, error) {
 	case string(prefs.ModeSettingsOnly), string(prefs.ModeFull):
 		return prefs.Mode(raw), nil
 	default:
-		return "", fmt.Errorf("无效 --mode %q（可选：settings-only | full | default）", raw)
+		return "", fmt.Errorf(i18n.T("cli.add.modeInvalid"), raw)
 	}
 }
 
@@ -106,17 +112,17 @@ func readProviderInput(in io.Reader, out io.Writer, fl addFlags, id string) (add
 		return strings.TrimSpace(line), nil
 	}
 	var err error
-	fl.baseURL, err = prompt("ANTHROPIC_BASE_URL（可留空=官方）", fl.baseURL)
+	fl.baseURL, err = prompt(i18n.T("cli.add.prompts.baseURL"), fl.baseURL)
 	if err != nil {
 		return fl, err
 	}
-	fl.model, err = prompt("ANTHROPIC_MODEL（可留空）", fl.model)
+	fl.model, err = prompt(i18n.T("cli.add.prompts.model"), fl.model)
 	if err != nil {
 		return fl, err
 	}
 	// api-key 默认交互读取（不从 flag 暴露在 history）。留空则不设置。
 	if fl.apiKey == "" {
-		fmt.Fprint(out, "ANTHROPIC_AUTH_TOKEN（可留空）: ")
+		fmt.Fprint(out, i18n.T("cli.add.prompts.apiKey")+": ")
 		line, _ := r.ReadString('\n')
 		fl.apiKey = strings.TrimSpace(line)
 	}
@@ -150,7 +156,7 @@ func writeProvider(a *app.App, id, name string, env map[string]string, providerM
 	// 实际生效模式 = per-provider 覆盖（若有）> 全局 > 默认。
 	resolved := prefs.ResolveMode("", providerMode, a.Prefs.IsolationMode)
 	if _, _, err := profile.Sync(id, env, resolved); err != nil {
-		return fmt.Errorf("写入 profile: %w", err)
+		return fmt.Errorf(i18n.T("cli.add.profileWriteFailed"), err)
 	}
 	if name == "" {
 		name = id

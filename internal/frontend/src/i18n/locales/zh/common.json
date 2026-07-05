@@ -1,7 +1,7 @@
 {
   "appTitle": "cc-select 配置",
-  "subtitle": "管理各 AI 服务商配置。切换请在终端用 <1>ccs use <1>&lt;id&gt;</1></1>。",
-  "notice": "配置以完整 <1>settings.json</1> 形式编辑（不止 <3>env</3><4>，</4><5>permissions</5><6>、</6><7>model</7><8> 等均可）。在此处修改是改“模板”，<9>已在运行的终端不会自动变化</9><10>，需在对应终端重新执行 </10><11>ccs use <1>&lt;id&gt;</1></11><12> 才生效。</12>",
+  "subtitle": "管理各 AI 服务商配置。切换请在终端用 <code>ccs use &lt;id&gt;</code>。",
+  "notice": "配置以完整 <code>settings.json</code> 形式编辑（不止 <code>env</code>、<code>permissions</code>、<code>model</code> 等均可）。在此处修改是改“模板”，<strong>已在运行的终端不会自动变化</strong>，需在对应终端重新执行 <code>ccs use &lt;id&gt;</code> 才生效。",
   "save": "保存",
   "cancel": "取消",
   "edit": "编辑",

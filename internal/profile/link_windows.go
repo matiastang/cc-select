@@ -3,9 +3,10 @@
 package profile
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
+
+	"github.com/cc-select/cc-select/internal/i18n"
 )
 
 // makeLink 在 Windows 创建指向 target 的链接（link → target）。
@@ -21,12 +22,12 @@ func makeLink(target, link string, isDir bool) error {
 		// junction 目标须为绝对路径；target/link 由调用方保证绝对。
 		cmd := exec.Command("cmd", "/c", "mklink", "/J", link, target)
 		if out, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("创建 junction %s: %w: %s", link, err, out)
+			return i18n.Ew("profile.createJunction", err, link, string(out))
 		}
 		return nil
 	}
 	if err := os.Symlink(target, link); err != nil {
-		return fmt.Errorf("创建符号链接 %s（需开发者模式/管理员）: %w", link, err)
+		return i18n.Ew("profile.createSymlink", err, link)
 	}
 	return nil
 }

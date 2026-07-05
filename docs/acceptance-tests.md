@@ -20,6 +20,7 @@
 | AC9 多 shell | R2（扩展） | 阶段 5 |
 | AC10 隔离粒度 | [isolation-modes.md](./isolation-modes.md) / [04 §7](./engineering-decisions.md#7-隔离粒度全隔离-vs-仅-settingsjson-隔离双模式) | 后 MVP |
 | AC11 shell 集成一键安装 | [distribution §2](./distribution.md#2-web-配置页一键安装-shell-集成已实现) | 阶段 2 |
+| AC12 多语言（i18n） | CLI/GUI 语言偏好 | 后 MVP |
 
 ---
 
@@ -188,3 +189,16 @@
 - AC7–AC9 人工验收为主。
 
 > 每个交付阶段（见 [路线](./roadmap.md)）完成后，对照本文件对应用例组验收，全部通过方可进入下一阶段。
+
+## AC12. 多语言（i18n）
+
+| 步骤 | 预期 |
+|---|---|
+| 1. `CC_SELECT_LANGUAGE=zh cc-select list` | 输出中文提示（如「未激活任何 provider」） |
+| 2. `cc-select language` | 显示当前语言（如 `zh`） |
+| 3. `cc-select language en` | 语言切换为英文，返回确认信息 `Language set to en` |
+| 4. 在 Web GUI 中切换语言后刷新页面 | GUI 与 CLI 使用同一语言偏好（存储于 `~/.cc-select/prefs.json`） |
+| 5. `CC_SELECT_LANGUAGE=fr cc-select list` | 非法语言时按优先级回退（prefs → OS → 默认英文） |
+| 6. `cc-select list --help` | 命令的 Short/Long 及 flag 说明随当前语言变化 |
+
+**判定**：CLI 与 GUI 共享语言偏好；环境变量 `CC_SELECT_LANGUAGE` 优先级最高；未知/未设置语言安全回退英文。

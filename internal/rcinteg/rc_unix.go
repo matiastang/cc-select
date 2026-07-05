@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/shell"
 )
 
@@ -31,7 +32,7 @@ func (u unixStrategy) Resolve(home string) (string, error) {
 		}
 		return filepath.Join(home, ".bashrc"), nil
 	}
-	return "", fmt.Errorf("不支持的 unix shell: %s", u.shell)
+	return "", fmt.Errorf(i18n.T("errors.rcinteg.unsupportedUnixShell"), u.shell)
 }
 
 func fileExists(p string) bool {

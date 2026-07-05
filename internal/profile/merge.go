@@ -3,6 +3,8 @@ package profile
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/cc-select/cc-select/internal/i18n"
 )
 
 // mergeSettings 把全局 ~/.claude/settings.json 与 provider env 合并为 profile settings.json
@@ -17,14 +19,14 @@ func mergeSettings(globalJSON []byte, env map[string]string) ([]byte, error) {
 	m := map[string]any{}
 	if len(globalJSON) > 0 {
 		if err := json.Unmarshal(globalJSON, &m); err != nil {
-			return nil, fmt.Errorf("解析全局 settings.json: %w", err)
+			return nil, fmt.Errorf(i18n.T("profile.parseGlobalSettings"), err)
 		}
 	}
 	// 整体替换 env 块。
 	m["env"] = env
 	out, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("序列化合并 settings: %w", err)
+		return nil, fmt.Errorf(i18n.T("profile.serializeMergedSettings"), err)
 	}
 	return out, nil
 }

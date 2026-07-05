@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 
 	"github.com/cc-select/cc-select/internal/config"
+	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/prefs"
 )
 
@@ -38,7 +39,7 @@ func Sync(id string, env map[string]string, mode prefs.Mode) (dir string, warnin
 			return "", nil, eerr
 		}
 		if !exists {
-			return "", nil, fmt.Errorf("provider %q 的 profile 缺失，请先 cc-select add %s", id, id)
+			return "", nil, fmt.Errorf(i18n.T("errors.provider.missingProfile"), id, id)
 		}
 		env, err = ReadEnv(id)
 		if err != nil {
@@ -61,14 +62,14 @@ func Sync(id string, env map[string]string, mode prefs.Mode) (dir string, warnin
 func syncFull(id string, env map[string]string) (string, []string, error) {
 	data, err := json.MarshalIndent(map[string]any{"env": env}, "", "  ")
 	if err != nil {
-		return "", nil, fmt.Errorf("序列化 env: %w", err)
+		return "", nil, fmt.Errorf(i18n.T("profile.serializeEnv"), err)
 	}
 	dir, err := EnsureRaw(id, data) // 创建目录 + 原子写 settings.json
 	if err != nil {
 		return "", nil, err
 	}
 	if err := pruneNonSettings(dir); err != nil {
-		return "", nil, fmt.Errorf("清理 profile 隔离: %w", err)
+		return "", nil, fmt.Errorf(i18n.T("profile.cleanIsolation"), err)
 	}
 	return dir, nil, nil
 }
@@ -77,7 +78,7 @@ func syncFull(id string, env map[string]string) (string, []string, error) {
 func syncSettingsOnly(id string, env map[string]string, warnings *[]string) (string, []string, error) {
 	home, err := ClaudeHome()
 	if err != nil {
-		return "", nil, fmt.Errorf("定位 ~/.claude: %w", err)
+		return "", nil, fmt.Errorf(i18n.T("profile.locateClaudeHome"), err)
 	}
 	global, _ := os.ReadFile(filepath.Join(home, "settings.json"))
 
@@ -85,7 +86,7 @@ func syncSettingsOnly(id string, env map[string]string, warnings *[]string) (str
 	if merr != nil {
 		// 全局 settings 不可解析 → 降级为仅 env（不阻断）。
 		merged, _ = json.MarshalIndent(map[string]any{"env": env}, "", "  ")
-		*warnings = append(*warnings, "读取/合并全局 settings.json 失败，已降级为仅 env: "+merr.Error())
+		*warnings = append(*warnings, i18n.T("profile.mergeGlobalSettingsFailed")+merr.Error())
 	}
 
 	dir, err := EnsureRaw(id, merged) // 创建目录 + 原子写合并后的 settings.json
@@ -95,10 +96,10 @@ func syncSettingsOnly(id string, env map[string]string, warnings *[]string) (str
 
 	skipped, serr := shareEntries(dir, home, []string{denySettings})
 	for _, s := range skipped {
-		*warnings = append(*warnings, fmt.Sprintf("未共享 %s：%s", s.Name, s.Reason))
+		*warnings = append(*warnings, fmt.Sprintf(i18n.T("profile.notShared"), s.Name, s.Reason))
 	}
 	if serr != nil {
-		*warnings = append(*warnings, "共享条目出错: "+serr.Error())
+		*warnings = append(*warnings, i18n.T("profile.shareError", serr.Error()))
 	}
 	return dir, *warnings, nil
 }

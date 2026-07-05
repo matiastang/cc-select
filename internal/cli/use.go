@@ -5,6 +5,7 @@ import (
 
 	"github.com/cc-select/cc-select/internal/app"
 	"github.com/cc-select/cc-select/internal/config"
+	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/shell"
@@ -17,28 +18,19 @@ var useModeFlag string
 
 var useCmd = &cobra.Command{
 	Use:   "use <provider>",
-	Short: "切换当前 shell 到指定 provider（输出供 eval 的 shell 语句）",
-	Long: `切换当前终端到指定 provider。
-
-机制：ccs use X 导出 CLAUDE_CONFIG_DIR 指向 X 的独立配置目录，
-claude 启动时读该目录的 settings.json（含 X 的 env），从而走 X 服务商。
-官方 provider（claude-official）则 unset CLAUDE_CONFIG_DIR，回默认 ~/.claude。
-
-直接调用 cc-select use <provider> 只会打印语句；要生效需：
-  eval "$(cc-select use <provider>)"
-或通过别名：ccs use <provider>`,
-	Args: cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runUse(cmd, args)
 	},
 }
 
 func init() {
+	localizeCmd(useCmd, "cli.use.short", "cli.use.long")
 	rootCmd.AddCommand(useCmd)
-	useCmd.Flags().StringVar(&useShellFlag, "shell", "",
-		"目标 shell 语法（zsh/bash/powershell），默认自动检测")
-	useCmd.Flags().StringVar(&useModeFlag, "mode", "",
-		"一次性隔离模式（settings-only|full），仅本次、不落盘")
+	useCmd.Flags().StringVar(&useShellFlag, "shell", "", "")
+	useCmd.Flags().StringVar(&useModeFlag, "mode", "", "")
+	localizeFlag(useCmd, "shell", "cli.use.shellFlag")
+	localizeFlag(useCmd, "mode", "cli.use.modeFlag")
 }
 
 func runUse(cmd *cobra.Command, args []string) error {
@@ -61,7 +53,7 @@ func runUse(cmd *cobra.Command, args []string) error {
 		return serr
 	} else {
 		for _, w := range warnings {
-			fmt.Fprintf(cmd.ErrOrStderr(), "⚠ %s\n", w)
+			fmt.Fprintf(cmd.ErrOrStderr(), i18n.T("cli.use.warningPrefix")+"%s\n", w)
 		}
 	}
 
@@ -80,15 +72,12 @@ func runUse(cmd *cobra.Command, args []string) error {
 
 	// 语句走 stdout（供 eval），提示走 stderr（不污染 eval）。
 	fmt.Fprint(cmd.OutOrStdout(), out)
-	fmt.Fprintf(cmd.ErrOrStderr(), "→ 已切换到 %s（%s）。新终端将继承此环境。\n",
-		target.ID, displayName(target))
+	fmt.Fprintln(cmd.ErrOrStderr(), i18n.T("cli.use.switched", target.ID, displayName(target)))
 	return nil
 }
 
-// displayName 返回 provider 的展示名，空则回退 ID。
+// displayName returns provider 的展示名，空则回退 ID。
+// 官方 provider 始终返回当前语言的翻译。
 func displayName(p config.Provider) string {
-	if p.Name != "" {
-		return p.Name
-	}
-	return p.ID
+	return p.DisplayName()
 }

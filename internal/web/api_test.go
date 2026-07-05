@@ -396,6 +396,69 @@ func TestModeEndpoint_RejectsInvalid(t *testing.T) {
 	}
 }
 
+func TestLanguageEndpoint_GetDefault(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	resp, err := http.Get(srv.URL + "/api/v1/language")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out map[string]any
+	json.NewDecoder(resp.Body).Decode(&out)
+	if out["language"] != "" {
+		t.Errorf("默认应空 language, got %v", out["language"])
+	}
+}
+
+func TestLanguageEndpoint_Put(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/language",
+		strings.NewReader(`{"language":"zh"}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("PUT want 200 got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	resp2, err := http.Get(srv.URL + "/api/v1/language")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp2.Body.Close()
+	var out map[string]any
+	json.NewDecoder(resp2.Body).Decode(&out)
+	if out["language"] != "zh" {
+		t.Errorf("PUT 后应 zh, got %v", out["language"])
+	}
+}
+
+func TestLanguageEndpoint_RejectsInvalid(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/language",
+		strings.NewReader(`{"language":"fr"}`))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("非法值应 400, got %d", resp.StatusCode)
+	}
+}
+
 // ---- shell 集成端点 ----
 
 // setTestShellEnv 让 DetectStatus/Install 在临时 home 上确定地工作（zsh）。

@@ -2,12 +2,14 @@ package rcinteg
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"os/exec"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cc-select/cc-select/internal/i18n"
 )
 
 // pwshStrategy 定位 PowerShell 的 $PROFILE。
@@ -64,7 +66,7 @@ func detectPwshProfile() (string, error) {
 			return p, nil
 		}
 	}
-	return "", errors.New("未找到 PowerShell（尝试 pwsh / powershell.exe 均失败）")
+	return "", i18n.E("errors.rcinteg.powershellNotFound")
 }
 
 // queryProfile 跑 <exe> -NoProfile -Command '$PROFILE' 取 profile 绝对路径。
@@ -79,7 +81,7 @@ func queryProfile(exe string) (string, error) {
 	}
 	p := strings.TrimSpace(string(out))
 	if p == "" {
-		return "", errors.New(exe + " 返回空 $PROFILE")
+		return "", fmt.Errorf(i18n.T("errors.rcinteg.emptyProfile"), exe)
 	}
 	return p, nil
 }

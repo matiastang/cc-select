@@ -15,6 +15,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/cc-select/cc-select/internal/i18n"
 )
 
 // Mode 是隔离模式。
@@ -35,6 +37,18 @@ const DefaultMode Mode = ModeSettingsOnly
 type Prefs struct {
 	// IsolationMode 是全局默认隔离模式；空串表示「未设置」，Resolve 时回退 DefaultMode。
 	IsolationMode Mode `json:"isolationMode,omitempty"`
+	// Language 是用户显示语言；空串表示「未设置」，Resolve 时回退系统检测或 DefaultLocale。
+	Language string `json:"language,omitempty"`
+}
+
+// NormalizeLanguage validates and normalizes the stored language preference.
+// Returns an empty string if unset or unsupported.
+func (p *Prefs) NormalizeLanguage() string {
+	l := i18n.NormalizeLocale(p.Language)
+	if i18n.IsSupportedLocale(string(l)) {
+		return string(l)
+	}
+	return ""
 }
 
 // Valid 判断一个模式值是否合法（空串合法，表示「未设置/继承」）。
@@ -64,18 +78,18 @@ func path() (string, error) {
 func Load() (*Prefs, error) {
 	p, err := path()
 	if err != nil {
-		return nil, fmt.Errorf("定位 prefs: %w", err)
+		return nil, fmt.Errorf(i18n.T("errors.prefs.path"), err)
 	}
 	data, err := os.ReadFile(p)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return &Prefs{}, nil
 		}
-		return nil, fmt.Errorf("读取 prefs: %w", err)
+		return nil, fmt.Errorf(i18n.T("errors.prefs.read"), err)
 	}
 	var pr Prefs
 	if err := json.Unmarshal(data, &pr); err != nil {
-		return nil, fmt.Errorf("解析 prefs（%s）: %w", p, err)
+		return nil, fmt.Errorf(i18n.T("errors.prefs.parse"), p, err)
 	}
 	return &pr, nil
 }
@@ -84,20 +98,20 @@ func Load() (*Prefs, error) {
 func Save(pr *Prefs) error {
 	p, err := path()
 	if err != nil {
-		return fmt.Errorf("定位 prefs: %w", err)
+		return fmt.Errorf(i18n.T("errors.prefs.path"), err)
 	}
 	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
-		return fmt.Errorf("创建 prefs 目录: %w", err)
+		return fmt.Errorf(i18n.T("errors.prefs.createDir"), err)
 	}
 	data, err := json.MarshalIndent(pr, "", "  ")
 	if err != nil {
-		return fmt.Errorf("序列化 prefs: %w", err)
+		return fmt.Errorf(i18n.T("errors.prefs.serialize"), err)
 	}
 	data = append(data, '\n')
 
 	tmp, err := os.CreateTemp(filepath.Dir(p), ".prefs-*.json.tmp")
 	if err != nil {
-		return fmt.Errorf("创建临时文件: %w", err)
+		return fmt.Errorf(i18n.T("errors.prefs.createTemp"), err)
 	}
 	tmpName := tmp.Name()
 	cleanup := func() { _ = os.Remove(tmpName) }
@@ -105,20 +119,20 @@ func Save(pr *Prefs) error {
 	if _, err := tmp.Write(data); err != nil {
 		tmp.Close()
 		cleanup()
-		return fmt.Errorf("写入临时文件: %w", err)
+		return fmt.Errorf(i18n.T("errors.prefs.writeTemp"), err)
 	}
 	if err := tmp.Chmod(0o600); err != nil {
 		tmp.Close()
 		cleanup()
-		return fmt.Errorf("设置权限: %w", err)
+		return fmt.Errorf(i18n.T("errors.prefs.chmodTemp"), err)
 	}
 	if err := tmp.Close(); err != nil {
 		cleanup()
-		return fmt.Errorf("关闭临时文件: %w", err)
+		return fmt.Errorf(i18n.T("errors.prefs.closeTemp"), err)
 	}
 	if err := os.Rename(tmpName, p); err != nil {
 		cleanup()
-		return fmt.Errorf("替换 prefs: %w", err)
+		return fmt.Errorf(i18n.T("errors.prefs.replace"), err)
 	}
 	return nil
 }

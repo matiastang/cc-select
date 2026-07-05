@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os/exec"
 	"runtime"
+
+	"github.com/cc-select/cc-select/internal/i18n"
 )
 
 // OpenURL 尝试用系统默认浏览器打开 url。失败不报错（仅记录由调用方处理）。
@@ -20,7 +22,7 @@ func OpenURL(url string) error {
 		cmd = exec.Command("xdg-open", url)
 	}
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("打开浏览器: %w", err)
+		return fmt.Errorf(i18n.T("errors.web.openBrowser"), err)
 	}
 	// 不等待浏览器进程（gui 命令本身会阻塞在 HTTP 服务上）。
 	return nil

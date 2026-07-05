@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/shell"
 )
 
@@ -84,7 +85,7 @@ func resolveShell(name string) shell.Shell {
 func RenderInit(shellName string) (snippet string, s shell.Shell, err error) {
 	bin, err := os.Executable()
 	if err != nil {
-		return "", shell.Unknown, fmt.Errorf("定位 cc-select 可执行文件: %w", err)
+		return "", shell.Unknown, fmt.Errorf(i18n.T("errors.rcinteg.locateExe"), err)
 	}
 	// 解析符号链接拿真实路径；EvalSymlinks 出错返回空串，必须用临时变量承接，不能直接覆盖 bin。
 	if resolved, err := filepath.EvalSymlinks(bin); err == nil {
@@ -141,7 +142,7 @@ func Install(shellName string) (InstallResult, error) {
 		return InstallResult{
 			Action:  ActionManual,
 			Shell:   string(s),
-			Message: fmt.Sprintf("%s 暂不支持一键安装，请使用 zsh / bash / PowerShell", s),
+			Message: fmt.Sprintf(i18n.T("errors.rcinteg.unsupportedShell"), s),
 		}, nil
 	}
 	snippet, _, err := RenderInit(string(s)) // 已是受支持 shell，RenderInit 不会因 For 报错
@@ -156,7 +157,7 @@ func Install(shellName string) (InstallResult, error) {
 func installWith(s shell.Shell, snippet string, strat Strategy) (InstallResult, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return manualResult(s, snippet, "无法定位用户目录，请手动添加以下内容"), nil
+		return manualResult(s, snippet, i18n.T("errors.rcinteg.homeDir")), nil
 	}
 	rc, err := strat.Resolve(home)
 	if err != nil || rc == "" {
@@ -164,7 +165,7 @@ func installWith(s shell.Shell, snippet string, strat Strategy) (InstallResult, 
 	}
 	action, err := writeManagedBlock(rc, snippet)
 	if err != nil {
-		return InstallResult{Shell: string(s)}, fmt.Errorf("写入 %s: %w", rc, err)
+		return InstallResult{Shell: string(s)}, fmt.Errorf("write %s: %w", rc, err)
 	}
 	return InstallResult{
 		Action:  action,
@@ -272,7 +273,7 @@ func atomicWriteRC(path string, data []byte) error {
 	}
 	dir := filepath.Dir(writePath)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("创建目录: %w", err)
+		return fmt.Errorf(i18n.T("errors.rcinteg.createDir"), err)
 	}
 	perm := os.FileMode(0o644)
 	if fi, err := os.Stat(writePath); err == nil {
@@ -330,24 +331,24 @@ func strategyFor(s shell.Shell) (Strategy, bool) {
 func successMessage(s shell.Shell, rc string, action string) string {
 	switch action {
 	case ActionNoop:
-		return fmt.Sprintf("%s 集成已是最新（%s）", s, rc)
+		return fmt.Sprintf(i18n.T("errors.rcinteg.upToDate"), s, rc)
 	case ActionUpdated:
-		return fmt.Sprintf("已更新 %s 集成（%s）；新开终端使最新版本生效", s, rc)
+		return fmt.Sprintf(i18n.T("errors.rcinteg.updated"), s, rc)
 	}
 	switch s {
 	case shell.PowerShell:
-		return fmt.Sprintf("已写入 %s。请重启 PowerShell 或执行 . $PROFILE 使 ccs 生效", rc)
+		return fmt.Sprintf(i18n.T("errors.rcinteg.writtenPowershell"), rc)
 	default:
-		return fmt.Sprintf("已写入 %s。请新开终端或执行 source %s 使 ccs 生效", rc, rc)
+		return fmt.Sprintf(i18n.T("errors.rcinteg.writtenUnix"), rc, rc)
 	}
 }
 
 func manualMessage(s shell.Shell, resolveErr error) string {
 	if s == shell.PowerShell {
-		return "未能自动定位 $PROFILE（可能未安装 PowerShell）。请把以下内容加入你的 PowerShell $PROFILE 后执行 . $PROFILE"
+		return i18n.T("errors.rcinteg.manualPowershell")
 	}
 	if resolveErr != nil {
-		return fmt.Sprintf("未能定位 rc 文件（%v）。请手动添加以下内容", resolveErr)
+		return fmt.Sprintf(i18n.T("errors.rcinteg.manualRc"), resolveErr)
 	}
-	return "请手动添加以下内容到对应启动脚本"
+	return i18n.T("errors.rcinteg.manualGeneric")
 }

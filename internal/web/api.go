@@ -8,6 +8,7 @@ import (
 
 	"github.com/cc-select/cc-select/internal/app"
 	"github.com/cc-select/cc-select/internal/config"
+	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/rcinteg"
@@ -45,6 +46,7 @@ func (h *apiHandler) routes() *http.ServeMux {
 	mux.HandleFunc("/api/v1/providers", h.handleProvidersCollection)
 	mux.HandleFunc("/api/v1/providers/", h.handleProviderItem)
 	mux.HandleFunc("/api/v1/mode", h.handleMode)
+	mux.HandleFunc("/api/v1/language", h.handleLanguage)
 	mux.HandleFunc("/api/v1/shell-integration", h.handleShellIntegration)
 	mux.HandleFunc("/api/v1/shell-integration/install", h.handleShellIntegrationInstall)
 	return mux
@@ -128,7 +130,47 @@ func (h *apiHandler) handleMode(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleShellIntegration 处理 GET：报告当前 shell 集成安装状态（供前端 banner 判定）。
+// handleLanguage 处理 GET/PUT 显示语言偏好（~/.cc-select/prefs.json）。
+//   - GET  → {"language": "en" | "zh"}（未设置时返回空串）
+//   - PUT  → 同结构，设置语言。
+func (h *apiHandler) handleLanguage(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		pr, err := prefs.Load()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"language": pr.NormalizeLanguage()})
+	case http.MethodPut:
+		var in struct {
+			Language string `json:"language"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+			return
+		}
+		l := i18n.NormalizeLocale(in.Language)
+		if !i18n.IsSupportedLocale(string(l)) {
+			writeError(w, http.StatusBadRequest, i18n.T("errors.web.invalidLanguage"))
+			return
+		}
+		pr, err := prefs.Load()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		pr.Language = string(l)
+		if err := prefs.Save(pr); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		i18n.SetLocale(l)
+		writeJSON(w, http.StatusOK, map[string]any{"language": string(l)})
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
 func (h *apiHandler) handleShellIntegration(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -256,7 +298,7 @@ func (h *apiHandler) updateProvider(w http.ResponseWriter, r *http.Request, id s
 	// 官方 provider 使用系统默认配置、不建 profile，写 settings 会被 EnsureRaw 静默丢弃。
 	// 故在 API 层明确拒绝，避免"看似保存成功、实则丢失"的误导（前端也禁用了编辑入口）。
 	if id == config.OfficialProviderID {
-		writeError(w, http.StatusBadRequest, "官方 provider 使用系统默认配置，不支持自定义 settings")
+		writeError(w, http.StatusBadRequest, i18n.T("errors.web.officialSettings"))
 		return
 	}
 	var in struct {
@@ -335,14 +377,14 @@ func normalizeSettings(raw json.RawMessage) ([]byte, error) {
 	}
 	var v any
 	if err := json.Unmarshal(raw, &v); err != nil {
-		return nil, fmt.Errorf("settings 不是合法 JSON: %v", err)
+		return nil, fmt.Errorf(i18n.T("errors.web.invalidSettingsJSON"), err)
 	}
 	if _, ok := v.(map[string]any); !ok {
-		return nil, fmt.Errorf("settings 必须是 JSON 对象")
+		return nil, i18n.E("errors.web.settingsMustBeObject")
 	}
 	out, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("序列化 settings: %v", err)
+		return nil, fmt.Errorf(i18n.T("errors.web.serializeSettings"), err)
 	}
 	return out, nil
 }
@@ -360,7 +402,7 @@ func applySettings(id string, data []byte, mode prefs.Mode) error {
 	default:
 		var settings map[string]any
 		if err := json.Unmarshal(data, &settings); err != nil {
-			return fmt.Errorf("解析 settings: %v", err)
+			return fmt.Errorf(i18n.T("profile.parseGlobalSettings"), err)
 		}
 		envAny, _ := settings["env"].(map[string]any)
 		env := map[string]string{}
@@ -392,7 +434,7 @@ func toDTO(p config.Provider) providerDTO {
 	env, _ := profile.ReadEnv(p.ID)
 	dto := providerDTO{
 		ID:            p.ID,
-		Name:          p.Name,
+		Name:          p.DisplayName(),
 		Env:           map[string]string{},
 		VarKeys:       make([]string, 0, len(env)),
 		IsolationMode: string(p.IsolationMode),

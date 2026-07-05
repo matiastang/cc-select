@@ -12,6 +12,8 @@ package shell
 import (
 	"fmt"
 	"strings"
+
+	"github.com/cc-select/cc-select/internal/i18n"
 )
 
 // Op 描述单个变更的操作类型。
@@ -56,7 +58,7 @@ func For(s Shell) (Emitter, error) {
 	case PowerShell:
 		return PowerShellEmitter{}, nil
 	default:
-		return nil, fmt.Errorf("不支持的 shell: %q", s)
+		return nil, fmt.Errorf(i18n.T("errors.shell.unsupported"), s)
 	}
 }
 

@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
+import i18n from "./i18n";
 import { ShellIntegrationBanner } from "./ShellIntegrationBanner";
 import { Header } from "./components/Header";
 import { GlobalModeCard } from "./components/GlobalModeCard";
 import { ProviderList } from "./components/ProviderList";
 import { JsonForm } from "./components/JsonForm";
 import { Provider, IsolationMode } from "./types";
+import { fetchBackendLanguage } from "./i18n/useLanguage";
 
 import { API_BASE } from "./constants";
 
@@ -44,9 +46,17 @@ export default function App() {
     }
   };
 
+  const loadLanguage = async () => {
+    const backend = await fetchBackendLanguage();
+    if (backend) {
+      await i18n.changeLanguage(backend);
+    }
+  };
+
   useEffect(() => {
     refresh();
     loadGlobalMode();
+    loadLanguage();
   }, []);
 
   const saveGlobalMode = async (mode: IsolationMode) => {
@@ -83,9 +93,7 @@ export default function App() {
       <ShellIntegrationBanner />
 
       <div className="notice">
-        <Trans i18nKey="notice" ns="common">
-          配置以完整 <code>settings.json</code> 形式编辑（不止 <code>env</code>，<code>permissions</code>、<code>model</code> 等均可）。在此处修改是改“模板”，<strong>已在运行的终端不会自动变化</strong>，需在对应终端重新执行 <code>ccs use <span>&lt;id&gt;</span></code> 才生效。
-        </Trans>
+        <Trans i18nKey="notice" ns="common" components={{ code: <code />, strong: <strong /> }} />
       </div>
 
       {error && (

@@ -7,6 +7,7 @@ import (
 
 	"github.com/cc-select/cc-select/internal/app"
 	"github.com/cc-select/cc-select/internal/config"
+	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/secrets"
@@ -22,6 +23,8 @@ func setTempCfg(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("CC_SELECT_CONFIG", dir+"/providers.json")
 	t.Setenv("CC_SELECT_CLAUDE_HOME", t.TempDir())
+	// 测试默认使用英文输出，避免受运行环境语言影响。
+	t.Setenv("CC_SELECT_LANGUAGE", "en")
 }
 
 // resetFlags 清掉 add/edit/use/init/remove 的全局 flag 变量，
@@ -100,7 +103,7 @@ func TestListProviders(t *testing.T) {
 		t.Errorf("应展示 GLM 名称:\n%s", out)
 	}
 	// 已激活时也应给出切换提示。
-	if !strings.Contains(out, "可切换到其它 provider") {
+	if !strings.Contains(out, "switch to another provider") {
 		t.Errorf("已激活时应给出切换提示:\n%s", out)
 	}
 }
@@ -110,7 +113,7 @@ func TestListProviders_NoneActive(t *testing.T) {
 	cfg := &config.Config{Providers: map[string]config.Provider{"glm": {ID: "glm"}}}
 	var b bytes.Buffer
 	listProviders(&b, cfg)
-	if !strings.Contains(b.String(), "未激活任何 provider") {
+	if !strings.Contains(b.String(), "no provider active in the current shell") {
 		t.Errorf("未激活时应有提示:\n%s", b.String())
 	}
 }
@@ -215,7 +218,7 @@ func TestRunUse_Normal(t *testing.T) {
 		t.Errorf("应导出 CC_SELECT_ACTIVE=glm:\n%s", out.String())
 	}
 	// 提示走 stderr，不污染 eval。
-	if !strings.Contains(eb.String(), "已切换到 glm") {
+	if !strings.Contains(eb.String(), "Switched to glm") {
 		t.Errorf("stderr 应有切换提示:\n%s", eb.String())
 	}
 }
@@ -256,7 +259,7 @@ func TestRunUse_MissingProfile(t *testing.T) {
 	useShellFlag = "zsh"
 	cmd, _, _ := newCmd()
 	err := runUse(cmd, []string{"glm"})
-	if err == nil || !strings.Contains(err.Error(), "profile 缺失") {
+	if err == nil || !strings.Contains(err.Error(), "profile for provider \"glm\" is missing") {
 		t.Errorf("profile 缺失应报错，got %v", err)
 	}
 }
@@ -355,7 +358,7 @@ func TestAddCommand_EndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("add: %v", err)
 	}
-	if !strings.Contains(out, "已添加 provider glm") {
+	if !strings.Contains(out, "Added provider glm") {
 		t.Errorf("add 应确认成功:\n%s", out)
 	}
 	// 重新加载验证落盘。
@@ -433,7 +436,7 @@ func TestRemoveCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("remove: %v", err)
 	}
-	if !strings.Contains(out, "已删除 provider glm") {
+	if !strings.Contains(out, "Removed provider glm") {
 		t.Errorf("remove 应确认成功:\n%s", out)
 	}
 	cfg2, _ := config.Load()
@@ -550,5 +553,22 @@ func TestEditCommand_DefaultClearsOverride(t *testing.T) {
 	cfg, _ := config.Load()
 	if got := cfg.Providers["glm"].IsolationMode; got != "" {
 		t.Errorf("default 应清除覆盖（空=继承全局）, got %q", got)
+	}
+}
+
+// TestListProviders_ChineseOutput 验证设置中文 locale 后 CLI 输出中文提示。
+func TestListProviders_ChineseOutput(t *testing.T) {
+	setTempCfg(t)
+	i18n.SetLocale(i18n.ZH)
+	t.Cleanup(func() { i18n.SetLocale(i18n.EN) })
+	t.Setenv(config.ActiveVar, "")
+	cfg := &config.Config{Providers: map[string]config.Provider{
+		"glm": {ID: "glm", Name: "GLM"},
+	}}
+	var b bytes.Buffer
+	listProviders(&b, cfg)
+	out := b.String()
+	if !strings.Contains(out, "未激活任何 provider") {
+		t.Errorf("中文环境下应显示未激活提示:\n%s", out)
 	}
 }

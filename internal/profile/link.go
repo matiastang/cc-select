@@ -4,11 +4,12 @@
 package profile
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/cc-select/cc-select/internal/i18n"
 )
 
 // skipEntry 记录一个未能链接的条目及原因（供调用方告警，非致命）。
@@ -44,7 +45,7 @@ func shareEntries(profileDir, claudeHome string, deny []string) ([]skipEntry, er
 		if e.isDir {
 			if err := os.MkdirAll(target, 0o700); err != nil {
 				// 预创建失败不致命（可能 ~/.claude 只读），记录并继续。
-				skipped = append(skipped, skipEntry{e.name, "预创建共享目录失败: " + err.Error()})
+				skipped = append(skipped, skipEntry{e.name, i18n.T("profile.preCreateSharedDir") + err.Error()})
 				continue
 			}
 		}
@@ -108,7 +109,7 @@ func ensureLink(profileDir, name, target string, isDir bool) (skipped bool, err 
 		}
 		// 陈旧链接 → 重建。
 		if err := os.Remove(link); err != nil {
-			return false, fmt.Errorf("移除陈旧链接 %s: %w", name, err)
+			return false, i18n.Ew("profile.removeStaleLink", err, name)
 		}
 		return false, makeLink(target, link, isDir)
 	}
@@ -116,7 +117,7 @@ func ensureLink(profileDir, name, target string, isDir bool) (skipped bool, err 
 	// Readlink 失败 → 真实条目（非链接）→ 权威化。
 	if isEmptyReal(link) {
 		if err := os.RemoveAll(link); err != nil {
-			return false, fmt.Errorf("清空 %s: %w", name, err)
+			return false, i18n.Ew("profile.clearDir", err, name)
 		}
 		return false, makeLink(target, link, isDir)
 	}
@@ -166,7 +167,7 @@ func pruneNonSettings(profileDir string) error {
 			continue
 		}
 		if err := os.RemoveAll(filepath.Join(profileDir, ent.Name())); err != nil {
-			return fmt.Errorf("清理 %s: %w", ent.Name(), err)
+			return i18n.Ew("profile.cleanup", err, ent.Name())
 		}
 	}
 	return nil

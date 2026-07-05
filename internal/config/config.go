@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/prefs"
 )
 
@@ -30,13 +31,13 @@ var validID = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 // 这是防路径穿越的唯一关口——所有写入/删除 profile 的入口都应先调用它。
 func ValidateID(id string) error {
 	if id == "" {
-		return fmt.Errorf("provider id 不能为空")
+		return i18n.E("errors.provider.emptyID")
 	}
 	if id == "." || id == ".." {
-		return fmt.Errorf("provider id 非法: %q", id)
+		return fmt.Errorf(i18n.T("errors.provider.invalidID"), id)
 	}
 	if !validID.MatchString(id) {
-		return fmt.Errorf("provider id %q 含非法字符（仅允许字母、数字、. _ -）", id)
+		return fmt.Errorf(i18n.T("errors.provider.invalidChars"), id)
 	}
 	return nil
 }
@@ -50,6 +51,18 @@ type Provider struct {
 	Name          string            `json:"name"`
 	Env           map[string]string `json:"env,omitempty"`
 	IsolationMode prefs.Mode        `json:"isolationMode,omitempty"`
+}
+
+// DisplayName returns the user-facing name for the provider.
+// The official provider always uses the current locale's translation.
+func (p Provider) DisplayName() string {
+	if p.ID == OfficialProviderID {
+		return i18n.T("errors.provider.officialBuiltin")
+	}
+	if p.Name != "" {
+		return p.Name
+	}
+	return p.ID
 }
 
 // Config 是完整的配置文件内容。
@@ -115,7 +128,7 @@ func Default() *Config {
 		Providers: map[string]Provider{
 			OfficialProviderID: {
 				ID:   OfficialProviderID,
-				Name: "Claude 官方",
+				Name: "",
 				Env:  nil,
 			},
 		},

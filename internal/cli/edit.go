@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cc-select/cc-select/internal/app"
+	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/spf13/cobra"
@@ -13,7 +14,6 @@ var editFl addFlags
 
 var editCmd = &cobra.Command{
 	Use:   "edit <id>",
-	Short: "编辑一个 provider 的配置",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.New()
@@ -23,7 +23,7 @@ var editCmd = &cobra.Command{
 		id := args[0]
 		old, exists := a.Config.Providers[id]
 		if !exists {
-			return fmt.Errorf("provider %q 不存在", id)
+			return fmt.Errorf(i18n.T("cli.edit.missing"), id)
 		}
 
 		// 旧 env 从 profile settings.json 读真值（providers.json 不再存 env）。
@@ -57,12 +57,13 @@ var editCmd = &cobra.Command{
 		if err := upsertProvider(a, id, fl, providerMode); err != nil {
 			return err
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "✓ 已更新 provider %s\n", id)
+		fmt.Fprintln(cmd.OutOrStdout(), i18n.T("cli.edit.updated", id))
 		return nil
 	},
 }
 
 func init() {
+	localizeCmd(editCmd, "cli.edit.short", "cli.edit.long")
 	rootCmd.AddCommand(editCmd)
 	registerProviderFlags(editCmd, &editFl)
 }

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/cc-select/cc-select/internal/i18n"
 )
 
 // Server 是 cc-select 的本地 Web 配置服务（仅 127.0.0.1）。
@@ -35,7 +37,7 @@ func (s *Server) Start(ctx context.Context, onReady func(actualPort int)) error 
 	// 用 net.Listen 提前拿到实际端口（port=0 场景），再在 goroutine 里 Serve。
 	ln, err := listen(addr)
 	if err != nil {
-		return fmt.Errorf("监听 %s: %w", addr, err)
+		return fmt.Errorf(i18n.T("errors.web.listen"), addr, err)
 	}
 	if onReady != nil {
 		onReady(actualPort(ln))

@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 
 	"github.com/cc-select/cc-select/internal/config"
+	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/prefs"
 )
 
@@ -85,7 +86,7 @@ func EnsureRaw(id string, data []byte) (dir string, err error) {
 		return "", err
 	}
 	if err := os.MkdirAll(d, 0o700); err != nil {
-		return "", fmt.Errorf("创建 profile 目录: %w", err)
+		return "", fmt.Errorf(i18n.T("errors.profile.createDir"), err)
 	}
 	// 统一以换行结尾（与历史行为一致，便于 diff）。
 	if len(data) == 0 || data[len(data)-1] != '\n' {
@@ -95,27 +96,27 @@ func EnsureRaw(id string, data []byte) (dir string, err error) {
 	// 原子写：临时文件（同目录）+ rename，保证 claude 不会读到半截文件。
 	tmp, err := os.CreateTemp(d, ".settings-*.json.tmp")
 	if err != nil {
-		return "", fmt.Errorf("创建临时文件: %w", err)
+		return "", fmt.Errorf(i18n.T("errors.profile.createTemp"), err)
 	}
 	tmpName := tmp.Name()
 	cleanup := func() { _ = os.Remove(tmpName) }
 	if _, err := tmp.Write(data); err != nil {
 		tmp.Close()
 		cleanup()
-		return "", fmt.Errorf("写入临时文件: %w", err)
+		return "", fmt.Errorf(i18n.T("errors.profile.writeTemp"), err)
 	}
 	if err := tmp.Chmod(0o600); err != nil {
 		tmp.Close()
 		cleanup()
-		return "", fmt.Errorf("设置权限: %w", err)
+		return "", fmt.Errorf(i18n.T("errors.profile.chmodTemp"), err)
 	}
 	if err := tmp.Close(); err != nil {
 		cleanup()
-		return "", fmt.Errorf("关闭临时文件: %w", err)
+		return "", fmt.Errorf(i18n.T("errors.profile.closeTemp"), err)
 	}
 	if err := os.Rename(tmpName, path); err != nil {
 		cleanup()
-		return "", fmt.Errorf("替换 profile: %w", err)
+		return "", fmt.Errorf(i18n.T("errors.profile.replace"), err)
 	}
 	return d, nil
 }
@@ -131,7 +132,7 @@ func Remove(id string) error {
 		return err
 	}
 	if err := os.RemoveAll(d); err != nil {
-		return fmt.Errorf("删除 profile 目录: %w", err)
+		return fmt.Errorf(i18n.T("errors.profile.removeDir"), err)
 	}
 	return nil
 }
@@ -166,11 +167,11 @@ func ReadEnv(id string) (map[string]string, error) {
 		if os.IsNotExist(err) {
 			return map[string]string{}, nil
 		}
-		return nil, fmt.Errorf("读取 profile: %w", err)
+		return nil, fmt.Errorf(i18n.T("errors.profile.read"), err)
 	}
 	var s claudeSettings
 	if err := json.Unmarshal(data, &s); err != nil {
-		return nil, fmt.Errorf("解析 profile: %w", err)
+		return nil, fmt.Errorf(i18n.T("errors.profile.parse"), err)
 	}
 	if s.Env == nil {
 		return map[string]string{}, nil
@@ -194,7 +195,7 @@ func ReadRaw(id string) ([]byte, error) {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("读取 profile: %w", err)
+		return nil, fmt.Errorf(i18n.T("errors.profile.read"), err)
 	}
 	return data, nil
 }

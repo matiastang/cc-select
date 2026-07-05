@@ -1,0 +1,195 @@
+{
+  "cli": {
+    "root": {
+      "short": "Shell-level AI provider isolation for Claude Code",
+      "long": "cc-select lets different terminal windows on the same machine use different AI model providers.\n\nUnlike cc-switch (global switch), cc-select exports environment variables in the current shell, affecting only the current terminal and its child processes, achieving per-terminal isolation.\n\nSwitch via the ccs alias (injected by cc-select init): ccs use <provider>"
+    },
+    "list": {
+      "short": "List all configured providers",
+      "long": "List all configured providers and show which one is active in the current shell.",
+      "header": {
+        "id": "ID",
+        "name": "Name"
+      },
+      "noActiveHint": "(no provider active in the current shell; run ccs use <id> to switch)",
+      "activeHint": "(currently active: %s; run ccs use <id> to switch to another provider)"
+    },
+    "current": {
+      "short": "Show the provider active in the current shell",
+      "long": "Show the provider active in the current shell.\n\nReads only the $CC_SELECT_ACTIVE environment variable (reflects the \"current terminal\" state), not the on-disk config — disk config is globally shared and cannot represent the active state of a specific shell.\nSee docs/engineering-decisions.md §3.",
+      "none": "none (no provider active in the current shell)"
+    },
+    "use": {
+      "short": "Switch the current shell to the specified provider (outputs shell statements for eval)",
+      "long": "Switch the current terminal to the specified provider.\n\nMechanism: ccs use X exports CLAUDE_CONFIG_DIR to X's isolated config directory; Claude reads that directory's settings.json (including X's env) on startup, routing to provider X. The official provider (claude-official) unsets CLAUDE_CONFIG_DIR, falling back to ~/.claude.\n\nCalling cc-select use <provider> directly only prints statements; to apply them run:\n  eval \"$(cc-select use <provider>)\"\nor use the alias: ccs use <provider>",
+      "shellFlag": "Target shell syntax (zsh/bash/powershell); auto-detected by default",
+      "modeFlag": "One-shot isolation mode (settings-only|full); applies only to this invocation and is not persisted",
+      "switched": "→ Switched to %s (%s). New terminals will inherit this environment.",
+      "warningPrefix": "⚠ "
+    },
+    "add": {
+      "short": "Interactively add a provider",
+      "long": "Interactively add a provider configuration. In interactive mode, values missing from flags are read securely from the terminal.",
+      "nameFlag": "Display name",
+      "apiKeyFlag": "ANTHROPIC_AUTH_TOKEN (pass in plaintext; optional in interactive mode, read securely from terminal)",
+      "modelFlag": "ANTHROPIC_MODEL",
+      "baseURLFlag": "ANTHROPIC_BASE_URL",
+      "modeFlag": "Per-provider isolation mode override (settings-only|full|default=inherit global)",
+      "exists": "provider %q already exists; use cc-select edit %s to modify it",
+      "modeInvalid": "invalid --mode %q (options: settings-only | full | default)",
+      "added": "✓ Added provider %s",
+      "prompts": {
+        "baseURL": "ANTHROPIC_BASE_URL (leave empty for official): ",
+        "model": "ANTHROPIC_MODEL (optional): ",
+        "apiKey": "ANTHROPIC_AUTH_TOKEN (optional): "
+      },
+      "profileWriteFailed": "write profile: %w"
+    },
+    "edit": {
+      "short": "Edit a provider's configuration",
+      "long": "Edit an existing provider's configuration.",
+      "missing": "provider %q does not exist",
+      "updated": "✓ Updated provider %s"
+    },
+    "remove": {
+      "short": "Remove a provider",
+      "long": "Remove a provider configuration and its isolated profile directory.",
+      "forceFlag": "Skip confirmation (reserved; current implementation has no interactive prompt)",
+      "official": "Built-in provider %s cannot be deleted",
+      "missing": "provider %q does not exist",
+      "profileFailed": "remove profile: %w",
+      "deleted": "✓ Removed provider %s"
+    },
+    "mode": {
+      "short": "View or set the global isolation mode",
+      "long": "View or set cc-select's global isolation mode (written to ~/.cc-select/prefs.json).\n\n  cc-select mode                 show current global mode\n  cc-select mode settings-only   Mode B (default): only settings.json is isolated, other contents are shared\n  cc-select mode full            Mode A: full directory isolation\n\nPer-provider override: cc-select edit <id> --mode ...\nOne-shot switch:       cc-select use  <id> --mode ... (not persisted)\nPriority: one-shot > provider > global > default (Mode B).",
+      "current": "Global isolation mode: %s",
+      "defaultHint": "(not explicitly set; using default %s)",
+      "invalid": "invalid mode %q (options: settings-only | full)",
+      "set": "✓ Global isolation mode set to %s"
+    },
+    "init": {
+      "short": "Output the ccs shell function (append to your shell startup script)",
+      "long": "Output the ccs() shell function definition to inject the cc-select command alias.\n\nUsage:\n  cc-select init >> ~/.zshrc       # zsh/bash\n  cc-select init >> ~/.bashrc      # bash\n  # PowerShell: add the output to $PROFILE\n\nAfter sourcing, use ccs use <provider> to switch the current shell's provider.\n\nccs is the short alias for cc-select: use is injected via eval, other subcommands are forwarded directly.",
+      "shellFlag": "Target shell (zsh/bash/powershell); auto-detected by default",
+      "generated": "%s integration code generated. Append it to your startup script and source it:",
+      "powershell": {
+        "line1": "  1) Append to $PROFILE (create it with New-Item if it doesn't exist)",
+        "line2": "  2) Restart PowerShell or run . $PROFILE"
+      },
+      "zsh": "  cc-select init >> ~/.zshrc && source ~/.zshrc"
+    },
+    "gui": {
+      "short": "Launch the local Web config page (open in browser)",
+      "long": "Launch the local Web config page to manage providers visually in the browser.\n\nListens only on 127.0.0.1; config is read/written via REST API sharing the same JSON used by the CLI.\nPress Ctrl+C to stop the server.\n\nNote: changing config in the GUI modifies the \"template\"; already-running terminals must rerun ccs use to take effect.\n(See docs/architecture.md §5 for config activation semantics.)",
+      "portFlag": "Listen port (0 = system-assigned)",
+      "noOpenFlag": "Do not open the browser automatically",
+      "started": "cc-select config page started: %s",
+      "openBrowserFailed": "(failed to open browser automatically: %v; please visit the address above manually)",
+      "serverExit": "server exited: %v",
+      "stopping": "stopping…"
+    },
+    "language": {
+      "short": "View or set the display language",
+      "long": "View or set the display language used by cc-select. The preference is stored in ~/.cc-select/prefs.json and shared between the CLI and the Web GUI.\n\n  cc-select language       show current language\n  cc-select language en    use English\n  cc-select language zh    use Simplified Chinese",
+      "invalid": "invalid language %q (supported: en, zh)",
+      "current": "Language: %s",
+      "set": "✓ Language set to %s"
+    }
+  },
+  "errors": {
+    "config": {
+      "path": "locate config file: %w",
+      "read": "read config: %w",
+      "parse": "parse config (%s): %w",
+      "createDir": "create config directory: %w",
+      "serialize": "serialize config: %w",
+      "createTemp": "create temp file: %w",
+      "writeTemp": "write temp file: %w",
+      "chmodTemp": "set temp file permissions: %w",
+      "closeTemp": "close temp file: %w",
+      "replace": "replace config file: %w"
+    },
+    "prefs": {
+      "path": "locate prefs: %w",
+      "read": "read prefs: %w",
+      "parse": "parse prefs (%s): %w",
+      "createDir": "create prefs directory: %w",
+      "serialize": "serialize prefs: %w",
+      "createTemp": "create temp file: %w",
+      "writeTemp": "write temp file: %w",
+      "chmodTemp": "set permissions: %w",
+      "closeTemp": "close temp file: %w",
+      "replace": "replace prefs: %w"
+    },
+    "profile": {
+      "createDir": "create profile directory: %w",
+      "createTemp": "create temp file: %w",
+      "writeTemp": "write temp file: %w",
+      "chmodTemp": "set permissions: %w",
+      "closeTemp": "close temp file: %w",
+      "replace": "replace profile: %w",
+      "removeDir": "remove profile directory: %w",
+      "read": "read profile: %w",
+      "parse": "parse profile: %w"
+    },
+    "provider": {
+      "emptyID": "provider id cannot be empty",
+      "invalidID": "invalid provider id: %q",
+      "invalidChars": "provider id %q contains invalid characters (only letters, digits, . _ - allowed)",
+      "notFound": "provider %q does not exist",
+      "missingProfile": "profile for provider %q is missing; please run cc-select add %s first",
+      "officialBuiltin": "Claude Official"
+    },
+    "shell": {
+      "unsupported": "unsupported shell: %q"
+    },
+    "rcinteg": {
+      "locateExe": "locate cc-select executable: %w",
+      "unsupportedShell": "%s is not supported for one-click install; please use zsh / bash / PowerShell",
+      "homeDir": "unable to locate user home directory; please add the following manually",
+      "manualPowershell": "Could not automatically locate $PROFILE (PowerShell may not be installed). Add the following to your PowerShell $PROFILE, then run . $PROFILE",
+      "manualRc": "Could not locate rc file (%v). Please add the following manually",
+      "manualGeneric": "Please add the following to the appropriate startup script",
+      "upToDate": "%s integration is already up to date (%s)",
+      "updated": "Updated %s integration (%s); open a new terminal for the latest version to take effect",
+      "writtenPowershell": "Written to %s. Restart PowerShell or run . $PROFILE to enable ccs",
+      "writtenUnix": "Written to %s. Open a new terminal or run source %s to enable ccs",
+      "createDir": "create directory: %w",
+      "unsupportedUnixShell": "unsupported unix shell: %s",
+      "powershellNotFound": "PowerShell not found (tried both pwsh and powershell.exe)",
+      "emptyProfile": "%s returned empty $PROFILE"
+    },
+    "web": {
+      "listen": "listen %s: %w",
+      "openBrowser": "open browser: %w",
+      "officialSettings": "Official provider uses the system default config; custom settings are not supported",
+      "invalidSettingsJSON": "settings is not valid JSON: %v",
+      "settingsMustBeObject": "settings must be a JSON object",
+      "serializeSettings": "serialize settings: %v",
+      "invalidLanguage": "language must be en or zh"
+    }
+  },
+  "shell": {
+    "init": {
+      "zshComment": "# ccs is the short alias for cc-select: use is injected via eval, other subcommands are forwarded directly.",
+      "powershellComment": "# ccs is the short alias for cc-select: use is injected via Invoke-Expression, other subcommands are forwarded directly."
+    }
+  },
+  "profile": {
+    "serializeEnv": "serialize env: %w",
+    "cleanIsolation": "clean up profile isolation: %w",
+    "locateClaudeHome": "locate ~/.claude: %w",
+    "mergeGlobalSettingsFailed": "failed to read/merge global settings.json, falling back to env only: ",
+    "notShared": "not shared %s: %s",
+    "shareError": "error sharing entries: %s",
+    "preCreateSharedDir": "failed to pre-create shared directory: ",
+    "removeStaleLink": "remove stale link %s",
+    "clearDir": "clear %s",
+    "cleanup": "clean up %s",
+    "parseGlobalSettings": "parse global settings.json: %w",
+    "serializeMergedSettings": "serialize merged settings: %w",
+    "createJunction": "create junction %s: %s",
+    "createSymlink": "create symbolic link %s (requires Developer Mode / admin)"
+  }
+}

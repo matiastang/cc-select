@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"text/template"
+
+	"github.com/cc-select/cc-select/internal/i18n"
 )
 
 // PowerShellEmitter 生成 PowerShell 语句：$env:NAME='val' / Remove-Item Env:\NAME。
@@ -43,7 +45,11 @@ func (PowerShellEmitter) Emit(changes []Change) string {
 // InitSnippet 渲染 PowerShell 版 ccs 函数。
 func (PowerShellEmitter) InitSnippet(binaryPath string) string {
 	var b strings.Builder
-	if err := pwshTmpl.Execute(&b, map[string]string{"BinaryPath": binaryPath}); err != nil {
+	data := map[string]string{
+		"BinaryPath": binaryPath,
+		"Comment":    i18n.T("shell.init.powershellComment"),
+	}
+	if err := pwshTmpl.Execute(&b, data); err != nil {
 		return ""
 	}
 	return b.String()
