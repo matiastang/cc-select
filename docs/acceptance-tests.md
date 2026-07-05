@@ -14,13 +14,13 @@
 | AC3 切换正确性 | R2 + [04 §1](./engineering-decisions.md#1-切换时清理上一个-provider) | MVP |
 | AC4 current 语义 | [04 §3](./engineering-decisions.md#3-current-命令的语义正确性) | MVP |
 | AC5 GUI 配置 | R4 | 阶段 2 |
-| AC6 生效语义 | R8 / [02 §5](./architecture.md#5-配置生效语义满足-r8必须讲清) | 阶段 2 |
+| AC6 生效语义 | R8 / [02 §6](./architecture.md#6-配置生效语义满足-r8必须讲清) | 阶段 2 |
 | AC7 PS1 可视化 | R6 | 阶段 3 |
 | AC8 key 安全 | R7 | 阶段 4 |
 | AC9 多 shell | R2（扩展） | 阶段 5 |
-| AC10 隔离粒度 | [isolation-modes.md](./isolation-modes.md) / [04 §7](./engineering-decisions.md#7-隔离粒度全隔离-vs-仅-settingsjson-隔离双模式) | 后 MVP |
-| AC11 shell 集成一键安装 | [distribution §2](./distribution.md#2-web-配置页一键安装-shell-集成已实现) | 阶段 2 |
-| AC12 多语言（i18n） | CLI/GUI 语言偏好 | 后 MVP |
+| AC10 隔离粒度 | [isolation-modes.md](./isolation-modes.md) / [04 §7](./engineering-decisions.md#7-隔离粒度全隔离-vs-仅-settingsjson-隔离双模式) | 阶段 2 |
+| AC11 shell 集成一键安装 | [distribution §2](./distribution.md#2-web-配置页一键安装-shell-集成已实现) | 阶段 3 |
+| AC12 多语言（i18n） | CLI/GUI 语言偏好 | 阶段 4 |
 
 ---
 
@@ -162,7 +162,7 @@
 
 - `~/.claude.json`（sibling 大状态文件）是否被 `CLAUDE_CONFIG_DIR` 重定位——决定是否需纳入共享。
 - 设 `CLAUDE_CONFIG_DIR` 后 claude 是否完全不读全局 `~/.claude/settings.json`——印证合并必要性。
-- 详见 [isolation-modes.md §6](./isolation-modes.md#6-待验证项动手前用真机确认)。
+- 详见 [isolation-modes.md §6](./isolation-modes.md#6-已验证项)。
 
 ---
 
@@ -185,7 +185,7 @@
 ## 验收自动化建议
 
 - AC1–AC4（隔离、等价、清理、current）可写成 shell 测试脚本：开两个子 shell、设置断言环境变量。
-- AC5–AC6 涉及 GUI，需人工或 e2e 框架（如 Tauri 的 WebDriver）验证。
+- AC5–AC6 涉及 GUI，需人工或 e2e 框架（项目已用 Playwright）验证。
 - AC7–AC9 人工验收为主。
 
 > 每个交付阶段（见 [路线](./roadmap.md)）完成后，对照本文件对应用例组验收，全部通过方可进入下一阶段。

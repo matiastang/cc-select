@@ -1,13 +1,13 @@
 # 分发与安装
 
-> 本文回答需求 [R5](./requirements.md#r5-安装体验对标-cc-switch)：用户怎么一键装上、怎么用上 `ccs` 命令和配置页。
+> 本文回答需求 [R5](./requirements.md#r5-安装体验对标现有工具)：用户怎么一键装上、怎么用上 `ccs` 命令和配置页。
 > 上游：GUI 已定 **Web 路线**（[Q2](./requirements.md#待用户确认的开放问题含已定决策)），OS 跨三平台（[Q6](./requirements.md#待用户确认的开放问题含已定决策)）。桌面 App + Cask 作为**备选**保留。
 
 ---
 
 ## 1. 选定方案：CLI 含 Web 配置页，无桌面 App
 
-因 GUI 选了本地 Web 服务（`cc-select gui`），**不再需要安装桌面 App**——用户只装一个 CLI，配置页随 `cc-select gui` 命令启动。这比 cc-switch 的"装 App"更轻：一条命令装好，一条命令开配置页。
+因 GUI 选了本地 Web 服务（`cc-select gui`），**不再需要安装桌面 App**——用户只装一个 CLI，配置页随 `cc-select gui` 命令启动。这比安装独立桌面 App 更轻：一条命令装好，一条命令开配置页。
 
 安装分两步（三平台通用思路）：
 
@@ -88,7 +88,7 @@ cc-select gui        # 开浏览器配置页
 
 ## 3. 备选：桌面 App + Homebrew Cask（若日后 GUI 改回桌面 App）
 
-cc-switch 走的是这条路，作为**备选保留**。原理：`brew install --cask <name>` 让 Homebrew 自动「下载 `.dmg` → 挂载 → 拖进 `/Applications`」。
+一些现有全局切换工具（如 cc-switch）走的是桌面 App + Cask 路线。该路线作为本项目的**备选保留**。原理：`brew install --cask <name>` 让 Homebrew 自动「下载 `.dmg` → 挂载 → 拖进 `/Applications`」。
 
 | Homebrew 类型 | 装什么 | 装到哪 |
 |---|---|---|

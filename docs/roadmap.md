@@ -2,7 +2,7 @@
 
 > 本文给出从简到强的交付阶段规划。每个阶段标注对应的详细文档与验收点。
 > 上游：需求全集见 [requirements.md](./requirements.md)，验收见 [acceptance-tests.md](./acceptance-tests.md)。
-> 决策已更新：GUI=Web、存储=JSON、shell 先 zsh（可扩展）、OS 跨三平台（见 [tech-stack](./tech-stack.md#0-决策总览)）。
+> 决策已更新：GUI=Web、存储=JSON、shell 先 zsh（可扩展）、OS 跨三平台、i18n=en/zh（见 [tech-stack](./tech-stack.md#0-决策总览)）。
 
 ---
 
@@ -11,10 +11,13 @@
 | 阶段 | 内容 | 主要满足需求 | 详细文档 | 验收 | 状态 |
 |---|---|---|---|---|---|
 | **1. MVP（CLI 切换 + Web 配置）** | CLI 二进制（`cc-select`）+ JSON 存储 + `ccs` 别名/shell 函数 + `use/list/current/init` + **本地 Web 配置页**（`cc-select gui`，增删改查 provider）。配置同时支持命令行 `add` 与 Web 两种入口。 | R1, R2, R3, R4 | [cli-design](./cli-design.md)、[architecture](./architecture.md) | [验收 - 隔离/等价/配置](./acceptance-tests.md) | ✅ 已完成 |
-| **2. key 安全** | key 迁入系统 Keychain（[R7](./requirements.md#隐含-派生需求)）。 | R7 | [engineering §5](./engineering-decisions.md#5-api-key-安全满足-r7) | [验收 - 安全](./acceptance-tests.md) | 🟡 部分完成：keychain 抽象与占位机制已实现，但 CLI/Web 写入路径仍为明文 |
-| **3. PS1 集成** | `init` 自动注入提示符 hook，显示当前 provider。 | R6 | [engineering §4](./engineering-decisions.md#4-提示符可视化满足-r6) | [验收 - 可视化](./acceptance-tests.md) | ⏳ 未开始 |
-| **4. 跨 shell** | 在 zsh 基础上扩展 bash / fish 的 wrapper（init 按 shell 分发）。 | R2（扩展） | [cli-design](./cli-design.md) | [验收 - 多 shell](./acceptance-tests.md) | 🟡 部分完成：zsh/bash 共用 emitter、PowerShell emitter 已实现；fish 未支持 |
-| **5. 跨平台完善** | macOS/Linux/Windows 全覆盖；尤其 Windows 的环境变量隔离机制单独评估。 | Q6 | [architecture §2.1](./architecture.md#21-跨平台约束满足-q6macoslinuxwindows) | [验收 - 多 shell](./acceptance-tests.md) | 🟡 部分完成：PowerShell emitter、`$PROFILE` 写入（含 BOM/加载）与 CI 集成测试已实现；fish 未支持 |
+| **2. 隔离粒度（Mode A/B）** | 实现全局默认 + per-provider 覆盖的双模式隔离，默认 Mode B（仅 settings.json 隔离，其余链接共享）。 | 架构扩展 | [isolation-modes](./isolation-modes.md)、[engineering §7](./engineering-decisions.md#7-隔离粒度全隔离-vs-仅-settingsjson-隔离双模式) | [验收 - 隔离粒度](./acceptance-tests.md#ac10-隔离粒度双模式-mode-a-mode-b) | ✅ 已完成 |
+| **3. 一键安装 shell 集成** | Web 配置页顶部 banner 检测并自动写入 rc 文件；CLI `init` 与 Web 共用同一份 snippet。 | R5 扩展 | [distribution §2](./distribution.md#2-web-配置页一键安装-shell-集成已实现) | [验收 - shell 集成](./acceptance-tests.md#ac11-web-一键安装-shell-集成) | ✅ 已完成 |
+| **4. i18n（en/zh）** | CLI 与 Web GUI 共享语言偏好，支持中英文切换；`language` 命令 + 页面语言切换器。 | Q7 | [architecture §7](./architecture.md)、[cli-design](./cli-design.md) | [验收 - i18n](./acceptance-tests.md#ac12-多语言i18n) | ✅ 已完成 |
+| **5. key 安全** | key 迁入系统 Keychain（[R7](./requirements.md#隐含-派生需求)）。 | R7 | [engineering §5](./engineering-decisions.md#5-api-key-安全满足-r7) | [验收 - 安全](./acceptance-tests.md) | 🟡 部分完成：keychain 抽象与占位机制已实现，但 CLI/Web 写入路径仍为明文 |
+| **6. PS1 集成** | `init` 自动注入提示符 hook，显示当前 provider。 | R6 | [engineering §4](./engineering-decisions.md#4-提示符可视化满足-r6) | [验收 - 可视化](./acceptance-tests.md) | ⏳ 未开始 |
+| **7. 跨 shell** | 在 zsh/bash/PowerShell 基础上扩展 fish 的 wrapper（init 按 shell 分发）。 | R2（扩展） | [cli-design](./cli-design.md) | [验收 - 多 shell](./acceptance-tests.md) | 🟡 部分完成：zsh/bash 共用 emitter、PowerShell emitter 已实现；fish 未支持 |
+| **8. 跨平台完善** | macOS/Linux/Windows 全覆盖；尤其 Windows 的环境变量隔离机制单独评估。 | Q6 | [architecture §3.1](./architecture.md#31-跨平台约束满足-q6macoslinuxwindows) | [验收 - 多 shell](./acceptance-tests.md) | 🟡 部分完成：PowerShell emitter、`$PROFILE` 写入（含 BOM/加载）与 CI 集成测试已实现；fish 未支持 |
 
 ---
 
@@ -29,4 +32,4 @@ MVP 是验证整个方案地基的关键里程碑。因用户希望"有地方能
 5. **存储**：读写 JSON（`providers.json` 存 id/name；`profiles/<id>/settings.json` 存 env）。
 6. **Web 配置页**（[R4](./requirements.md#r4-图形化界面配置服务商)）：`cc-select gui` 起本地服务，浏览器内对 provider 增删改查，保存到同一份配置。
 
-> MVP 已完成。当前剩余工作见上方阶段 2–5。已知问题"与 cc-switch 共存冲突"见 [engineering §6](./engineering-decisions.md#6-claude-的-settingsjson-env-优先级高于-shell已用-claude_config_dir-解决)。
+> MVP 已完成。阶段 2–4 亦已完成；当前剩余工作见阶段 5–8。关于"为何必须改用 `CLAUDE_CONFIG_DIR`"的关键发现见 [engineering §6](./engineering-decisions.md#6-为何改用-claude_config_dir)。

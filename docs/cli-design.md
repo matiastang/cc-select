@@ -1,6 +1,6 @@
 # CLI 设计
 
-> 本文聚焦命令行这一方向：`cc-select` 与 `ccs` 别名的关系、9 个子命令各自功能、`use` 为何需要 shell 函数。
+> 本文聚焦命令行这一方向：`cc-select` 与 `ccs` 别名的关系、各子命令各自功能、`use` 为何需要 shell 函数。
 > 上游：需求 [R2](./requirements.md#r2-命令行切换ccs)/[R3](./requirements.md#r3-cc-select-与-ccs-两个命令都要能用ccs-是-cc-select-的别名)，架构见 [架构设计](./architecture.md)。
 
 ---
@@ -18,7 +18,7 @@
 
 别名有两层实现（见本文 §3 的特殊性）：
 
-- **普通子命令**（list/current/add/edit/remove/init/gui）：纯 alias，`ccs <sub>` 直接转发到 `cc-select <sub>` 即可。
+- **普通子命令**（list/current/add/edit/remove/init/gui/language）：纯 alias，`ccs <sub>` 直接转发到 `cc-select <sub>` 即可。
 - **切换命令 `use`**（特殊）：因需 `eval` 注入环境变量，`ccs` 是一个 **shell 函数**而非简单 alias，但对外仍表现为"和 cc-select use 等价"。
 
 ---
@@ -34,10 +34,9 @@
 | `edit <name>` | 编辑指定 provider 的配置 | ❌ | `cc-select edit glm` |
 | `remove <name>` | 删除指定 provider | ❌ | `cc-select remove glm` |
 | `mode [settings-only\|full]` | 查看或设置**全局**隔离模式 | ❌ | `cc-select mode settings-only` |
+| `language [en\|zh]` | 查看或设置显示语言 | ❌ | `cc-select language zh` |
 | `init` | 输出要追加到 `.zshrc`/`.bashrc`/`$PROFILE` 的 `ccs()` 函数代码 | ❌ | `cc-select init >> ~/.zshrc` |
-| `gui` | 启动 GUI 配置界面（本地 Web 服务，见 [架构 §4](./architecture.md#4-gui-配置界面)） | ❌ | `cc-select gui` |
-
-> 注：不带参数的 `ccs`（即 `cc-select`）可设计为交互式 provider 选择菜单（方向键选、回车切换），作为 `use` 的便捷入口（MVP 之后）。
+| `gui` | 启动 GUI 配置界面（本地 Web 服务，见 [架构 §5](./architecture.md#5-gui-配置界面)） | ❌ | `cc-select gui` |
 
 `add` / `edit` / `use` 均支持 `--mode settings-only|full|default` 以设置/覆盖隔离模式：
 - `cc-select edit glm --mode full`：把 `glm` 的 per-provider 模式设为 Mode A（落盘到 `providers.json`）。
@@ -47,7 +46,7 @@
 
 ## 3. `use` 的特殊性：为何它需要 shell 函数而非 alias
 
-`use` 是唯一需要改**当前 shell 环境**的命令，而子进程无法改父 shell 环境（见 [需求分析 §3](./requirements-analysis.md#3-核心架构约束动手前必读)）。因此 `use` 的二进制只**输出** shell 语句：
+`use` 是唯一需要改**当前 shell 环境**的命令，而子进程无法改父 shell 环境（见 [需求分析 §4](./requirements-analysis.md#4-核心架构约束动手前必读)）。因此 `use` 的二进制只**输出** shell 语句：
 
 ```bash
 $ cc-select use glm
@@ -78,11 +77,18 @@ ccs current         # 查看当前 shell 用谁（= cc-select current）
 claude              # 各终端用各自的 provider
 ```
 
+### `use` 的内部流程
+
+1. 从 `providers.json` 读取目标 provider；
+2. 用 `prefs.ResolveMode` 解析最终隔离模式（一次性 `--mode` > provider 覆盖 > 全局 > 默认 Mode B）；
+3. 调用 `profile.Sync(id, nil, mode)` 幂等构建/重建 profile（`env=nil` 表示沿用现有 profile 的 env）；
+4. 输出由 `switcher.Plan` + `shell.Emit` 渲染的 export/unset 语句。
+
 ---
 
-## 4. 交互式菜单（可选增强）
+## 4. 交互式菜单（后续增强，尚未实现）
 
-不带参数的 `ccs` 弹出交互式选择菜单：
+未来可为不带参数的 `ccs` 增加交互式选择菜单：
 
 ```
 $ ccs
@@ -92,4 +98,4 @@ $ ccs
   official     (Claude 官方)  ← current
 ```
 
-方向键选择、回车即切换（等价于 `ccs use <选中项>`）。这降低了用户记 provider 名字的负担，是 MVP 之后的体验增强（见 [路线](./roadmap.md)）。
+方向键选择、回车即切换（等价于 `ccs use <选中项>`）。这会降低用户记 provider 名字的负担，但当前版本尚未实现，属于路线图中体验增强项（见 [路线](./roadmap.md)）。

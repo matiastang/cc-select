@@ -13,8 +13,10 @@
 
 ### 背景参照
 
-- 现有工具 [cc-switch](https://github.com/farion1231/cc-switch) 切换模型服务商是**全局**的（改 `~/.claude/settings.json`，全机器共享）。
-- 目标工具 `cc-select` 要做到 **shell 级（per-terminal）隔离**。
+- 现有常见的模型服务商切换方式是**全局**的：直接修改 `~/.claude/settings.json` 中的 `env`，全机器所有终端共享同一份配置。
+- 这导致不同终端无法同时使用不同服务商；目标工具 `cc-select` 要做到 **shell 级（per-terminal）隔离**。
+
+> 以社区工具 [cc-switch](https://github.com/farion1231/cc-switch) 为例：它通过重写 `~/.claude/settings.json` 实现全局切换。该方案的能力与局限分析见 [需求分析](./requirements-analysis.md#3-其他方案分析以-cc-switch-为例)。
 
 ---
 
@@ -46,19 +48,19 @@
 
 > 用户原话：配置的话要是可以像 cc-switch 一样，有图形化的界面来配置就更好了。
 
-- **配置 provider**（填 URL / key / model）走 GUI，对标 cc-switch 的体验。
+- **配置 provider**（填 URL / key / model）走 GUI，提供可视化表单。
 - 切换仍走命令行（`ccs`），两者分工：GUI 配置、命令行切换。
 - **GUI 形态已定为本地 Web 网页**（`cc-select gui` 起本地 HTTP 服务、浏览器打开）。理由：轻量、跨平台天然、与 CLI 实现语言解耦。**桌面 App（Tauri/Electron 等）作为备选保留**，日后可切换（见 Q2）。
 
-→ GUI 形态见 [架构设计 - GUI 配置界面](./architecture.md#4-gui-配置界面)，分发见 [分发与安装](./distribution.md)。
+→ GUI 形态见 [架构设计 - GUI 配置界面](./architecture.md#5-gui-配置界面)，分发见 [分发与安装](./distribution.md)。
 
-### R5. 安装体验对标 cc-switch
+### R5. 安装体验对标现有工具
 
 > 用户原话：我记得命令行装了 cc-switch 并没有手动安装应用，自动就装了 App，这个怎么实现的？我们的方案能实现吗？
 
 - 期望 `cc-select` 也能"命令行一键安装"。
-- 因 GUI 选 Web 路线，安装方式相应变化：CLI 走包管理器/npm/单二进制，Web GUI 随 `cc-select gui` 命令启动，**无需安装桌面 App**。
-- 桌面 App + Homebrew Cask 那套（cc-switch 的方式）作为**备选保留**，若日后 GUI 改回桌面 App 可启用。
+- 因 GUI 选 Web 路线，安装方式相应变化：CLI 走包管理器/单二进制，Web GUI 随 `cc-select gui` 命令启动，**无需安装桌面 App**。
+- 桌面 App + Homebrew Cask 那套作为**备选保留**，若日后 GUI 改回桌面 App 可启用。
 
 → 安装方案见 [分发与安装](./distribution.md)。
 
@@ -84,6 +86,7 @@
 | Q4 | 派生需求 R6/R7/R8 是否纳入 | **已纳入**（见上文 R6/R7/R8，验收见 [acceptance-tests.md](./acceptance-tests.md)）。 |
 | Q5 | 目标 shell 范围 | **已定：zsh / bash / PowerShell**；fish 作为后续扩展。`init` 与 shell 发射器按 shell 类型可扩展设计。 |
 | Q6 | 目标 OS | **已定：macOS、Linux、Windows 三平台都要能跑**。影响：环境变量机制、shell 函数、打包产物需覆盖三平台。 |
+| Q7 | CLI/GUI 多语言（i18n） | **已定：支持 en / zh**。语言偏好存 `~/.cc-select/prefs.json`，`CC_SELECT_LANGUAGE` 环境变量可覆盖，CLI 与 Web GUI 共享同一份偏好。 |
 
 > 备选方案保留在 [技术选型](./tech-stack.md)，日后调整实现方案时可回看。
 
@@ -96,8 +99,9 @@
 | 2026-06-26 | 初始整理：从多轮需求讨论提炼 R1–R5 + 派生 R6–R8 | 首次创建 |
 | 2026-06-26 | 记录 Q2–Q6 决策：GUI=本地Web、存储=JSON、shell=zsh(可扩展)、OS=三平台、R6–R8 纳入；备选方案保留 | 用户确认 |
 | 2026-06-26 | Q1 决策：语言定为 **Go**（Node+TS/Rust 备选）。Windows 支持评估完成（可行，仅不支持 CMD）。 | 用户确认 |
-| 2026-06-28 | 实测发现"与 cc-switch 共存"冲突：变量名不一致导致并存而非覆盖。记为已知问题，见 [工程细节 §6](./engineering-decisions.md)。短期建议先清 settings.json 的 env。 | 实测发现 |
-| 2026-06-28 | **重大发现**：实测确认 claude 的 settings.json `env` 优先级**高于** shell 环境变量。cc-select 的 shell 隔离机制在"装过 cc-switch（settings.json 有 env）的机器"上**对 claude 完全失效**。推翻此前"同名覆盖"假设。需重新评估方向（多 CLAUDE_CONFIG_DIR 等），见 [工程细节 §6](./engineering-decisions.md)。 | 实测发现 |
-| 2026-06-28 | **机制重构落地**：改用 `CLAUDE_CONFIG_DIR`（方向 2，已实测验证）。`ccs use X` 指向 `~/.cc-select/profiles/<id>/`，claude 读该目录 settings.json。token 明文落 profile（keychain 占位机制已预留待接入）；官方 provider = unset 回默认。详见 [架构 §2.0](./architecture.md)、[工程细节 §6](./engineering-decisions.md)。 |
+| 2026-06-28 | 实测发现"与全局配置冲突"：当 `~/.claude/settings.json` 已存在 `env` 时，直接 export `ANTHROPIC_*` 无法影响 claude。记为已知问题，见 [工程细节 §6](./engineering-decisions.md)。短期建议先清 settings.json 的 env。 | 实测发现 |
+| 2026-06-28 | **重大发现**：实测确认 claude 的 settings.json `env` 优先级**高于** shell 环境变量。cc-select 的 shell 隔离机制在"`~/.claude/settings.json` 已有 env 的机器"上**对 claude 完全失效**。推翻此前"同名覆盖"假设。需重新评估方向（多 `CLAUDE_CONFIG_DIR` 等），见 [工程细节 §6](./engineering-decisions.md)。 | 实测发现 |
+| 2026-06-28 | **机制重构落地**：改用 `CLAUDE_CONFIG_DIR`（方向 2，已实测验证）。`ccs use X` 指向 `~/.cc-select/profiles/<id>/`，claude 读该目录 settings.json。token 明文落 profile（keychain 占位机制已预留待接入）；官方 provider = unset 回默认。详见 [架构 §3.0](./architecture.md#30-切换机制claude_config_dir关键)、[工程细节 §6](./engineering-decisions.md)。 |
 | 2026-06-29 | **文档与实现同步**：更新 CLAUDE.md、docs 状态概览与路线图；统一 docs 与代码中的环境变量名为 `ANTHROPIC_AUTH_TOKEN`；修正 CLI/Windows/验收用例中 `CLAUDE_CONFIG_DIR` 相关示例。 | 文档整理 |
+| 2026-07-05 | **文档重构**：保留 cc-switch 作为「其他方案分析」的对比与能力分析；补充 i18n（Q7）已定决策；梳理「问题→方案→架构→实施」叙事主线。 | 文档整理 |
 

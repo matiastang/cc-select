@@ -25,7 +25,7 @@
 | # | 文档 | 一句话职责 |
 |---|---|---|
 | 1 | [requirements.md](./requirements.md) | **用户输入的唯一源头**：原始诉求是什么，不被改写。 |
-| 2 | [requirements-analysis.md](./requirements-analysis.md) | 能不能做、为什么能做、核心约束、与 cc-switch 的差异。 |
+| 2 | [requirements-analysis.md](./requirements-analysis.md) | 能不能做、为什么能做、核心约束、与其他全局切换方案的差异。 |
 | 3 | [architecture.md](./architecture.md) | 整体怎么搭：GUI 配置 + CLI 切换的双形态、eval 两层结构、`CLAUDE_CONFIG_DIR` 数据模型、配置生效语义。 |
 | 4 | [windows-support.md](./windows-support.md) | Windows 可行性评估：PowerShell 的 process-scope 隔离等价于 `export`，仅不支持 CMD。 |
 | 5 | [cli-design.md](./cli-design.md) | 命令行方向的细化：`cc-select` / `ccs` 别名、子命令、`use` 为何特殊。 |
@@ -56,7 +56,7 @@
 
 ### 文档间引用约定
 
-- 引用其他文档：`见 [架构设计](./architecture.md#3-数据模型元信息索引-profile-真值两层)`。
+- 引用其他文档：`见 [架构设计](./architecture.md#4-数据模型元信息索引-profile-真值-偏好三层)`。
 - 同一文档内：用标准 Markdown 锚点。
 - 跨文档传递结论时，**在源头文档写完整推导，在目标文档只放结论 + 源头链接**，避免同一份推导散落多处导致不一致。
 
@@ -65,6 +65,6 @@
 ## 当前状态速览
 
 - **项目阶段**：MVP 实现已完成，进入迭代完善期（见 [roadmap.md](./roadmap.md)）。
-- **已确定选型**：Go、本地 Web 服务 GUI、JSON 存储 + profile 目录、`CLAUDE_CONFIG_DIR` 切换机制、zsh/bash/PowerShell 支持（见 [tech-stack.md](./tech-stack.md)）。
-- **剩余主要工作**：PS1 提示符集成、fish shell 支持、API key 存储方式统一（keychain 占位 vs 明文）。Windows PowerShell 集成已由 CI 覆盖。
+- **已确定选型**：Go、本地 Web 服务 GUI、JSON 存储 + profile 目录、`CLAUDE_CONFIG_DIR` 切换机制、zsh/bash/PowerShell 支持、en/zh 多语言（见 [tech-stack.md](./tech-stack.md)）。
+- **剩余主要工作**：PS1 提示符集成、fish shell 支持、API key 存储方式统一（keychain 占位 vs 明文）。Windows PowerShell 集成、Web 一键安装 shell 集成、i18n 已由 CI / 实现覆盖。
 - **本文档集由** `technical-design.md`（单篇长文档）拆分而来；旧文件已删除。
