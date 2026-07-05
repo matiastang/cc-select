@@ -22,6 +22,34 @@ scoop bucket add cc-select https://github.com/matiastang/scoop-cc-select
 scoop install cc-select
 ```
 
+### macOS / Linux（インストールスクリプト）
+
+Homebrew を使わない場合は、公式スクリプトでインストールまたは更新できます：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/matiastang/cc-select/main/scripts/install.sh | sh
+```
+
+特定のディレクトリにインストールする場合：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/matiastang/cc-select/main/scripts/install.sh | sh -s -- --dir /usr/local/bin
+```
+
+スクリプトは既存インストールの場所を検出してそのバイナリを置き換え、なければ `~/.local/bin`（必要に応じて `/usr/local/bin`）にインストールします。
+
+### Windows（インストールスクリプト）
+
+Scoop を使わない場合は、公式 PowerShell スクリプトでインストールまたは更新できます：
+
+```powershell
+irm https://raw.githubusercontent.com/matiastang/cc-select/main/scripts/install.ps1 | iex
+```
+
+スクリプトは `%LOCALAPPDATA%\cc-select` にインストールし、そのディレクトリをユーザーの PATH に追加して、既存のインストールをその場で更新します。
+
+> 注意: Windows ARM64 はまだサポートされていません。公開されているのは Windows amd64 ビルドのみです。
+
 ### 手動インストール
 
 [GitHub Releases](https://github.com/matiastang/cc-select/releases) からプラットフォームに応じたアーカイブをダウンロードし、`cc-select`（Windows の場合は `cc-select.exe`）を `PATH` の通ったディレクトリに展開してから、以下の shell 統合手順を実行してください。

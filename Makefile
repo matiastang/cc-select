@@ -8,7 +8,7 @@
 #   5. install 用 `go install`，跨平台编译并装入 GOPATH/bin，无需 ln/copy；
 #   6. clean 的 rm/rmdir 无跨平台等价：用 MSYSTEM 区分 Windows 上的 git-bash(sh) 与 cmd。
 #      （不能用 $(OS)：git bash 也运行在 Windows，$(OS) 同为 Windows_NT，会误选 cmd 分支。）
-.PHONY: all build frontend dev test integration e2e vet install clean
+.PHONY: all build frontend dev test integration e2e vet scripts-check install clean
 
 # 关闭 CGO（go-keyring 纯 Go 无需 CGO）：export 让所有 recipe 子进程继承，跨平台。
 export CGO_ENABLED := 0
@@ -58,6 +58,27 @@ e2e:
 # 静态检查。
 vet:
 	go vet ./...
+
+# 安装脚本语法检查（shellcheck 优先，否则 sh -n；Windows 脚本用 PowerShell Tokenize 校验）。
+scripts-check:
+	@if command -v shellcheck >/dev/null 2>&1; then \
+		shellcheck scripts/install.sh; \
+	else \
+		sh -n scripts/install.sh; \
+	fi
+	@echo "scripts/install.sh OK"
+	@PS=""; \
+	if command -v pwsh >/dev/null 2>&1; then \
+		PS=pwsh; \
+	elif command -v powershell >/dev/null 2>&1; then \
+		PS=powershell; \
+	fi; \
+	if [ -n "$$PS" ]; then \
+		$$PS -NoProfile -NonInteractive -Command "[System.Management.Automation.PSParser]::Tokenize((Get-Content -Raw 'scripts/install.ps1'), [ref]$$null) | Out-Null"; \
+		echo "scripts/install.ps1 OK"; \
+	else \
+		echo "pwsh/powershell not found, skipping scripts/install.ps1 syntax check"; \
+	fi
 
 # 安装到 GOPATH/bin：go install 跨平台编译并装入，无需 ln/copy。
 install:

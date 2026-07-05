@@ -22,6 +22,34 @@ scoop bucket add cc-select https://github.com/matiastang/scoop-cc-select
 scoop install cc-select
 ```
 
+### macOS / Linux (Install script)
+
+If you don't use Homebrew, you can install or update with the official script:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/matiastang/cc-select/main/scripts/install.sh | sh
+```
+
+To install to a specific directory:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/matiastang/cc-select/main/scripts/install.sh | sh -s -- --dir /usr/local/bin
+```
+
+The script detects the location of an existing installation and replaces the binary in that location; otherwise it installs to `~/.local/bin` (or `/usr/local/bin` if necessary).
+
+### Windows (Install script)
+
+If you don't use Scoop, you can install or update with the official PowerShell script:
+
+```powershell
+irm https://raw.githubusercontent.com/matiastang/cc-select/main/scripts/install.ps1 | iex
+```
+
+The script installs to `%LOCALAPPDATA%\cc-select`, adds that directory to your user PATH, and updates an existing installation in place.
+
+> Note: Windows ARM64 is not yet supported; only Windows amd64 builds are published.
+
 ### Manual
 
 Download the archive for your platform from [GitHub Releases](https://github.com/matiastang/cc-select/releases), extract `cc-select` (or `cc-select.exe` on Windows) to a directory on your `PATH`, then follow the shell integration step below.

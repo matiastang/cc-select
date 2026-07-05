@@ -22,6 +22,34 @@ scoop bucket add cc-select https://github.com/matiastang/scoop-cc-select
 scoop install cc-select
 ```
 
+### macOS / Linux（安装脚本）
+
+如果你没有 Homebrew，可以用官方脚本安装或更新：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/matiastang/cc-select/main/scripts/install.sh | sh
+```
+
+安装到指定目录：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/matiastang/cc-select/main/scripts/install.sh | sh -s -- --dir /usr/local/bin
+```
+
+脚本会自动检测已有安装的目录并替换其中的二进制；否则默认安装到 `~/.local/bin`（必要时使用 `/usr/local/bin`）。
+
+### Windows（安装脚本）
+
+如果你没有 Scoop，可以用官方 PowerShell 脚本安装或更新：
+
+```powershell
+irm https://raw.githubusercontent.com/matiastang/cc-select/main/scripts/install.ps1 | iex
+```
+
+脚本会安装到 `%LOCALAPPDATA%\cc-select`，将其加入用户 PATH，并原地更新已有安装。
+
+> 注意：Windows ARM64 尚未支持，目前仅发布 Windows amd64 构建。
+
 ### 手动安装
 
 从 [GitHub Releases](https://github.com/matiastang/cc-select/releases) 下载对应平台的压缩包，将 `cc-select`（Windows 为 `cc-select.exe`）解压到 `PATH` 中的某个目录，然后继续下面的 shell 集成步骤。

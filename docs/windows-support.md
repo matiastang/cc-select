@@ -134,6 +134,7 @@ release exe 同样未签名。用户下载后：
 
 - **未开 SAC 的用户（多数）**：首次运行触发 **SmartScreen** → 点「更多信息」→「仍要运行」。随下载量积累云信誉，警告减弱。
 - **开了 SAC 的用户（少数）**：SAC 直接拦，**无法运行**，除非自行关 SAC。
+- **官方安装脚本**：`irm ... \| iex` 只是换了一种方式下载同一个 release exe，SAC / SmartScreen 行为不变。脚本会把它放到 `%LOCALAPPDATA%\cc-select` 并加入 PATH，但首次运行时仍可能触发 SmartScreen。
 
 缓解（按效果/成本）：代码签名（受信 CA，SAC + SmartScreen 都放行，证书 ~$200/年起；自签名两者都不认）> 信誉积累（仅减弱 SmartScreen，对 SAC 无效）> 文档说明（README 写清绕过步骤）。
 

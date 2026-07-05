@@ -15,13 +15,15 @@
 
 项目使用 **Go** 实现（[Q1](./requirements.md#待用户确认的开放问题含已定决策) 已定），通过 GitHub Releases 发布跨平台单二进制：
 
-| 平台 | 推荐方式 |
-|---|---|
-| macOS / Linux | `brew tap matiastang/cc-select && brew install cc-select` |
-| Windows | `scoop bucket add cc-select https://github.com/matiastang/scoop-cc-select && scoop install cc-select` |
-| 通用 | 下载 Release 二进制放入 PATH；或从源码构建 `make all` → `./bin/cc-select` |
+| 平台 | 推荐方式 | 备选方式 |
+|---|---|---|
+| macOS / Linux | `brew tap matiastang/cc-select && brew install cc-select` | `curl -fsSL https://raw.githubusercontent.com/matiastang/cc-select/main/scripts/install.sh \| sh` |
+| Windows | `scoop bucket add cc-select https://github.com/matiastang/scoop-cc-select && scoop install cc-select` | `irm https://raw.githubusercontent.com/matiastang/cc-select/main/scripts/install.ps1 \| iex` |
+| 通用 | 下载 Release 二进制放入 PATH；或从源码构建 `make all` → `./bin/cc-select` | — |
 
-Release 构建由 `.goreleaser.yaml` + GitHub Actions（见 `.github/workflows/release.yml`）自动完成，产物覆盖 darwin/linux/windows 的 amd64/arm64。
+官方安装脚本同样支持**更新**：重新执行即可检测已有安装目录并替换其中的二进制。脚本从 GitHub Releases 拉取对应平台的 archive，校验 SHA-256，备份旧二进制，然后安装到 `~/.local/bin`（Unix）或 `%LOCALAPPDATA%\cc-select`（Windows）。
+
+Release 构建由 `.goreleaser.yaml` + GitHub Actions（见 `.github/workflows/release.yml`）自动完成，产物覆盖 darwin/linux 的 amd64/arm64，以及 windows 的 amd64（windows/arm64 当前被排除）。
 
 ### ② 注入 shell 集成（首次）
 

@@ -22,6 +22,8 @@ git push origin v0.1.0
 4. 将 Homebrew Formula 提交到 `matiastang/homebrew-cc-select`。
 5. 将 Scoop manifest 提交到 `matiastang/scoop-cc-select`。
 
+> 官方安装/更新脚本（`scripts/install.sh` 与 `scripts/install.ps1`）随主仓库代码一起发布，无需额外推送。用户始终通过 `raw.githubusercontent.com` 获取最新版脚本，脚本内部再查询 GitHub Releases 下载对应二进制。
+
 > `.goreleaser.yaml` 中 `release.draft: true`，因此 Release 会先以草稿形式创建。维护者需要手动进入 GitHub Release 页面点击 **Publish release**。
 
 ---
@@ -121,9 +123,24 @@ scoop install cc-select
 cc-select --version
 ```
 
----
+### 3.4 官方安装脚本
 
-## 4. 常见问题排查
+- 确认主仓库 `scripts/install.sh` 与 `scripts/install.ps1` 存在且语法正确。
+- 在干净环境验证：
+
+```bash
+# macOS / Linux
+curl -fsSL https://raw.githubusercontent.com/matiastang/cc-select/main/scripts/install.sh | sh
+cc-select --version
+```
+
+```powershell
+# Windows
+irm https://raw.githubusercontent.com/matiastang/cc-select/main/scripts/install.ps1 | iex
+cc-select --version
+```
+
+- 更新场景：再次运行同一条命令，应能检测到已有安装并替换为新版本。
 
 ### Release workflow 报错：`could not commit tap formula`
 
