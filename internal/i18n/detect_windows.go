@@ -5,16 +5,22 @@ package i18n
 import (
 	"syscall"
 	"unsafe"
+)
 
-	"golang.org/x/sys/windows"
+var (
+	kernel32                     = syscall.NewLazyDLL("kernel32.dll")
+	procGetUserDefaultLocaleName = kernel32.NewProc("GetUserDefaultLocaleName")
 )
 
 func detectSystemLocale() Locale {
 	var buf [85]uint16
-	n, err := windows.GetUserDefaultLocaleName(&buf[0], uint32(len(buf)))
-	if err != nil || n <= 1 {
+	r, _, _ := procGetUserDefaultLocaleName.Call(
+		uintptr(unsafe.Pointer(&buf[0])),
+		uintptr(len(buf)),
+	)
+	if r == 0 {
 		return DefaultLocale
 	}
-	name := syscall.UTF16ToString(buf[:n])
+	name := syscall.UTF16ToString(buf[:r])
 	return NormalizeLocale(name)
 }
