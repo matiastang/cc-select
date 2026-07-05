@@ -28,22 +28,44 @@ scoop install cc-select
 
 ## 快速开始
 
+### 1. Shell 集成
+
+`cc-select init` 会输出 `ccs` 所需的 shell 包装函数。把它追加到 shell 启动文件后重载即可：
+
 ```bash
-# 安装二进制并加入 PATH，然后注入 shell 包装函数
-cc-select init >> ~/.zshrc
-source ~/.zshrc
+# macOS / Linux — zsh
+cc-select init >> ~/.zshrc && source ~/.zshrc
 
-# 添加一个服务商
-cc-select add glm
+# macOS / Linux — bash
+cc-select init >> ~/.bashrc && source ~/.bashrc
+```
 
-# 只在当前 shell 切换到该服务商
-ccs use glm
+```powershell
+# Windows — PowerShell
+cc-select init >> $PROFILE
+```
 
-# 打开 Web 配置界面
+> 已支持的 shell：**zsh / bash / PowerShell**。Windows 的 CMD 不支持；fish 暂未支持。
+
+### 2. 添加服务商
+
+推荐通过 Web 配置界面操作：
+
+```bash
 cc-select gui
 ```
 
-> 已支持的 shell：zsh / bash / PowerShell。Windows 的 CMD 不支持。
+也可以在命令行中添加：
+
+```bash
+cc-select add glm
+```
+
+### 3. 只在当前 shell 切换到该服务商
+
+```bash
+ccs use glm
+```
 
 ## Windows 首次运行（SmartScreen / Smart App Control）
 

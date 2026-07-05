@@ -28,22 +28,44 @@ Download the archive for your platform from [GitHub Releases](https://github.com
 
 ## Quick start
 
+### 1. Shell integration
+
+`cc-select init` prints the shell wrapper that makes `ccs` work. Append it to your shell's startup file, then reload:
+
 ```bash
-# Install the binary and add it to your PATH, then inject the shell wrapper:
-cc-select init >> ~/.zshrc
-source ~/.zshrc
+# macOS / Linux — zsh
+cc-select init >> ~/.zshrc && source ~/.zshrc
 
-# Add a provider
-cc-select add glm
+# macOS / Linux — bash
+cc-select init >> ~/.bashrc && source ~/.bashrc
+```
 
-# Switch provider in this shell only
-ccs use glm
+```powershell
+# Windows — PowerShell
+cc-select init >> $PROFILE
+```
 
-# Open the web configuration UI
+> Supported shells: **zsh / bash / PowerShell**. CMD is not supported on Windows; fish is not yet supported.
+
+### 2. Add a provider
+
+The easiest way is through the web UI:
+
+```bash
 cc-select gui
 ```
 
-> Supported shells: zsh / bash / PowerShell. CMD is not supported on Windows.
+You can also add a provider from the CLI:
+
+```bash
+cc-select add glm
+```
+
+### 3. Switch provider in this shell only
+
+```bash
+ccs use glm
+```
 
 ## First run on Windows (SmartScreen / Smart App Control)
 

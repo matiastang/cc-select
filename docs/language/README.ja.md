@@ -28,22 +28,44 @@ scoop install cc-select
 
 ## クイックスタート
 
+### 1. shell 統合
+
+`cc-select init` は `ccs` に必要な shell ラッパーを出力します。お使いの shell の起動ファイルに追記してから再読み込みしてください：
+
 ```bash
-# バイナリをインストールして PATH に追加し、shell ラッパーを注入する
-cc-select init >> ~/.zshrc
-source ~/.zshrc
+# macOS / Linux — zsh
+cc-select init >> ~/.zshrc && source ~/.zshrc
 
-# プロバイダーを追加
-cc-select add glm
+# macOS / Linux — bash
+cc-select init >> ~/.bashrc && source ~/.bashrc
+```
 
-# 現在の shell のみでプロバイダーを切り替え
-ccs use glm
+```powershell
+# Windows — PowerShell
+cc-select init >> $PROFILE
+```
 
-# Web 設定 UI を開く
+> 対応済み shell：**zsh / bash / PowerShell**。Windows の CMD は非対応です。fish はまだ対応していません。
+
+### 2. プロバイダーを追加
+
+最も簡単な方法は Web 設定 UI から行うことです：
+
+```bash
 cc-select gui
 ```
 
-> 対応済み shell：zsh / bash / PowerShell。Windows の CMD は非対応。
+CLI から追加することもできます：
+
+```bash
+cc-select add glm
+```
+
+### 3. 現在の shell のみでプロバイダーを切り替え
+
+```bash
+ccs use glm
+```
 
 ## Windows での初回実行（SmartScreen / Smart App Control）
 
