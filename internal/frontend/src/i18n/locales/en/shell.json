@@ -6,7 +6,7 @@
   "unsupportedHint": "Please use zsh / bash / PowerShell, or run <1>cc-select init</1><2> in the terminal.</2>",
   "legacyTitle": "Legacy shell integration detected, upgrade recommended{{shell}}",
   "neededTitle": "Shell integration not yet installed{{shell}}",
-  "neededHint": "After installation, use <1>ccs use <1>&lt;id&gt;</1></1><2> in the terminal to switch provider.</2>",
+  "neededHint": "After installation, use <code>ccs use <id/></code> in the terminal to switch provider.",
   "installing": "Installing…",
   "installButton": "One-click install"
 }

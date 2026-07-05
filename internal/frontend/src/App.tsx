@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import i18n from "./i18n";
+import { IdPlaceholder } from "./components/IdPlaceholder";
 import { ShellIntegrationBanner } from "./ShellIntegrationBanner";
 import { Header } from "./components/Header";
 import { GlobalModeCard } from "./components/GlobalModeCard";
@@ -93,7 +94,7 @@ export default function App() {
       <ShellIntegrationBanner />
 
       <div className="notice">
-        <Trans i18nKey="notice" ns="common" components={{ code: <code />, strong: <strong /> }} />
+        <Trans i18nKey="notice" ns="common" components={{ code: <code />, strong: <strong />, id: <IdPlaceholder /> }} />
       </div>
 
       {error && (

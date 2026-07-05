@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
+import { IdPlaceholder } from "./components/IdPlaceholder";
+
 // ShellIntegrationBanner: detects whether shell integration is installed on first visit;
 // if not, offers one-click install.
 // Self-contained state machine; platform/shell judgement is all on the backend — frontend
@@ -123,9 +125,7 @@ export function ShellIntegrationBanner() {
         {t(legacy ? "legacyTitle" : "neededTitle", { shell: shell ? `（${shell}）` : "" })}
       </strong>
       <div className="muted">
-        <Trans i18nKey="neededHint" ns="shell">
-          安装后才能在终端用 <code>ccs use <span>&lt;id&gt;</span></code> 切换 provider。
-        </Trans>
+        <Trans i18nKey="neededHint" ns="shell" components={{ code: <code />, id: <IdPlaceholder /> }} />
       </div>
       {err && (
         <div className="muted" style={{ color: "var(--danger)", marginTop: "0.5rem" }}>

@@ -3,6 +3,8 @@ import { Trans, useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 import { updateDocumentLang, updateDocumentTitle } from "../i18n/utils";
 
+import { IdPlaceholder } from "./IdPlaceholder";
+
 export function Header() {
   const { t, i18n } = useTranslation();
 
@@ -18,7 +20,7 @@ export function Header() {
         <LanguageSwitcher />
       </div>
       <p className="muted">
-        <Trans i18nKey="subtitle" components={{ code: <code /> }} />
+        <Trans i18nKey="subtitle" components={{ code: <code />, id: <IdPlaceholder /> }} />
       </p>
     </div>
   );
