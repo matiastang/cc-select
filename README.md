@@ -10,12 +10,28 @@ Shell-level AI provider isolation — each terminal window picks its own.
 
 ### macOS / Linux (Homebrew)
 
+One-line install (no `brew tap` needed):
+
+```bash
+brew install matiastang/cc-select/cc-select
+```
+
+Or add the tap explicitly first:
+
 ```bash
 brew tap matiastang/cc-select
 brew install cc-select
 ```
 
 ### Windows (Scoop)
+
+One-line install (no `scoop bucket add` needed):
+
+```powershell
+scoop install https://raw.githubusercontent.com/matiastang/scoop-cc-select/main/cc-select.json
+```
+
+Or add the bucket explicitly first:
 
 ```powershell
 scoop bucket add cc-select https://github.com/matiastang/scoop-cc-select

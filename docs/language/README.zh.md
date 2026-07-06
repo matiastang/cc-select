@@ -10,12 +10,28 @@ Shell 级 AI 服务商隔离 —— 每个终端窗口自选其 provider。
 
 ### macOS / Linux（Homebrew）
 
+一条命令安装（无需先执行 `brew tap`）：
+
+```bash
+brew install matiastang/cc-select/cc-select
+```
+
+也可以先显式添加 tap 再安装：
+
 ```bash
 brew tap matiastang/cc-select
 brew install cc-select
 ```
 
 ### Windows（Scoop）
+
+一条命令安装（无需先执行 `scoop bucket add`）：
+
+```powershell
+scoop install https://raw.githubusercontent.com/matiastang/scoop-cc-select/main/cc-select.json
+```
+
+也可以先显式添加 bucket 再安装：
 
 ```powershell
 scoop bucket add cc-select https://github.com/matiastang/scoop-cc-select

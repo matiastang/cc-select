@@ -10,12 +10,28 @@
 
 ### macOS / Linux（Homebrew）
 
+ワンライナーでインストール（`brew tap` は不要）：
+
+```bash
+brew install matiastang/cc-select/cc-select
+```
+
+または tap を明示的に追加してからインストール：
+
 ```bash
 brew tap matiastang/cc-select
 brew install cc-select
 ```
 
 ### Windows（Scoop）
+
+ワンライナーでインストール（`scoop bucket add` は不要）：
+
+```powershell
+scoop install https://raw.githubusercontent.com/matiastang/scoop-cc-select/main/cc-select.json
+```
+
+または bucket を明示的に追加してからインストール：
 
 ```powershell
 scoop bucket add cc-select https://github.com/matiastang/scoop-cc-select
