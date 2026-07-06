@@ -2,7 +2,7 @@
 
 **[English](../../README.md) | [中文](./README.zh.md) | [日本語](./README.ja.md)**
 
-Shell 级 AI 服务商隔离 —— 每个终端窗口自选其 provider。
+Claude Code 的 Shell 级 AI 服务商隔离 —— 每个终端窗口可自选 provider。
 
 `cc-select` 让同一台机器上的不同终端窗口在使用 Claude Code 时选择不同的 AI 模型服务商。它是 [cc-switch](https://github.com/farion1231/cc-switch) 的 shell 级对应方案：cc-switch 通过改写 `~/.claude/settings.json` 做全局切换，而 `cc-select` 只影响当前终端及其子进程。
 

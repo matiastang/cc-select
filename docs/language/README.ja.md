@@ -2,7 +2,7 @@
 
 **[English](../../README.md) | [中文](./README.zh.md) | [日本語](./README.ja.md)**
 
-シェルレベルの AI プロバイダー分離 —— 各ターミナルウィンドウが独自のプロバイダーを選択。
+Claude Code 向けのシェルレベル AI プロバイダー分離 —— 各ターミナルウィンドウが独自のプロバイダーを選択。
 
 `cc-select` を使うと、同じマシン上の異なるターミナルウィンドウで、Claude Code と共に異なる AI モデルプロバイダーを使用できます。これは [cc-switch](https://github.com/farion1231/cc-switch) のシェルスコープ版です。cc-switch は `~/.claude/settings.json` を書き換えてグローバルにプロバイダーを切り替えますが、`cc-select` は現在のターミナルとその子プロセスにのみ影響します。
 

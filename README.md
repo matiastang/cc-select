@@ -2,7 +2,7 @@
 
 **[English](./README.md) | [中文](./docs/language/README.zh.md) | [日本語](./docs/language/README.ja.md)**
 
-Shell-level AI provider isolation — each terminal window picks its own.
+Shell-level AI provider isolation for Claude Code — each terminal window picks its own.
 
 `cc-select` lets different terminal windows on the same machine use different AI model providers with Claude Code. It is the shell-scoped counterpart to global-switch tools like [cc-switch](https://github.com/farion1231/cc-switch), which changes providers globally by rewriting `~/.claude/settings.json`.
 
