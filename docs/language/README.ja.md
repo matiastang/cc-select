@@ -105,7 +105,13 @@ CLI から追加することもできます：
 cc-select add glm
 ```
 
-### 3. 現在の shell のみでプロバイダーを切り替え
+### 3. プロバイダー一覧を表示
+
+```bash
+ccs list
+```
+
+### 4. 現在の shell のみでプロバイダーを切り替え
 
 ```bash
 ccs use glm

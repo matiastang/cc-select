@@ -105,7 +105,13 @@ You can also add a provider from the CLI:
 cc-select add glm
 ```
 
-### 3. Switch provider in this shell only
+### 3. List providers
+
+```bash
+ccs list
+```
+
+### 4. Switch provider in this shell only
 
 ```bash
 ccs use glm

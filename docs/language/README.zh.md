@@ -105,7 +105,13 @@ cc-select gui
 cc-select add glm
 ```
 
-### 3. 只在当前 shell 切换到该服务商
+### 3. 查看已添加的服务商
+
+```bash
+ccs list
+```
+
+### 4. 只在当前 shell 切换到该服务商
 
 ```bash
 ccs use glm
