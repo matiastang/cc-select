@@ -40,7 +40,7 @@ func detectSystemLocale() Locale {
 	if r == 0 {
 		return DefaultLocale
 	}
-	name := syscall.UTF16ToString(buf[:r])
+	name := syscall.UTF16ToString(buf[:int(r)])
 	if l := NormalizeLocale(name); IsSupportedLocale(string(l)) {
 		return l
 	}
