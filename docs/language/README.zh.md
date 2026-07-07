@@ -2,7 +2,7 @@
 
 **[English](../../README.md) | [中文](./README.zh.md) | [日本語](./README.ja.md)**
 
-Shell 级 AI 服务商隔离 —— 每个终端窗口自选其 provider。
+Claude Code 的 Shell 级 AI 服务商隔离 —— 每个终端窗口可自选 provider。
 
 `cc-select` 让同一台机器上的不同终端窗口在使用 Claude Code 时选择不同的 AI 模型服务商。它是 [cc-switch](https://github.com/farion1231/cc-switch) 的 shell 级对应方案：cc-switch 通过改写 `~/.claude/settings.json` 做全局切换，而 `cc-select` 只影响当前终端及其子进程。
 
@@ -10,12 +10,28 @@ Shell 级 AI 服务商隔离 —— 每个终端窗口自选其 provider。
 
 ### macOS / Linux（Homebrew）
 
+一条命令安装（无需先执行 `brew tap`）：
+
+```bash
+brew install matiastang/cc-select/cc-select
+```
+
+也可以先显式添加 tap 再安装：
+
 ```bash
 brew tap matiastang/cc-select
 brew install cc-select
 ```
 
 ### Windows（Scoop）
+
+一条命令安装（无需先执行 `scoop bucket add`）：
+
+```powershell
+scoop install https://raw.githubusercontent.com/matiastang/scoop-cc-select/main/cc-select.json
+```
+
+也可以先显式添加 bucket 再安装：
 
 ```powershell
 scoop bucket add cc-select https://github.com/matiastang/scoop-cc-select
@@ -89,7 +105,13 @@ cc-select gui
 cc-select add glm
 ```
 
-### 3. 只在当前 shell 切换到该服务商
+### 3. 查看已添加的服务商
+
+```bash
+ccs list
+```
+
+### 4. 只在当前 shell 切换到该服务商
 
 ```bash
 ccs use glm

@@ -2,7 +2,7 @@
 
 **[English](./README.md) | [中文](./docs/language/README.zh.md) | [日本語](./docs/language/README.ja.md)**
 
-Shell-level AI provider isolation — each terminal window picks its own.
+Shell-level AI provider isolation for Claude Code — each terminal window picks its own.
 
 `cc-select` lets different terminal windows on the same machine use different AI model providers with Claude Code. It is the shell-scoped counterpart to global-switch tools like [cc-switch](https://github.com/farion1231/cc-switch), which changes providers globally by rewriting `~/.claude/settings.json`.
 
@@ -10,12 +10,28 @@ Shell-level AI provider isolation — each terminal window picks its own.
 
 ### macOS / Linux (Homebrew)
 
+One-line install (no `brew tap` needed):
+
+```bash
+brew install matiastang/cc-select/cc-select
+```
+
+Or add the tap explicitly first:
+
 ```bash
 brew tap matiastang/cc-select
 brew install cc-select
 ```
 
 ### Windows (Scoop)
+
+One-line install (no `scoop bucket add` needed):
+
+```powershell
+scoop install https://raw.githubusercontent.com/matiastang/scoop-cc-select/main/cc-select.json
+```
+
+Or add the bucket explicitly first:
 
 ```powershell
 scoop bucket add cc-select https://github.com/matiastang/scoop-cc-select
@@ -89,7 +105,13 @@ You can also add a provider from the CLI:
 cc-select add glm
 ```
 
-### 3. Switch provider in this shell only
+### 3. List providers
+
+```bash
+ccs list
+```
+
+### 4. Switch provider in this shell only
 
 ```bash
 ccs use glm

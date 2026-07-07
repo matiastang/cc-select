@@ -2,7 +2,7 @@
 
 **[English](../../README.md) | [中文](./README.zh.md) | [日本語](./README.ja.md)**
 
-シェルレベルの AI プロバイダー分離 —— 各ターミナルウィンドウが独自のプロバイダーを選択。
+Claude Code 向けのシェルレベル AI プロバイダー分離 —— 各ターミナルウィンドウが独自のプロバイダーを選択。
 
 `cc-select` を使うと、同じマシン上の異なるターミナルウィンドウで、Claude Code と共に異なる AI モデルプロバイダーを使用できます。これは [cc-switch](https://github.com/farion1231/cc-switch) のシェルスコープ版です。cc-switch は `~/.claude/settings.json` を書き換えてグローバルにプロバイダーを切り替えますが、`cc-select` は現在のターミナルとその子プロセスにのみ影響します。
 
@@ -10,12 +10,28 @@
 
 ### macOS / Linux（Homebrew）
 
+ワンライナーでインストール（`brew tap` は不要）：
+
+```bash
+brew install matiastang/cc-select/cc-select
+```
+
+または tap を明示的に追加してからインストール：
+
 ```bash
 brew tap matiastang/cc-select
 brew install cc-select
 ```
 
 ### Windows（Scoop）
+
+ワンライナーでインストール（`scoop bucket add` は不要）：
+
+```powershell
+scoop install https://raw.githubusercontent.com/matiastang/scoop-cc-select/main/cc-select.json
+```
+
+または bucket を明示的に追加してからインストール：
 
 ```powershell
 scoop bucket add cc-select https://github.com/matiastang/scoop-cc-select
@@ -89,7 +105,13 @@ CLI から追加することもできます：
 cc-select add glm
 ```
 
-### 3. 現在の shell のみでプロバイダーを切り替え
+### 3. プロバイダー一覧を表示
+
+```bash
+ccs list
+```
+
+### 4. 現在の shell のみでプロバイダーを切り替え
 
 ```bash
 ccs use glm
