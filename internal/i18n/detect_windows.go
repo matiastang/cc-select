@@ -9,10 +9,20 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+var (
+	kernel32                     = windows.NewLazySystemDLL("kernel32.dll")
+	procGetUserDefaultLocaleName = kernel32.NewProc("GetUserDefaultLocaleName")
+)
+
 func detectSystemLocale() Locale {
 	var buf [85]uint16
-	n, err := windows.GetUserDefaultLocaleName(&buf[0], uint32(len(buf)))
-	if err != nil || n <= 1 {
+	r0, _, _ := syscall.SyscallN(
+		procGetUserDefaultLocaleName.Addr(),
+		uintptr(unsafe.Pointer(&buf[0])),
+		uintptr(len(buf)),
+	)
+	n := int(r0)
+	if n <= 1 {
 		return DefaultLocale
 	}
 	name := syscall.UTF16ToString(buf[:n])

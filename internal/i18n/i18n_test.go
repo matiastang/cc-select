@@ -85,9 +85,13 @@ func TestResolveLocale_Priority(t *testing.T) {
 	os.Unsetenv("LANG")
 	os.Unsetenv("LANGUAGE")
 
-	// Default -> EN.
-	if got := ResolveLocale(""); got != EN {
-		t.Errorf("empty = %q, want en", got)
+	// Default -> OS detection, or EN fallback if detection returns empty.
+	wantDefault := detectSystemLocale()
+	if wantDefault == "" {
+		wantDefault = DefaultLocale
+	}
+	if got := ResolveLocale(""); got != wantDefault {
+		t.Errorf("empty = %q, want %q", got, wantDefault)
 	}
 
 	// Prefs wins over default.
