@@ -245,6 +245,9 @@ func (h *apiHandler) createProvider(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	if in.Name == "" {
+		in.Name = in.ID
+	}
 	if !in.IsolationMode.Valid() {
 		writeError(w, http.StatusBadRequest, "isolationMode must be empty, settings-only or full")
 		return
@@ -313,6 +316,9 @@ func (h *apiHandler) updateProvider(w http.ResponseWriter, r *http.Request, id s
 	if !in.IsolationMode.Valid() {
 		writeError(w, http.StatusBadRequest, "isolationMode must be empty, settings-only or full")
 		return
+	}
+	if in.Name == "" {
+		in.Name = id
 	}
 	data, err := normalizeSettings(in.Settings)
 	if err != nil {
@@ -460,7 +466,7 @@ func toDetailDTO(p config.Provider, id string) providerDetailDTO {
 	}
 	return providerDetailDTO{
 		ID:            id,
-		Name:          p.Name,
+		Name:          p.DisplayName(),
 		Settings:      json.RawMessage(raw),
 		IsolationMode: string(p.IsolationMode),
 	}

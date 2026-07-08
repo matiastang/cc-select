@@ -43,7 +43,7 @@ export function JsonForm(props: JsonFormProps) {
         if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || i18n.t("errors.loadFailed", { status: r.status, ns: "providers" }));
         const detail: ProviderDetail = await r.json();
         if (cancelled) return;
-        setName(detail.name || "");
+        setName(detail.name || detail.id);
         setJsonText(JSON.stringify(detail.settings ?? {}, null, 2));
         setIsolationMode((detail.isolationMode as IsolationMode) || "");
       } catch (e) {
