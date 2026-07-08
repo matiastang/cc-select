@@ -91,6 +91,99 @@ func TestCreateAndDeleteProvider(t *testing.T) {
 	resp.Body.Close()
 }
 
+// TestCreate_EmptyNameFallsBackToID 验证添加时展示名留空，应实际写入 ID。
+func TestCreate_EmptyNameFallsBackToID(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	body := `{"id":"noname","name":"","settings":{"env":{"ANTHROPIC_BASE_URL":"https://no"}}}`
+	resp, err := http.Post(srv.URL+"/api/v1/providers", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("POST want 201 got %d", resp.StatusCode)
+	}
+	var detail providerDetailDTO
+	if err := json.NewDecoder(resp.Body).Decode(&detail); err != nil {
+		t.Fatal(err)
+	}
+	if detail.Name != "noname" {
+		t.Errorf("空 name 应回退到 ID，want noname got %q", detail.Name)
+	}
+
+	// 再次 GET 确认落盘后仍返回 ID。
+	resp2, err := http.Get(srv.URL + "/api/v1/providers/noname")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp2.Body.Close()
+	var detail2 providerDetailDTO
+	if err := json.NewDecoder(resp2.Body).Decode(&detail2); err != nil {
+		t.Fatal(err)
+	}
+	if detail2.Name != "noname" {
+		t.Errorf("GET 空 name provider 应回退到 ID，want noname got %q", detail2.Name)
+	}
+}
+
+// TestUpdate_EmptyNameFallsBackToID 验证编辑时展示名清空，应实际写入 ID。
+func TestUpdate_EmptyNameFallsBackToID(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	// 先建一个带展示名的 provider。
+	http.Post(srv.URL+"/api/v1/providers", "application/json",
+		strings.NewReader(`{"id":"x","name":"X","settings":{"env":{"ANTHROPIC_BASE_URL":"https://x"}}}`))
+
+	// PUT 把展示名清空。
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/providers/x",
+		bytes.NewReader([]byte(`{"name":"","settings":{"env":{"ANTHROPIC_BASE_URL":"https://x2"}}}`)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("PUT want 200 got %d", resp.StatusCode)
+	}
+	var detail providerDetailDTO
+	if err := json.NewDecoder(resp.Body).Decode(&detail); err != nil {
+		t.Fatal(err)
+	}
+	if detail.Name != "x" {
+		t.Errorf("PUT 空 name 应回退到 ID，want x got %q", detail.Name)
+	}
+}
+
+// TestGetDetail_EmptyNameFallsBackToID 验证对已有的空 name provider（如历史数据/手改文件），
+// GET /providers/{id} 也应返回 ID 作为展示名。
+func TestGetDetail_EmptyNameFallsBackToID(t *testing.T) {
+	srv, cfg := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	// 模拟一个 name 为空的遗留 provider。
+	_ = os.WriteFile(cfg, []byte(`{"providers":{"legacy":{"id":"legacy","name":""}}}`), 0o600)
+
+	resp, err := http.Get(srv.URL + "/api/v1/providers/legacy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var detail providerDetailDTO
+	if err := json.NewDecoder(resp.Body).Decode(&detail); err != nil {
+		t.Fatal(err)
+	}
+	if detail.Name != "legacy" {
+		t.Errorf("遗留空 name provider GET 应回退到 ID，want legacy got %q", detail.Name)
+	}
+}
+
 func TestCannotDeleteOfficialProvider(t *testing.T) {
 	srv, _ := newTestServer(t)
 	defer srv.Close()
