@@ -16,7 +16,7 @@
 
 > 设计意图（满足 [R3](./requirements.md#r3-cc-select-与-ccs-两个命令都要能用ccs-是-cc-select-的别名)）：`ccs` 不是"只管切换"的子集，而是 `cc-select` 的**完整别名**。`ccs use glm` 与 `cc-select use glm`、`ccs list` 与 `cc-select list` 完全等价。用户记不住全名时敲 `ccs`，写脚本/文档时用 `cc-select` 更清晰，两者皆可。
 
-别名有两层实现（见本文 §3 的特殊性）：
+别名有两层实现（见本文 §4 的特殊性）：
 
 - **普通子命令**（list/current/add/edit/remove/init/gui/language）：纯 alias，`ccs <sub>` 直接转发到 `cc-select <sub>` 即可。
 - **切换命令 `use`**（特殊）：因需 `eval` 注入环境变量，`ccs` 是一个 **shell 函数**而非简单 alias，但对外仍表现为"和 cc-select use 等价"。
@@ -30,8 +30,8 @@
 | `use <provider>` | **核心**：切换当前 shell 到指定 provider | ✅ 需要（shell 函数包装） | `ccs use glm` / `cc-select use glm` |
 | `list` | 列出所有已配置 provider（标记当前 shell 激活项） | ❌ | `ccs list` |
 | `current` | 显示**当前 shell** 激活的 provider（读 `$CC_SELECT_ACTIVE`，非磁盘） | ❌ | `ccs current` |
-| `add <name>` | 交互式添加一个 provider | ❌ | `cc-select add glm` |
-| `edit <name>` | 编辑指定 provider 的配置 | ❌ | `cc-select edit glm` |
+| `add <name>` | 交互式添加一个 provider，支持选择 preset 自动填充默认配置 | ❌ | `cc-select add glm --preset zhipu-glm` |
+| `edit <name>` | 编辑指定 provider 的配置，支持 `--add-field` / `--remove-field` | ❌ | `cc-select edit glm --model glm-5` |
 | `remove <name>` | 删除指定 provider | ❌ | `cc-select remove glm` |
 | `mode [settings-only\|full]` | 查看或设置**全局**隔离模式 | ❌ | `cc-select mode settings-only` |
 | `language [en\|zh]` | 查看或设置显示语言 | ❌ | `cc-select language zh` |
@@ -44,7 +44,69 @@
 
 ---
 
-## 3. `use` 的特殊性：为何它需要 shell 函数而非 alias
+## 3. Provider Presets
+
+`add` / `edit` 支持**内置 preset**（写死在二进制中的供应商模板），避免用户每次手写 `ANTHROPIC_BASE_URL`、模型映射等字段。
+
+常见用法：
+
+```bash
+# 非交互式：直接指定 preset 并填 key
+cc-select add ds --preset deepseek --api-key sk-xxx
+
+# 覆盖默认模型
+cc-select add ds --preset deepseek --api-key sk-xxx --model deepseek-chat
+
+# 高级：覆盖 API 格式或认证字段
+cc-select add ds --preset deepseek --api-key sk-xxx --api-format openai_chat --auth-field ANTHROPIC_API_KEY
+
+# 覆盖任意 env 字段（如模型映射）
+cc-select add ds --preset deepseek --api-key sk-xxx \
+  --field ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-5
+```
+
+交互式流程（省略 `--preset`）：
+
+```bash
+$ cc-select add glm
+Available provider presets (choose a number or enter the preset id, leave empty for custom):
+
+[Official]
+  1. Claude Official
+[China Official]
+  2. 智谱 GLM
+  3. DeepSeek
+  4. Kimi
+...
+Preset: 2
+ANTHROPIC_BASE_URL [https://open.bigmodel.cn/api/anthropic]:
+ANTHROPIC_MODEL [glm-5.1]:
+API key: sk-xxx
+```
+
+当前内置 preset 包括：
+
+| Preset | 说明 |
+|---|---|
+| `claude-official` | Claude 官方，OAuth，无需 API key |
+| `deepseek` | DeepSeek |
+| `zhipu-glm` | 智谱 GLM（国内） |
+| `zhipu-glm-en` | Zhipu GLM（国际版） |
+| `kimi` | Moonshot Kimi |
+| `kimi-coding` | Kimi for Coding |
+| `openrouter` | OpenRouter |
+| `siliconflow` | SiliconFlow |
+| `volcano-agentplan` | 火山引擎 Agentplan |
+| `aws-bedrock-aksk` | AWS Bedrock（AK/SK） |
+| `aws-bedrock-apikey` | AWS Bedrock（API Key） |
+| `github-copilot` | GitHub Copilot（OAuth） |
+| `custom` | 空模板，完全手动填写 |
+
+Preset 只决定**创建时的默认值**；保存后与普通 provider 一样可独立编辑、删除。
+
+---
+
+## 4. `use` 的特殊性：为何它需要 shell 函数而非 alias
 
 `use` 是唯一需要改**当前 shell 环境**的命令，而子进程无法改父 shell 环境（见 [需求分析 §4](./requirements-analysis.md#4-核心架构约束动手前必读)）。因此 `use` 的二进制只**输出** shell 语句：
 
@@ -86,7 +148,7 @@ claude              # 各终端用各自的 provider
 
 ---
 
-## 4. 交互式菜单（后续增强，尚未实现）
+## 5. 交互式菜单（后续增强）
 
 未来可为不带参数的 `ccs` 增加交互式选择菜单：
 

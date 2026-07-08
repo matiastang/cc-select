@@ -98,17 +98,25 @@ shell 集成机制（`eval` 注入）不变，只是注入的变量从"一堆 AN
 
 配置分三层存储（都 JSON，原子写；providers.json/profile 文件 0600、prefs.json 0600）：
 
-**① providers.json（元信息索引）** `~/.cc-select/providers.json`：只存 id/name 与 per-provider 隔离模式覆盖，**不含 env、不含 token**。
+**① providers.json（元信息索引）** `~/.cc-select/providers.json`：存 id/name、per-provider 隔离模式覆盖，以及创建时选用的 **preset / API 格式 / 认证字段**元信息，**不含 env、不含 token**。
 
 ```json
 {
   "providers": {
-    "glm": { "id": "glm", "name": "智谱 GLM" },
+    "glm": {
+      "id": "glm",
+      "name": "智谱 GLM",
+      "preset": "zhipu-glm",
+      "apiFormat": "anthropic",
+      "authField": "ANTHROPIC_AUTH_TOKEN"
+    },
     "claude-official": { "id": "claude-official", "name": "Claude 官方" },
-    "deepseek": { "id": "deepseek", "name": "DeepSeek" }
+    "deepseek": { "id": "deepseek", "name": "DeepSeek", "preset": "deepseek" }
   }
 }
 ```
+
+`preset`、`apiFormat`、`authField` 仅用于创建/编辑时回填表单，不影响 `use` 时的生效逻辑。实际 env 真值保存在 profile settings.json 中。预设模板由 `internal/presets` 包内置管理（Go 代码编译进二进制），展开后的 env 经 `profile.Sync` 写入 profile。
 
 **② profile settings.json（env 真值，claude 读这个）** `~/.cc-select/profiles/<id>/settings.json`：含该 provider 的 env（可能含敏感 token）。官方 provider 无 profile（切它 = unset `CLAUDE_CONFIG_DIR`）。**Mode B（默认）** 下，该目录还会用链接（Unix 软链 / Windows junction）共享 `~/.claude` 的其余条目（历史/插件/命令/agent/skill/MCP…），且 settings.json = 全局 `~/.claude/settings.json` 的 **env 整体替换**为 provider env；**Mode A** 下目录只有 settings.json。详见 [隔离粒度设计](./isolation-modes.md)。
 
@@ -145,7 +153,10 @@ GUI 专门做 provider 的可视化配置（增删改查）。
 
 当前 Web 配置页提供：
 - provider 列表（脱敏显示 env 键名，敏感值不返回前端）；
-- 创建/编辑 provider（JSON 编辑器编辑完整 `settings.json` + 隔离模式选择器）；
+- 创建/编辑 provider：
+  - **Preset 下拉**：选择内置供应商 preset 自动填充 Base URL、默认模型、模型映射等 env 字段；
+  - **结构化字段编辑器**：API Key、Base URL、模型映射、Claude 通用开关、高级选项（API 格式 / 认证字段）；
+  - **原始 JSON tab**：直接编辑完整 `settings.json`（与 preset 模式二选一，保持向后兼容）；
 - 全局隔离模式切换；
 - 顶部 banner 一键安装 shell 集成；
 - 语言切换（en/zh）。

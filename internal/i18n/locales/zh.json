@@ -29,27 +29,47 @@
     },
     "add": {
       "short": "交互式添加一个 provider",
-      "long": "交互式添加一个 provider 配置。交互模式下，flag 中缺失的值会从终端安全读取。",
+      "long": "交互式添加一个 provider 配置。选择内置 preset 可自动填充请求地址、默认模型与常用 env 字段；选 custom 则手动填写。交互模式下，flag 中缺失的值会从终端安全读取。",
       "nameFlag": "展示名",
-      "apiKeyFlag": "ANTHROPIC_AUTH_TOKEN（明文传入；交互模式可省略，从终端安全读取）",
+      "apiKeyFlag": "API key（根据 preset 写入 ANTHROPIC_AUTH_TOKEN 或 ANTHROPIC_API_KEY；明文传入；交互模式可省略，从终端安全读取）",
       "modelFlag": "ANTHROPIC_MODEL",
       "baseURLFlag": "ANTHROPIC_BASE_URL",
       "modeFlag": "该 provider 的隔离模式覆盖（settings-only|full|default=继承全局）",
+      "presetFlag": "内置供应商 preset（如 deepseek、zhipu-glm、kimi、openrouter、custom）；省略则进入交互选择",
+      "apiFormatFlag": "API 格式覆盖（anthropic|openai_chat|openai_responses|gemini_native）；高级选项",
+      "authFieldFlag": "认证字段覆盖（ANTHROPIC_AUTH_TOKEN|ANTHROPIC_API_KEY）；高级选项",
+      "fieldFlag": "覆盖任意 env 字段（KEY=VALUE），可多次指定",
       "exists": "provider %q 已存在，用 cc-select edit %s 修改",
       "modeInvalid": "无效 --mode %q（可选：settings-only | full | default）",
+      "unknownPreset": "未知 preset %q；省略 --preset 可查看列表",
+      "presetPrompt": "可用供应商 preset（输入编号或 preset id，留空=自定义）：",
+      "presetChoice": "Preset",
+      "presetChoiceInvalid": "无效选择 %q",
+      "invalidFieldFlag": "无效 --field %q（应为 KEY=VALUE）",
+      "requiredMissing": "provider %q 缺少必填字段：%s",
       "added": "✓ 已添加 provider %s",
       "prompts": {
-        "baseURL": "ANTHROPIC_BASE_URL（可留空=官方）: ",
-        "model": "ANTHROPIC_MODEL（可留空）: ",
-        "apiKey": "ANTHROPIC_AUTH_TOKEN（可留空）: "
+        "baseURL": "ANTHROPIC_BASE_URL",
+        "model": "ANTHROPIC_MODEL",
+        "apiKey": "API key",
+        "customField": "%s"
+      },
+      "category": {
+        "official": "官方",
+        "cn_official": "国内官方",
+        "aggregator": "聚合平台",
+        "third_party": "第三方",
+        "custom": "自定义"
       },
       "profileWriteFailed": "写入 profile: %w"
     },
     "edit": {
       "short": "编辑一个 provider 的配置",
-      "long": "编辑一个已存在的 provider 配置。",
+      "long": "编辑一个已存在的 provider 配置。可用 --preset 切换到内置 preset，或用 --add-field / --remove-field 做脚本化编辑。",
       "missing": "provider %q 不存在",
-      "updated": "✓ 已更新 provider %s"
+      "updated": "✓ 已更新 provider %s",
+      "addFieldFlag": "添加或覆盖 env 字段（KEY=VALUE），可多次指定",
+      "removeFieldFlag": "按 key 删除 env 字段，可多次指定"
     },
     "remove": {
       "short": "删除一个 provider",
