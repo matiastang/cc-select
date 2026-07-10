@@ -9,6 +9,7 @@ import { ProviderList } from "./components/ProviderList";
 import { JsonForm } from "./components/JsonForm";
 import { Provider, IsolationMode } from "./types";
 import { fetchBackendLanguage } from "./i18n/useLanguage";
+import { Button, Card } from "./components/ui";
 
 import { API_BASE } from "./constants";
 
@@ -94,23 +95,20 @@ export default function App() {
       <ShellIntegrationBanner />
 
       <div className="notice">
-        <Trans i18nKey="notice" ns="common" components={{ code: <code />, strong: <strong />, id: <IdPlaceholder /> }} />
+        <Trans
+          i18nKey="notice"
+          ns="common"
+          components={{ code: <code />, strong: <strong />, id: <IdPlaceholder /> }}
+        />
       </div>
 
       {error && (
-        <div
-          className="notice"
-          style={{ background: "rgba(209,36,47,0.1)", borderLeftColor: "var(--danger)" }}
-        >
+        <div className="notice notice--danger" role="alert">
           {error}
         </div>
       )}
 
-      <GlobalModeCard
-        mode={globalMode}
-        loading={globalModeLoading}
-        onChange={saveGlobalMode}
-      />
+      <GlobalModeCard mode={globalMode} loading={globalModeLoading} onChange={saveGlobalMode} />
 
       <ProviderList
         providers={Object.values(providers)}
@@ -124,7 +122,7 @@ export default function App() {
         }}
       />
 
-      <div className="card">
+      <Card>
         {creating ? (
           <JsonForm
             mode="create"
@@ -136,10 +134,12 @@ export default function App() {
           />
         ) : (
           <div className="row">
-            <button data-testid="add-provider-button" onClick={() => setCreating(true)}>{t("addButton")}</button>
+            <Button data-testid="add-provider-button" onClick={() => setCreating(true)}>
+              {t("addButton")}
+            </Button>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

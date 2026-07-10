@@ -7,5 +7,11 @@
   "edit": "Edit",
   "delete": "Delete",
   "loading": "Loading…",
-  "error": "Error"
+  "error": "Error",
+  "theme": {
+    "label": "Theme",
+    "system": "Auto",
+    "light": "Light",
+    "dark": "Dark"
+  }
 }

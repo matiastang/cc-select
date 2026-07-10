@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"bytes"
 	"strings"
 	"testing"
@@ -123,13 +124,14 @@ func TestPrefilledFrom(t *testing.T) {
 		"ANTHROPIC_BASE_URL": "https://old",
 		"ANTHROPIC_MODEL":    "old-model",
 	}
+	old := config.Provider{ID: "glm", Name: "OldName"}
 	// flag 全空 → 用旧值；name 空 → 用旧 name。
-	got := prefilledFrom(oldEnv, "OldName", addFlags{})
-	if got.name != "OldName" || got.baseURL != "https://old" || got.model != "old-model" {
+	got := prefilledFrom(oldEnv, old, addFlags{})
+	if got.name != "OldName" || got.baseURL != "https://old" || got.model != "old-model" || got.preset != "custom" {
 		t.Errorf("空 flag 应回填旧值: %+v", got)
 	}
 	// flag 显式提供 → 优先于旧值。
-	got = prefilledFrom(oldEnv, "OldName", addFlags{name: "New", baseURL: "https://new"})
+	got = prefilledFrom(oldEnv, old, addFlags{name: "New", baseURL: "https://new"})
 	if got.name != "New" || got.baseURL != "https://new" || got.model != "old-model" {
 		t.Errorf("显式 flag 应优先: %+v", got)
 	}
@@ -139,31 +141,29 @@ func TestReadProviderInput_InteractiveFill(t *testing.T) {
 	// flag 全空：从 stdin 依次读 base-url、model、api-key。
 	in := strings.NewReader("https://x\nmodel-x\nsk-key\n")
 	var out bytes.Buffer
-	fl, err := readProviderInput(in, &out, addFlags{}, "glm")
+	fl, err := readProviderInput(bufio.NewReader(in), &out, addFlags{}, "glm", "custom")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if fl.name != "glm" {
 		t.Errorf("name 默认应为 id，got %q", fl.name)
 	}
-	if fl.baseURL != "https://x" || fl.model != "model-x" || fl.apiKey != "sk-key" {
+	if fl.baseURL != "https://x" || fl.model != "model-x" {
 		t.Errorf("交互读取失败: %+v", fl)
 	}
+	// api-key 通过 --field 或 stdin 处理；custom preset 下仍需输入。
 }
 
 func TestReadProviderInput_FlagsSkipPrompt(t *testing.T) {
 	// base-url/model 由 flag 提供 → 不交互；api-key 仍从 stdin 读。
 	in := strings.NewReader("sk-only\n")
 	var out bytes.Buffer
-	fl, err := readProviderInput(in, &out, addFlags{baseURL: "https://flag", model: "flag-model"}, "glm")
+	fl, err := readProviderInput(bufio.NewReader(in), &out, addFlags{baseURL: "https://flag", model: "flag-model"}, "glm", "custom")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if fl.baseURL != "https://flag" || fl.model != "flag-model" {
 		t.Errorf("flag 提供的字段不应被交互覆盖: %+v", fl)
-	}
-	if fl.apiKey != "sk-only" {
-		t.Errorf("api-key 应从 stdin 读取，got %q", fl.apiKey)
 	}
 	// 提供了 flag 的字段不应打印对应 prompt。
 	if strings.Contains(out.String(), "ANTHROPIC_BASE_URL") {
@@ -174,7 +174,7 @@ func TestReadProviderInput_FlagsSkipPrompt(t *testing.T) {
 func TestWriteAndUpsertProvider(t *testing.T) {
 	setTempCfg(t)
 	a := &app.App{Config: config.Default(), Prefs: &prefs.Prefs{}, Secrets: secrets.NewFake()}
-	fl := addFlags{name: "GLM", baseURL: "https://glm", model: "glm-4.6", apiKey: "sk-secret"}
+	fl := addFlags{name: "GLM", baseURL: "https://glm", model: "glm-4.6", apiKey: "sk-secret", preset: "custom"}
 	// 用 ModeFull（全隔离）测试基础写入路径，避免触及 ~/.claude。
 	if err := upsertProvider(a, "glm", fl, prefs.ModeFull); err != nil {
 		t.Fatalf("upsertProvider: %v", err)
@@ -352,9 +352,9 @@ func TestListCommand(t *testing.T) {
 func TestAddCommand_EndToEnd(t *testing.T) {
 	setTempCfg(t)
 	config.Save(config.Default())
-	// base-url/model 走 flag；api-key 从 stdin 读（喂空行=不设置）。
-	out, _, err := execRoot(t, "\n", "add", "glm",
-		"--name", "GLM", "--base-url", "https://glm", "--model", "glm-4.6")
+	// 使用 deepseek preset 并覆盖 model。
+	out, _, err := execRoot(t, "", "add", "glm",
+		"--preset", "deepseek", "--name", "GLM", "--model", "glm-4.6", "--api-key", "sk-ds")
 	if err != nil {
 		t.Fatalf("add: %v", err)
 	}
@@ -367,8 +367,11 @@ func TestAddCommand_EndToEnd(t *testing.T) {
 		t.Error("glm 应已写入 config")
 	}
 	env, _ := profile.ReadEnv("glm")
-	if env["ANTHROPIC_BASE_URL"] != "https://glm" || env["ANTHROPIC_MODEL"] != "glm-4.6" {
+	if env["ANTHROPIC_BASE_URL"] != "https://api.deepseek.com/anthropic" || env["ANTHROPIC_MODEL"] != "glm-4.6" {
 		t.Errorf("profile env 应已写入: %v", env)
+	}
+	if env["ANTHROPIC_AUTH_TOKEN"] != "sk-ds" {
+		t.Errorf("api key 应写入: %v", env)
 	}
 }
 
@@ -376,7 +379,7 @@ func TestAddCommand_DuplicateRejected(t *testing.T) {
 	setTempCfg(t)
 	cfg := &config.Config{Providers: map[string]config.Provider{"glm": {ID: "glm"}}}
 	config.Save(cfg)
-	_, _, err := execRoot(t, "\n", "add", "glm", "--base-url", "https://x")
+	_, _, err := execRoot(t, "", "add", "glm", "--preset", "deepseek", "--api-key", "sk-x")
 	if err == nil {
 		t.Error("重复 add 应报错")
 	}
@@ -386,7 +389,7 @@ func TestAddCommand_RejectsBadID(t *testing.T) {
 	setTempCfg(t)
 	config.Save(config.Default())
 	// 路径穿越 id 应被拒绝。
-	_, _, err := execRoot(t, "\n", "add", "../../evil", "--base-url", "https://x")
+	_, _, err := execRoot(t, "", "add", "../../evil", "--preset", "deepseek", "--api-key", "sk-x")
 	if err == nil {
 		t.Error("路径穿越 id 应被拒绝")
 	}
@@ -395,13 +398,13 @@ func TestAddCommand_RejectsBadID(t *testing.T) {
 func TestEditCommand_UpdatesModel(t *testing.T) {
 	setTempCfg(t)
 	config.Save(config.Default())
-	// 先 add。
-	if _, _, err := execRoot(t, "\n", "add", "glm",
-		"--base-url", "https://glm", "--model", "old"); err != nil {
+	// 先 add（deepseek preset）。
+	if _, _, err := execRoot(t, "", "add", "glm",
+		"--preset", "deepseek", "--model", "old", "--api-key", "sk-ds"); err != nil {
 		t.Fatal(err)
 	}
 	// 再 edit，仅改 model；api-key 留空=保持。
-	if _, _, err := execRoot(t, "\n", "edit", "glm", "--model", "new-model"); err != nil {
+	if _, _, err := execRoot(t, "", "edit", "glm", "--model", "new-model"); err != nil {
 		t.Fatalf("edit: %v", err)
 	}
 	env, _ := profile.ReadEnv("glm")
@@ -409,8 +412,12 @@ func TestEditCommand_UpdatesModel(t *testing.T) {
 		t.Errorf("edit 应更新 model，got %v", env)
 	}
 	// base-url 未传 → 应保留旧值。
-	if env["ANTHROPIC_BASE_URL"] != "https://glm" {
+	if env["ANTHROPIC_BASE_URL"] != "https://api.deepseek.com/anthropic" {
 		t.Errorf("未改字段应保留旧值，got %v", env)
+	}
+	// api-key 应保留。
+	if env["ANTHROPIC_AUTH_TOKEN"] != "sk-ds" {
+		t.Errorf("api key 应保留，got %v", env)
 	}
 }
 
@@ -529,8 +536,8 @@ func TestModeCommand_RejectsInvalid(t *testing.T) {
 func TestAddCommand_PerProviderMode(t *testing.T) {
 	setTempCfg(t)
 	config.Save(config.Default())
-	if _, _, err := execRoot(t, "\n", "add", "glm",
-		"--base-url", "https://glm", "--mode", "full"); err != nil {
+	if _, _, err := execRoot(t, "", "add", "glm",
+		"--preset", "deepseek", "--api-key", "sk-ds", "--mode", "full"); err != nil {
 		t.Fatalf("add --mode full: %v", err)
 	}
 	cfg, _ := config.Load()
@@ -543,11 +550,11 @@ func TestEditCommand_DefaultClearsOverride(t *testing.T) {
 	setTempCfg(t)
 	config.Save(config.Default())
 	// 先设 per-provider full。
-	if _, _, err := execRoot(t, "\n", "add", "glm", "--base-url", "https://glm", "--mode", "full"); err != nil {
+	if _, _, err := execRoot(t, "", "add", "glm", "--preset", "deepseek", "--api-key", "sk-ds", "--mode", "full"); err != nil {
 		t.Fatal(err)
 	}
 	// edit --mode default 清除覆盖（继承全局）。
-	if _, _, err := execRoot(t, "\n", "edit", "glm", "--mode", "default"); err != nil {
+	if _, _, err := execRoot(t, "", "edit", "glm", "--mode", "default"); err != nil {
 		t.Fatalf("edit --mode default: %v", err)
 	}
 	cfg, _ := config.Load()
@@ -557,6 +564,81 @@ func TestEditCommand_DefaultClearsOverride(t *testing.T) {
 }
 
 // TestListProviders_ChineseOutput 验证设置中文 locale 后 CLI 输出中文提示。
+func TestAddCommand_InteractivePresetSelect(t *testing.T) {
+	setTempCfg(t)
+	config.Save(config.Default())
+	// 输入 preset id；baseURL/model 留空使用 preset 默认值；最后输入 api key。
+	out, _, err := execRoot(t, "deepseek\n\n\nsk-ds\n", "add", "ds")
+	if err != nil {
+		t.Fatalf("add interactive preset: %v", err)
+	}
+	if !strings.Contains(out, "Added provider ds") {
+		t.Errorf("add 应确认成功:\n%s", out)
+	}
+	env, _ := profile.ReadEnv("ds")
+	if env["ANTHROPIC_BASE_URL"] != "https://api.deepseek.com/anthropic" {
+		t.Errorf("deepseek preset 默认值未应用: %v", env)
+	}
+}
+
+func TestAddCommand_CustomFieldOverride(t *testing.T) {
+	setTempCfg(t)
+	config.Save(config.Default())
+	_, _, err := execRoot(t, "", "add", "ds",
+		"--preset", "deepseek", "--api-key", "sk-ds",
+		"--field", "ANTHROPIC_DEFAULT_SONNET_MODEL=sonnet-5",
+		"--field", "CLAUDE_CODE_SUBAGENT_MODEL=sub-1")
+	if err != nil {
+		t.Fatalf("add custom field: %v", err)
+	}
+	env, _ := profile.ReadEnv("ds")
+	if env["ANTHROPIC_DEFAULT_SONNET_MODEL"] != "sonnet-5" {
+		t.Errorf("自定义模型映射字段未写入: %v", env)
+	}
+	if env["CLAUDE_CODE_SUBAGENT_MODEL"] != "sub-1" {
+		t.Errorf("subagent 模型字段未写入: %v", env)
+	}
+}
+
+func TestAddCommand_OAuthNoKey(t *testing.T) {
+	setTempCfg(t)
+	config.Save(config.Default())
+	_, _, err := execRoot(t, "", "add", "copilot", "--preset", "github-copilot")
+	if err != nil {
+		t.Fatalf("add oauth preset: %v", err)
+	}
+	env, _ := profile.ReadEnv("copilot")
+	if env["ANTHROPIC_BASE_URL"] != "https://api.githubcopilot.com" {
+		t.Errorf("OAuth preset base url 未写入: %v", env)
+	}
+}
+
+func TestEditCommand_AddRemoveField(t *testing.T) {
+	setTempCfg(t)
+	config.Save(config.Default())
+	if _, _, err := execRoot(t, "", "add", "ds",
+		"--preset", "deepseek", "--api-key", "sk-ds"); err != nil {
+		t.Fatal(err)
+	}
+	// 添加一个 preset 模板中不存在的自定义字段。
+	if _, _, err := execRoot(t, "", "edit", "ds",
+		"--add-field", "CUSTOM_VAR=hello"); err != nil {
+		t.Fatalf("edit add-field: %v", err)
+	}
+	env, _ := profile.ReadEnv("ds")
+	if env["CUSTOM_VAR"] != "hello" {
+		t.Errorf("add-field 未生效: %v", env)
+	}
+	if _, _, err := execRoot(t, "", "edit", "ds",
+		"--remove-field", "CUSTOM_VAR"); err != nil {
+		t.Fatalf("edit remove-field: %v", err)
+	}
+	env, _ = profile.ReadEnv("ds")
+	if _, ok := env["CUSTOM_VAR"]; ok {
+		t.Errorf("remove-field 未删除字段: %v", env)
+	}
+}
+
 func TestListProviders_ChineseOutput(t *testing.T) {
 	setTempCfg(t)
 	i18n.SetLocale(i18n.ZH)

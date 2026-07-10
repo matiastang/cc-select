@@ -5,7 +5,11 @@ import { tmpdir } from "os";
 import path from "path";
 
 // 二进制相对 cwd（internal/frontend）的位置：repoRoot/bin/cc-select。
-const BIN = path.resolve(process.cwd(), "../../bin/cc-select");
+// Windows 上 Go 默认生成 .exe；为保证 Node spawn 找到的是同一份，显式补后缀。
+const BIN = path.resolve(
+  process.cwd(),
+  "../../bin/cc-select" + (process.platform === "win32" ? ".exe" : ""),
+);
 
 // 启动一个隔离的 cc-select gui 进程，从 stderr 解析实际端口。
 // configPath/providers.json 落 configDir；可选 homeDir 隔离 HOME/USERPROFILE。
@@ -17,11 +21,9 @@ async function startServer(opts: { configPath: string; homeDir?: string; stderr?
     env.USERPROFILE = opts.homeDir;
     env.CC_SELECT_SHELL = "zsh"; // 固定 zsh，使 banner 行为确定
   }
-  const proc: ChildProcessWithoutNullStreams = spawn(
-    BIN,
-    ["gui", "--no-browser", "--port", "0"],
-    { env },
-  );
+  const proc: ChildProcessWithoutNullStreams = spawn(BIN, ["gui", "--no-browser", "--port", "0"], {
+    env,
+  });
   if (opts.stderr) proc.stderr.pipe(process.stderr); // 诊断：转发 server 日志
 
   const baseURL = await new Promise<string>((resolve, reject) => {

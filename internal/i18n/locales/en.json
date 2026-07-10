@@ -29,27 +29,47 @@
     },
     "add": {
       "short": "Interactively add a provider",
-      "long": "Interactively add a provider configuration. In interactive mode, values missing from flags are read securely from the terminal.",
+      "long": "Interactively add a provider configuration. Choose a built-in preset to auto-fill base URL, model and common env fields, or use 'custom' to fill them manually. In interactive mode, values missing from flags are read securely from the terminal.",
       "nameFlag": "Display name",
-      "apiKeyFlag": "ANTHROPIC_AUTH_TOKEN (pass in plaintext; optional in interactive mode, read securely from terminal)",
+      "apiKeyFlag": "API key (ANTHROPIC_AUTH_TOKEN or ANTHROPIC_API_KEY depending on preset; pass in plaintext; optional in interactive mode, read securely from terminal)",
       "modelFlag": "ANTHROPIC_MODEL",
       "baseURLFlag": "ANTHROPIC_BASE_URL",
       "modeFlag": "Per-provider isolation mode override (settings-only|full|default=inherit global)",
+      "presetFlag": "Built-in provider preset (e.g. deepseek, zhipu-glm, kimi, openrouter, custom); omit for interactive selection",
+      "apiFormatFlag": "API format override (anthropic|openai_chat|openai_responses|gemini_native); advanced",
+      "authFieldFlag": "Authentication env var override (ANTHROPIC_AUTH_TOKEN|ANTHROPIC_API_KEY); advanced",
+      "fieldFlag": "Override any env field (KEY=VALUE); can be specified multiple times",
       "exists": "provider %q already exists; use cc-select edit %s to modify it",
       "modeInvalid": "invalid --mode %q (options: settings-only | full | default)",
+      "unknownPreset": "unknown preset %q; run cc-select add <id> without --preset to see the list",
+      "presetPrompt": "Available provider presets (choose a number or enter the preset id, leave empty for custom):",
+      "presetChoice": "Preset",
+      "presetChoiceInvalid": "invalid choice %q",
+      "invalidFieldFlag": "invalid --field %q (expected KEY=VALUE)",
+      "requiredMissing": "provider %q is missing required fields: %s",
       "added": "✓ Added provider %s",
       "prompts": {
-        "baseURL": "ANTHROPIC_BASE_URL (leave empty for official): ",
-        "model": "ANTHROPIC_MODEL (optional): ",
-        "apiKey": "ANTHROPIC_AUTH_TOKEN (optional): "
+        "baseURL": "ANTHROPIC_BASE_URL",
+        "model": "ANTHROPIC_MODEL",
+        "apiKey": "API key",
+        "customField": "%s"
+      },
+      "category": {
+        "official": "Official",
+        "cn_official": "China Official",
+        "aggregator": "Aggregator",
+        "third_party": "Third Party",
+        "custom": "Custom"
       },
       "profileWriteFailed": "write profile: %w"
     },
     "edit": {
       "short": "Edit a provider's configuration",
-      "long": "Edit an existing provider's configuration.",
+      "long": "Edit an existing provider's configuration. Use --preset to switch to a built-in preset, or --add-field / --remove-field for scripted edits.",
       "missing": "provider %q does not exist",
-      "updated": "✓ Updated provider %s"
+      "updated": "✓ Updated provider %s",
+      "addFieldFlag": "Add or override an env field (KEY=VALUE); can be specified multiple times",
+      "removeFieldFlag": "Remove an env field by key; can be specified multiple times"
     },
     "remove": {
       "short": "Remove a provider",

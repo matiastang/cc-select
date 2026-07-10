@@ -1,0 +1,11 @@
+{
+  "name": "cc-select",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "prepare": "lefthook install && cd internal/frontend && npm install"
+  },
+  "devDependencies": {
+    "lefthook": "^1.10.10"
+  }
+}

@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import { SUPPORTED_LOCALES, LOCALE_LABELS, SupportedLocale } from "./config";
 import { useLanguage } from "./useLanguage";
 

@@ -31,7 +31,7 @@ func wantFilePerm() os.FileMode {
 func TestEnsure_WritesSettingsJSON(t *testing.T) {
 	setTempRoot(t)
 	env := map[string]string{
-		"ANTHROPIC_BASE_URL": "https://api.minimaxi.com/anthropic",
+		"ANTHROPIC_BASE_URL":   "https://api.minimaxi.com/anthropic",
 		"ANTHROPIC_AUTH_TOKEN": "sk-secret",
 	}
 	dir, err := Ensure("minimax", env)

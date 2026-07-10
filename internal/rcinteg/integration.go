@@ -183,6 +183,7 @@ func manualResult(s shell.Shell, snippet, msg string) InstallResult {
 // writeManagedBlock 把 snippet 作为 marker 块写入 rcPath（幂等），返回动作类型。
 //   - rc 无 marker 块 → 备份后追加（appended）
 //   - rc 有 marker 块 → 整块替换（updated）；内容未变则 noop
+//
 // 任何实际写入（非 noop）前，若原 rc 非空则备份（首次备份不覆盖，保留最早原始态）。
 func writeManagedBlock(rcPath, snippet string) (action string, err error) {
 	originalBytes, rerr := os.ReadFile(rcPath)

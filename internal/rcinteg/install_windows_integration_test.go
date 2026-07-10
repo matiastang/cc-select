@@ -20,9 +20,9 @@ import (
 // 在 GitHub Actions windows-latest runner 上跑(runner 默认不开 Smart App Control)。
 func TestInstall_PowerShellProfileIsLoadable(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("USERPROFILE", home)    // 隔离 home,Install 写出的 $PROFILE 落临时目录
+	t.Setenv("USERPROFILE", home) // 隔离 home,Install 写出的 $PROFILE 落临时目录
 	t.Setenv("CC_SELECT_SHELL", "powershell")
-	resetPwshCache()                 // 让 Install 重新探测 $PROFILE(避免跨测试缓存污染)
+	resetPwshCache() // 让 Install 重新探测 $PROFILE(避免跨测试缓存污染)
 
 	res, err := Install("powershell")
 	if err != nil {

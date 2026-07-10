@@ -17,8 +17,8 @@ var useShellFlag string
 var useModeFlag string
 
 var useCmd = &cobra.Command{
-	Use:   "use <provider>",
-	Args:  cobra.ExactArgs(1),
+	Use:  "use <provider>",
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runUse(cmd, args)
 	},

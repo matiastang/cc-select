@@ -26,7 +26,7 @@ func init() {
 type ZshEmitter struct{}
 
 // Emit 生成可直接 eval 的语句。每个语句独占一行。
-// 值用单引号包裹，内部单引号转义为 '\'''——这是 shell 单引号串的标准安全转义，
+// 值用单引号包裹，内部单引号转义为 '\”'——这是 shell 单引号串的标准安全转义，
 // 防止 key/URL 中的特殊字符（$、空格、引号、反引号等）被解释。
 func (ZshEmitter) Emit(changes []Change) string {
 	var b strings.Builder

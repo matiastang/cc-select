@@ -1,6 +1,7 @@
 import { Provider } from "../types";
 import { ProviderCard } from "./ProviderCard";
 import { JsonForm } from "./JsonForm";
+import { Card } from "./ui";
 
 type ProviderListProps = {
   providers: Provider[];
@@ -24,22 +25,13 @@ export function ProviderList({
       {[...providers]
         .sort((a, b) => a.id.localeCompare(b.id))
         .map((provider) => (
-          <div className="card" key={provider.id}>
+          <Card key={provider.id}>
             {editingId === provider.id ? (
-              <JsonForm
-                mode="edit"
-                id={provider.id}
-                onCancel={onEditCancel}
-                onSaved={onSaved}
-              />
+              <JsonForm mode="edit" id={provider.id} onCancel={onEditCancel} onSaved={onSaved} />
             ) : (
-              <ProviderCard
-                provider={provider}
-                onEdit={onEditStart}
-                onDelete={onDelete}
-              />
+              <ProviderCard provider={provider} onEdit={onEditStart} onDelete={onDelete} />
             )}
-          </div>
+          </Card>
         ))}
     </>
   );

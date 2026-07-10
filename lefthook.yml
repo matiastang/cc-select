@@ -1,0 +1,20 @@
+pre-commit:
+  commands:
+    gofmt:
+      glob: "**/*.go"
+      run: make fmt-check
+    go-vet:
+      glob: "**/*.go"
+      run: go vet ./...
+    go-mod-tidy:
+      glob: "go.*"
+      run: make mod-tidy-check
+    frontend-typecheck:
+      glob: "internal/frontend/src/**/*.{ts,tsx}"
+      run: make frontend-typecheck
+    frontend-lint:
+      glob: "internal/frontend/src/**/*.{ts,tsx}"
+      run: make frontend-lint
+    frontend-format-check:
+      glob: "internal/frontend/src/**/*.{ts,tsx}"
+      run: make frontend-format-check

@@ -1,3 +1,5 @@
+import { APIFormat, AuthField, Preset, PresetDetail } from "./presets/presets";
+
 export type Provider = {
   id: string;
   name: string;
@@ -13,6 +15,11 @@ export type ProviderDetail = {
   name: string;
   settings: unknown;
   isolationMode: string;
+  preset?: string;
+  apiFormat?: APIFormat;
+  authField?: AuthField;
 };
 
 export type IsolationMode = "" | "settings-only" | "full";
+
+export type { Preset, PresetDetail };

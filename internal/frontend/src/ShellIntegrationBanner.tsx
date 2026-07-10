@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
 import { IdPlaceholder } from "./components/IdPlaceholder";
+import { Button, Textarea } from "./components/ui";
 
 // ShellIntegrationBanner: detects whether shell integration is installed on first visit;
 // if not, offers one-click install.
@@ -84,21 +85,15 @@ export function ShellIntegrationBanner() {
       <div className="notice">
         <strong>{t("manualTitle")}</strong>
         <div className="muted">{manual?.message}</div>
-        <textarea
+        <Textarea
           readOnly
           value={manual?.snippet || ""}
           spellCheck={false}
           rows={10}
           style={{
-            width: "100%",
             fontFamily: "monospace",
             fontSize: "0.85rem",
             marginTop: "0.5rem",
-            padding: "0.5rem",
-            border: "1px solid var(--border)",
-            borderRadius: 6,
-            background: "var(--bg)",
-            color: "var(--text)",
           }}
         />
       </div>
@@ -110,9 +105,7 @@ export function ShellIntegrationBanner() {
       <div className="notice">
         <strong>{t("unsupportedTitle", { shell: shell ? `（${shell}）` : "" })}</strong>
         <div className="muted">
-          <Trans i18nKey="unsupportedHint" ns="shell">
-            请使用 zsh / bash / PowerShell，或在终端手动执行 <code>cc-select init</code>。
-          </Trans>
+          <Trans i18nKey="unsupportedHint" ns="shell" components={{ code: <code /> }} />
         </div>
       </div>
     );
@@ -125,17 +118,25 @@ export function ShellIntegrationBanner() {
         {t(legacy ? "legacyTitle" : "neededTitle", { shell: shell ? `（${shell}）` : "" })}
       </strong>
       <div className="muted">
-        <Trans i18nKey="neededHint" ns="shell" components={{ code: <code />, id: <IdPlaceholder /> }} />
+        <Trans
+          i18nKey="neededHint"
+          ns="shell"
+          components={{ code: <code />, id: <IdPlaceholder /> }}
+        />
       </div>
       {err && (
-        <div className="muted" style={{ color: "var(--danger)", marginTop: "0.5rem" }}>
+        <div className="muted" role="alert" style={{ color: "var(--danger)", marginTop: "0.5rem" }}>
           {err}
         </div>
       )}
       <div style={{ marginTop: "0.5rem" }}>
-        <button data-testid="shell-install-button" onClick={install} disabled={state === "installing"}>
+        <Button
+          data-testid="shell-install-button"
+          onClick={install}
+          disabled={state === "installing"}
+        >
           {state === "installing" ? t("installing") : t("installButton")}
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -2,8 +2,8 @@ import { useEffect } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 import { updateDocumentLang, updateDocumentTitle } from "../i18n/utils";
-
 import { IdPlaceholder } from "./IdPlaceholder";
+import { ThemeSwitcher } from "../theme/ThemeSwitcher";
 
 export function Header() {
   const { t, i18n } = useTranslation();
@@ -17,7 +17,10 @@ export function Header() {
     <div className="header">
       <div className="header-title">
         <h1>{t("appTitle")}</h1>
-        <LanguageSwitcher />
+        <div className="header-controls">
+          <ThemeSwitcher />
+          <LanguageSwitcher />
+        </div>
       </div>
       <p className="muted">
         <Trans i18nKey="subtitle" components={{ code: <code />, id: <IdPlaceholder /> }} />

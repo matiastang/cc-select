@@ -12,7 +12,7 @@ import (
 var initShellFlag string
 
 var initCmd = &cobra.Command{
-	Use:   "init",
+	Use: "init",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runInit(cmd)
 	},

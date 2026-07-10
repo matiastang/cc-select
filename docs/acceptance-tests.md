@@ -21,6 +21,7 @@
 | AC10 隔离粒度 | [isolation-modes.md](./isolation-modes.md) / [04 §7](./engineering-decisions.md#7-隔离粒度全隔离-vs-仅-settingsjson-隔离双模式) | 阶段 2 |
 | AC11 shell 集成一键安装 | [distribution §2](./distribution.md#2-web-配置页一键安装-shell-集成已实现) | 阶段 3 |
 | AC12 多语言（i18n） | CLI/GUI 语言偏好 | 阶段 4 |
+| AC13 Preset 快速配置 | Preset 供应商模板 | 阶段 2 |
 
 ---
 
@@ -202,3 +203,31 @@
 | 6. `cc-select list --help` | 命令的 Short/Long 及 flag 说明随当前语言变化 |
 
 **判定**：CLI 与 GUI 共享语言偏好；环境变量 `CC_SELECT_LANGUAGE` 优先级最高；未知/未设置语言安全回退英文。
+
+---
+
+## AC13. Preset 快速配置
+
+### CLI 侧
+
+| 步骤 | 预期 |
+|---|---|
+| 1. `cc-select add ds --preset deepseek --api-key sk-xxx` | 创建成功；profile 中 `ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic`，模型为 DeepSeek 默认值 |
+| 2. `cc-select add glm --preset zhipu-glm --api-key sk-xxx --model glm-5.1` | model 覆盖 preset 默认值；base URL 保留 preset 默认值 |
+| 3. `cc-select add custom --preset custom --api-key sk-xxx --base-url https://example.com` | 以空模板为基础创建 provider |
+| 4. `cc-select edit ds --model new-model` | 仅更新 model；base URL、api key 保留 |
+| 5. `cc-select edit ds --add-field ANTHROPIC_DEFAULT_SONNET_MODEL=sonnet-5` | 新增/覆盖模型映射字段 |
+| 6. `cc-select edit ds --remove-field ANTHROPIC_DEFAULT_SONNET_MODEL` | 删除该字段 |
+| 7. `cc-select add bad --preset not-exist` | 报错提示未知 preset |
+| 8. `cc-select add ds --preset deepseek`（省略 `--api-key`）| 交互式提示输入 API key；非交互式 stdin 为空时报缺少必填字段 |
+
+### GUI 侧（后续前端 PR 完成后验收）
+
+| 步骤 | 预期 |
+|---|---|
+| 1. 打开「新增 provider」表单 | 显示「供应商 preset」下拉，分组展示官方/国内官方/聚合平台/第三方/自定义 |
+| 2. 选择「DeepSeek」preset | Base URL、默认模型、模型映射等字段自动填充 |
+| 3. 仅填写 API Key 并保存 | provider 列表显示 DeepSeek 默认 URL 与模型 |
+| 4. 编辑 provider，修改默认模型并保存 | profile 中模型更新，其他字段保留 |
+
+**判定**：CLI 与 GUI 均能通过 preset 快速创建/编辑 provider；preset 只提供默认值，保存后可独立修改；必填字段缺失时给出明确错误。

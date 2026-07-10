@@ -10,6 +10,7 @@ import (
 	"github.com/cc-select/cc-select/internal/config"
 	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/prefs"
+	"github.com/cc-select/cc-select/internal/presets"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/rcinteg"
 )
@@ -34,6 +35,29 @@ type providerDetailDTO struct {
 	Name          string          `json:"name"`
 	Settings      json.RawMessage `json:"settings"`      // settings.json 磁盘原文；官方/缺失为 {}
 	IsolationMode string          `json:"isolationMode"` // per-provider 覆盖；空串 = 继承全局
+	Preset        string          `json:"preset"`        // 创建/编辑时选用的 preset id
+	APIFormat     string          `json:"apiFormat"`     // 高级选项：API 格式
+	AuthField     string          `json:"authField"`     // 高级选项：认证字段
+}
+
+// presetDTO 是 preset 列表/详情返回给前端的结构（不含完整 EnvTemplate，只给必要元信息）。
+type presetDTO struct {
+	ID           string   `json:"id"`
+	DisplayName  string   `json:"displayName"`
+	Category     string   `json:"category"`
+	WebsiteURL   string   `json:"websiteURL,omitempty"`
+	APIKeyURL    string   `json:"apiKeyURL,omitempty"`
+	APIFormat    string   `json:"apiFormat"`
+	AuthField    string   `json:"authField,omitempty"`
+	RequiredVars []string `json:"requiredVars"`
+	OptionalVars []string `json:"optionalVars"`
+	OAuth        bool     `json:"oauth"`
+}
+
+// presetDetailDTO 包含 preset 的完整模板，供前端表单自动填充。
+type presetDetailDTO struct {
+	presetDTO
+	EnvTemplate map[string]string `json:"envTemplate"`
 }
 
 // apiHandler 持有依赖，处理 /api/v1/* 路由。
@@ -45,6 +69,8 @@ func (h *apiHandler) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/providers", h.handleProvidersCollection)
 	mux.HandleFunc("/api/v1/providers/", h.handleProviderItem)
+	mux.HandleFunc("/api/v1/presets", h.handlePresetsCollection)
+	mux.HandleFunc("/api/v1/presets/", h.handlePresetItem)
 	mux.HandleFunc("/api/v1/mode", h.handleMode)
 	mux.HandleFunc("/api/v1/language", h.handleLanguage)
 	mux.HandleFunc("/api/v1/shell-integration", h.handleShellIntegration)
@@ -83,7 +109,64 @@ func (h *apiHandler) handleProviderItem(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-// handleMode 处理 GET/PUT 全局隔离模式（~/.cc-select/prefs.json）。
+// handlePresetItem 处理 GET /presets/<id>。
+func (h *apiHandler) handlePresetItem(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/api/v1/presets/")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "missing preset id")
+		return
+	}
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	p, ok := presets.ByID(id)
+	if !ok {
+		writeError(w, http.StatusNotFound, "preset not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, toPresetDetailDTO(p))
+}
+
+// handlePresetsCollection 处理 GET /presets（列表）。
+func (h *apiHandler) handlePresetsCollection(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	all := presets.All()
+	out := make([]presetDTO, len(all))
+	for i, p := range all {
+		out[i] = toPresetDTO(p)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"presets":    out,
+		"categories": presets.Categories(),
+	})
+}
+
+func toPresetDTO(p presets.Preset) presetDTO {
+	return presetDTO{
+		ID:           p.ID,
+		DisplayName:  p.DisplayName,
+		Category:     string(p.Category),
+		WebsiteURL:   p.WebsiteURL,
+		APIKeyURL:    p.APIKeyURL,
+		APIFormat:    string(p.APIFormat),
+		AuthField:    string(p.AuthField),
+		RequiredVars: p.RequiredVars,
+		OptionalVars: p.OptionalVars,
+		OAuth:        p.OAuth,
+	}
+}
+
+func toPresetDetailDTO(p presets.Preset) presetDetailDTO {
+	return presetDetailDTO{
+		presetDTO:   toPresetDTO(p),
+		EnvTemplate: p.EnvTemplate,
+	}
+}
+
 //   - GET  → {"isolationMode": "settings-only" | "full"}（未设置时返回默认）
 //   - PUT  → 同结构，设置全局模式。
 //
@@ -227,10 +310,15 @@ func (h *apiHandler) listProviders(w http.ResponseWriter, _ *http.Request) {
 
 func (h *apiHandler) createProvider(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		ID            string          `json:"id"`
-		Name          string          `json:"name"`
-		Settings      json.RawMessage `json:"settings"`
-		IsolationMode prefs.Mode      `json:"isolationMode"`
+		ID            string            `json:"id"`
+		Name          string            `json:"name"`
+		Preset        string            `json:"preset,omitempty"`
+		APIKey        string            `json:"apiKey,omitempty"`
+		Overrides     map[string]string `json:"overrides,omitempty"`
+		APIFormat     string            `json:"apiFormat,omitempty"`
+		AuthField     string            `json:"authField,omitempty"`
+		Settings      json.RawMessage   `json:"settings,omitempty"`
+		IsolationMode prefs.Mode        `json:"isolationMode"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
@@ -252,11 +340,13 @@ func (h *apiHandler) createProvider(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "isolationMode must be empty, settings-only or full")
 		return
 	}
-	data, err := normalizeSettings(in.Settings)
+
+	data, err := resolveProviderSettings(in.Preset, in.APIKey, in.Overrides, in.APIFormat, in.AuthField, in.Settings)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
 	a, err := app.New()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -275,6 +365,9 @@ func (h *apiHandler) createProvider(w http.ResponseWriter, r *http.Request) {
 		ID:            in.ID,
 		Name:          in.Name,
 		IsolationMode: in.IsolationMode,
+		PresetID:      in.Preset,
+		APIFormat:     in.APIFormat,
+		AuthField:     in.AuthField,
 	}
 	if err := config.Save(a.Config); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -305,9 +398,14 @@ func (h *apiHandler) updateProvider(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 	var in struct {
-		Name          string          `json:"name"`
-		Settings      json.RawMessage `json:"settings"`
-		IsolationMode prefs.Mode      `json:"isolationMode"`
+		Name          string            `json:"name"`
+		Preset        string            `json:"preset,omitempty"`
+		APIKey        string            `json:"apiKey,omitempty"`
+		Overrides     map[string]string `json:"overrides,omitempty"`
+		APIFormat     string            `json:"apiFormat,omitempty"`
+		AuthField     string            `json:"authField,omitempty"`
+		Settings      json.RawMessage   `json:"settings,omitempty"`
+		IsolationMode prefs.Mode        `json:"isolationMode"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
@@ -320,11 +418,13 @@ func (h *apiHandler) updateProvider(w http.ResponseWriter, r *http.Request, id s
 	if in.Name == "" {
 		in.Name = id
 	}
-	data, err := normalizeSettings(in.Settings)
+
+	data, err := resolveProviderSettings(in.Preset, in.APIKey, in.Overrides, in.APIFormat, in.AuthField, in.Settings)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
 	a, err := app.New()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -344,6 +444,9 @@ func (h *apiHandler) updateProvider(w http.ResponseWriter, r *http.Request, id s
 		ID:            id,
 		Name:          in.Name,
 		IsolationMode: in.IsolationMode,
+		PresetID:      in.Preset,
+		APIFormat:     in.APIFormat,
+		AuthField:     in.AuthField,
 	}
 	if err := config.Save(a.Config); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -375,6 +478,36 @@ func (h *apiHandler) deleteProvider(w http.ResponseWriter, _ *http.Request, id s
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// resolveProviderSettings 根据 preset 或自定义 settings 生成待写入 profile 的 JSON 数据。
+// 若 preset 非空，则忽略 settings；否则使用 settings（自定义模式）。
+func resolveProviderSettings(presetID, apiKey string, overrides map[string]string, apiFormat, authField string, settings json.RawMessage) ([]byte, error) {
+	if presetID != "" {
+		if _, ok := presets.ByID(presetID); !ok {
+			return nil, fmt.Errorf("unknown preset %q", presetID)
+		}
+		// API 格式与认证字段作为覆盖传入（高级选项）。
+		if apiFormat != "" {
+			overrides["_api_format"] = apiFormat
+		}
+		if authField != "" {
+			overrides["_auth_field"] = authField
+		}
+		env, missing, err := presets.BuildEnv(presetID, apiKey, overrides)
+		if err != nil {
+			return nil, err
+		}
+		if len(missing) > 0 {
+			return nil, fmt.Errorf("missing required fields: %s", presets.FormatMissing(missing))
+		}
+		settingsObj := map[string]any{"env": env}
+		return json.MarshalIndent(settingsObj, "", "  ")
+	}
+	if len(settings) == 0 {
+		return nil, fmt.Errorf("settings is required when preset is omitted")
+	}
+	return normalizeSettings(settings)
+}
+
 // normalizeSettings 校验并规范化用户提交的 settings：必须是非空 JSON 对象，
 // 返回缩进美化后的字节（写入 settings.json）。支持 env 之外的任意字段。
 func normalizeSettings(raw json.RawMessage) ([]byte, error) {
@@ -398,6 +531,7 @@ func normalizeSettings(raw json.RawMessage) ([]byte, error) {
 // applySettings 按 mode 把 settings 写入 profile。
 //   - Mode A（full）：原文写入 data，保留 env 之外字段（permissions、model 等）。
 //   - Mode B（settings-only）：只取 env 做整体替换，非 env 字段来自全局 ~/.claude/settings.json。
+//
 // data 应是已校验/规范化的 JSON 对象字节。官方 provider 无 profile（no-op）。
 func applySettings(id string, data []byte, mode prefs.Mode) error {
 	switch mode {
@@ -469,6 +603,9 @@ func toDetailDTO(p config.Provider, id string) providerDetailDTO {
 		Name:          p.DisplayName(),
 		Settings:      json.RawMessage(raw),
 		IsolationMode: string(p.IsolationMode),
+		Preset:        p.PresetID,
+		APIFormat:     p.APIFormat,
+		AuthField:     p.AuthField,
 	}
 }
 

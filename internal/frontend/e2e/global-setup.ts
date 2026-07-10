@@ -11,6 +11,7 @@ export default async function globalSetup() {
 
   // 1) 构建前端，产物输出到 ../web/assets（被 Go embed）。
   execSync("npm run build", { cwd: frontend, stdio: "inherit" });
-  // 2) 构建含最新 assets 的二进制到 bin/cc-select。
-  execSync("go build -o bin/cc-select .", { cwd: repoRoot, stdio: "inherit" });
+  // 2) 构建含最新 assets 的二进制到 bin/cc-select（Windows 为 .exe）。
+  const exe = process.platform === "win32" ? ".exe" : "";
+  execSync(`go build -o bin/cc-select${exe} .`, { cwd: repoRoot, stdio: "inherit" });
 }

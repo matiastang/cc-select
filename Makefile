@@ -8,7 +8,9 @@
 #   5. install 用 `go install`，跨平台编译并装入 GOPATH/bin，无需 ln/copy；
 #   6. clean 的 rm/rmdir 无跨平台等价：用 MSYSTEM 区分 Windows 上的 git-bash(sh) 与 cmd。
 #      （不能用 $(OS)：git bash 也运行在 Windows，$(OS) 同为 Windows_NT，会误选 cmd 分支。）
-.PHONY: all build frontend dev test integration e2e vet scripts-check install clean
+.PHONY: all build frontend dev test integration e2e vet scripts-check install clean \
+  fmt fmt-check check mod-tidy-check \
+  frontend-typecheck frontend-lint frontend-format-check frontend-check
 
 # 关闭 CGO（go-keyring 纯 Go 无需 CGO）：export 让所有 recipe 子进程继承，跨平台。
 export CGO_ENABLED := 0
@@ -65,8 +67,8 @@ scripts-check:
 		shellcheck scripts/install.sh; \
 	else \
 		sh -n scripts/install.sh; \
-	fi
-	@echo "scripts/install.sh OK"
+	fi && \
+	echo "scripts/install.sh OK"
 	@PS=""; \
 	if command -v pwsh >/dev/null 2>&1; then \
 		PS=pwsh; \
@@ -74,11 +76,55 @@ scripts-check:
 		PS=powershell; \
 	fi; \
 	if [ -n "$$PS" ]; then \
-		$$PS -NoProfile -NonInteractive -Command "[System.Management.Automation.PSParser]::Tokenize((Get-Content -Raw 'scripts/install.ps1'), [ref]$$null) | Out-Null"; \
+		$$PS -NoProfile -NonInteractive -Command '$$tokens = $$null; [System.Management.Automation.PSParser]::Tokenize((Get-Content -Raw "scripts/install.ps1"), [ref]$$tokens) | Out-Null' && \
 		echo "scripts/install.ps1 OK"; \
 	else \
 		echo "pwsh/powershell not found, skipping scripts/install.ps1 syntax check"; \
 	fi
+
+# 格式化所有代码
+fmt:
+	gofmt -w .
+	cd internal/frontend && npm run format
+
+# Go 格式检查（跨平台：Unix 用 sh，Windows cmd 用 findstr）
+ifdef CMD_SHELL
+fmt-check:
+	@gofmt -l . | findstr . >nul && (gofmt -l . & exit /b 1) || echo "Go formatting OK"
+else
+fmt-check:
+	@unformatted=$$(gofmt -l .); \
+	if [ -n "$$unformatted" ]; then \
+		echo "The following Go files need formatting:"; \
+		echo "$$unformatted"; \
+		echo "Run 'make fmt' to fix."; \
+		exit 1; \
+	fi; \
+	echo "Go formatting OK"
+endif
+
+# go mod tidy 一致性检查（Go 1.24 的 -diff 不修改文件，退出码非零表示不一致）
+mod-tidy-check:
+	@echo "Checking go.mod/go.sum consistency..."
+	go mod tidy -diff
+
+# 前端格式检查
+frontend-format-check:
+	cd internal/frontend && npm run format:check
+
+# 前端类型检查
+frontend-typecheck:
+	cd internal/frontend && npm run typecheck
+
+# 前端 Lint
+frontend-lint:
+	cd internal/frontend && npm run lint
+
+# 前端静态检查（类型 + Lint + 格式）
+frontend-check: frontend-typecheck frontend-lint frontend-format-check
+
+# 统一静态检查入口（本地和 CI 都使用）
+check: fmt-check vet frontend-typecheck frontend-lint frontend-format-check scripts-check mod-tidy-check
 
 # 安装到 GOPATH/bin：go install 跨平台编译并装入，无需 ln/copy。
 install:

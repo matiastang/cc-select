@@ -25,7 +25,7 @@ func newTestServer(t *testing.T) (*httptest.Server, string) {
 	_ = os.WriteFile(cfg, []byte(`{"providers":{"glm":{"id":"glm","name":"GLM"}}}`), 0o600)
 	// 建一个含明文 token 的 profile（验证 GET 不泄露）。
 	profile.Ensure("glm", map[string]string{
-		"ANTHROPIC_BASE_URL":  "https://glm",
+		"ANTHROPIC_BASE_URL":   "https://glm",
 		"ANTHROPIC_AUTH_TOKEN": "tok-secret-123",
 	})
 
@@ -60,6 +60,165 @@ func TestListProviders_HidesPlaintextKey(t *testing.T) {
 	// 非敏感 env 应明文返回。
 	if glmEnv, _ := glm["env"].(map[string]any); glmEnv["ANTHROPIC_BASE_URL"] != "https://glm" {
 		t.Errorf("非敏感 env 应明文返回，got %v", glm["env"])
+	}
+}
+
+func TestListPresets(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	resp, err := http.Get(srv.URL + "/api/v1/presets")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET presets want 200 got %d", resp.StatusCode)
+	}
+	var out map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatal(err)
+	}
+	list, _ := out["presets"].([]any)
+	if len(list) == 0 {
+		t.Error("presets 列表不应为空")
+	}
+	cats, _ := out["categories"].([]any)
+	if len(cats) == 0 {
+		t.Error("categories 不应为空")
+	}
+}
+
+func TestGetPreset(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	resp, err := http.Get(srv.URL + "/api/v1/presets/deepseek")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET preset want 200 got %d", resp.StatusCode)
+	}
+	var out presetDetailDTO
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatal(err)
+	}
+	if out.ID != "deepseek" {
+		t.Errorf("want deepseek got %q", out.ID)
+	}
+	if out.EnvTemplate["ANTHROPIC_BASE_URL"] == "" {
+		t.Errorf("preset 详情应包含 envTemplate")
+	}
+}
+
+func TestGetPreset_NotFound(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	resp, err := http.Get(srv.URL + "/api/v1/presets/not-exist")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("unknown preset 应 404，got %d", resp.StatusCode)
+	}
+}
+
+func TestCreate_WithPreset(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	body := `{"id":"ds","name":"DeepSeek","preset":"deepseek","apiKey":"sk-ds","overrides":{"ANTHROPIC_MODEL":"deepseek-chat"}}`
+	resp, err := http.Post(srv.URL+"/api/v1/providers", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		t.Fatalf("POST preset want 201 got %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	env, _ := profile.ReadEnv("ds")
+	if env["ANTHROPIC_BASE_URL"] != "https://api.deepseek.com/anthropic" {
+		t.Errorf("preset base url 未生效: %v", env)
+	}
+	if env["ANTHROPIC_MODEL"] != "deepseek-chat" {
+		t.Errorf("overrides 未覆盖 model: %v", env)
+	}
+	if env["ANTHROPIC_AUTH_TOKEN"] != "sk-ds" {
+		t.Errorf("apiKey 未写入: %v", env)
+	}
+}
+
+func TestCreate_PresetMissingRequired(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	body := `{"id":"ds","name":"DeepSeek","preset":"deepseek"}`
+	resp, err := http.Post(srv.URL+"/api/v1/providers", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("缺 apiKey 应 400，got %d", resp.StatusCode)
+	}
+}
+
+func TestUpdate_WithPreset(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	// 先用自定义 settings 创建。
+	http.Post(srv.URL+"/api/v1/providers", "application/json",
+		strings.NewReader(`{"id":"x","name":"X","settings":{"env":{"ANTHROPIC_BASE_URL":"https://x","ANTHROPIC_AUTH_TOKEN":"tok-x"}}}`))
+
+	// 改为 deepseek preset。
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/providers/x",
+		bytes.NewReader([]byte(`{"name":"X2","preset":"deepseek","apiKey":"sk-ds"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		t.Fatalf("PUT preset want 200 got %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+	env, _ := profile.ReadEnv("x")
+	if env["ANTHROPIC_BASE_URL"] != "https://api.deepseek.com/anthropic" {
+		t.Errorf("update 后 preset 未生效: %v", env)
+	}
+}
+
+func TestCreate_StillSupportsCustomSettings(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	body := `{"id":"custom","name":"Custom","settings":{"env":{"ANTHROPIC_BASE_URL":"https://custom","ANTHROPIC_AUTH_TOKEN":"tok"}}}`
+	resp, err := http.Post(srv.URL+"/api/v1/providers", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("POST custom settings want 201 got %d", resp.StatusCode)
+	}
+	env, _ := profile.ReadEnv("custom")
+	if env["ANTHROPIC_BASE_URL"] != "https://custom" {
+		t.Errorf("自定义 settings 未生效: %v", env)
 	}
 }
 
@@ -272,12 +431,12 @@ func TestCreate_NoPlaintextInProvidersJSON(t *testing.T) {
 
 func TestIsSensitiveVar(t *testing.T) {
 	cases := map[string]bool{
-		"ANTHROPIC_API_KEY":     true,
-		"ANTHROPIC_AUTH_TOKEN":  true,
-		"SECRET_STUFF":          true,
-		"PASSWORD":              true,
-		"ANTHROPIC_BASE_URL":    false,
-		"ANTHROPIC_MODEL":       false,
+		"ANTHROPIC_API_KEY":      true,
+		"ANTHROPIC_AUTH_TOKEN":   true,
+		"SECRET_STUFF":           true,
+		"PASSWORD":               true,
+		"ANTHROPIC_BASE_URL":     false,
+		"ANTHROPIC_MODEL":        false,
 		"CLAUDE_CODE_ENTRYPOINT": false,
 	}
 	for name, want := range cases {

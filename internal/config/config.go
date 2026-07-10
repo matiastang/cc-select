@@ -46,11 +46,16 @@ func ValidateID(id string) error {
 // Env 是要 export 的环境变量；值为 Keychain 占位时在 use 时解析为真值。
 // IsolationMode 是该 provider 的 per-provider 隔离模式覆盖（见 docs/isolation-modes.md）；
 // 空串 = 继承全局（prefs.json），由 prefs.ResolveMode 三级合并解析。
+// PresetID/APIFormat/AuthField 记录创建/编辑时使用的 preset 与高级选项，便于回填；
+// 空串表示自定义配置或未设置，不影响 profile 生效逻辑。
 type Provider struct {
 	ID            string            `json:"id"`
 	Name          string            `json:"name"`
 	Env           map[string]string `json:"env,omitempty"`
 	IsolationMode prefs.Mode        `json:"isolationMode,omitempty"`
+	PresetID      string            `json:"preset,omitempty"`
+	APIFormat     string            `json:"apiFormat,omitempty"`
+	AuthField     string            `json:"authField,omitempty"`
 }
 
 // DisplayName returns the user-facing name for the provider.
