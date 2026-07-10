@@ -62,19 +62,64 @@ export function EnvFieldEditor({
   ];
 
   const modelFields: EnvField[] = [
-    { key: SONNET_MODEL_KEY, labelKey: "form.sonnetModelLabel", placeholderKey: "form.modelPlaceholder" },
-    { key: OPUS_MODEL_KEY, labelKey: "form.opusModelLabel", placeholderKey: "form.modelPlaceholder" },
-    { key: HAIKU_MODEL_KEY, labelKey: "form.haikuModelLabel", placeholderKey: "form.modelPlaceholder" },
-    { key: FABLE_MODEL_KEY, labelKey: "form.fableModelLabel", placeholderKey: "form.modelPlaceholder" },
-    { key: SUBAGENT_MODEL_KEY, labelKey: "form.subagentModelLabel", placeholderKey: "form.modelPlaceholder" },
+    {
+      key: SONNET_MODEL_KEY,
+      labelKey: "form.sonnetModelLabel",
+      placeholderKey: "form.modelPlaceholder",
+    },
+    {
+      key: OPUS_MODEL_KEY,
+      labelKey: "form.opusModelLabel",
+      placeholderKey: "form.modelPlaceholder",
+    },
+    {
+      key: HAIKU_MODEL_KEY,
+      labelKey: "form.haikuModelLabel",
+      placeholderKey: "form.modelPlaceholder",
+    },
+    {
+      key: FABLE_MODEL_KEY,
+      labelKey: "form.fableModelLabel",
+      placeholderKey: "form.modelPlaceholder",
+    },
+    {
+      key: SUBAGENT_MODEL_KEY,
+      labelKey: "form.subagentModelLabel",
+      placeholderKey: "form.modelPlaceholder",
+    },
   ];
 
   const commonToggleFields: EnvField[] = [
-    { key: "CLAUDE_CODE_HIDE_AI_INDICATOR", labelKey: "form.hideAIIndicatorLabel", type: "select", options: ["", "true", "false"] },
-    { key: "CLAUDE_CODE_ENABLE_TEAMMATES", labelKey: "form.enableTeammatesLabel", type: "select", options: ["", "true", "false"] },
-    { key: "CLAUDE_CODE_ENABLE_TOOL_SEARCH", labelKey: "form.enableToolSearchLabel", type: "select", options: ["", "true", "false"] },
-    { key: "CLAUDE_CODE_MAX_THINKING", labelKey: "form.maxThinkingLabel", type: "select", options: ["", "true", "false"] },
-    { key: "CLAUDE_CODE_DISABLE_AUTOUPDATE", labelKey: "form.disableAutoUpdateLabel", type: "select", options: ["", "true", "false"] },
+    {
+      key: "CLAUDE_CODE_HIDE_AI_INDICATOR",
+      labelKey: "form.hideAIIndicatorLabel",
+      type: "select",
+      options: ["", "true", "false"],
+    },
+    {
+      key: "CLAUDE_CODE_ENABLE_TEAMMATES",
+      labelKey: "form.enableTeammatesLabel",
+      type: "select",
+      options: ["", "true", "false"],
+    },
+    {
+      key: "CLAUDE_CODE_ENABLE_TOOL_SEARCH",
+      labelKey: "form.enableToolSearchLabel",
+      type: "select",
+      options: ["", "true", "false"],
+    },
+    {
+      key: "CLAUDE_CODE_MAX_THINKING",
+      labelKey: "form.maxThinkingLabel",
+      type: "select",
+      options: ["", "true", "false"],
+    },
+    {
+      key: "CLAUDE_CODE_DISABLE_AUTOUPDATE",
+      labelKey: "form.disableAutoUpdateLabel",
+      type: "select",
+      options: ["", "true", "false"],
+    },
   ];
 
   return (
@@ -112,7 +157,12 @@ export function EnvFieldEditor({
       )}
 
       {commonFields.map((f) => (
-        <TextField key={f.key} field={f} value={values[f.key] || ""} onChange={(v) => onChange(f.key, v)} />
+        <TextField
+          key={f.key}
+          field={f}
+          value={values[f.key] || ""}
+          onChange={(v) => onChange(f.key, v)}
+        />
       ))}
 
       <Collapsible
@@ -122,7 +172,12 @@ export function EnvFieldEditor({
         data-testid="toggle-model-mapping"
       >
         {modelFields.map((f) => (
-          <TextField key={f.key} field={f} value={values[f.key] || ""} onChange={(v) => onChange(f.key, v)} />
+          <TextField
+            key={f.key}
+            field={f}
+            value={values[f.key] || ""}
+            onChange={(v) => onChange(f.key, v)}
+          />
         ))}
       </Collapsible>
 
@@ -133,7 +188,12 @@ export function EnvFieldEditor({
         data-testid="toggle-common-settings"
       >
         {commonToggleFields.map((f) => (
-          <SelectField key={f.key} field={f} value={values[f.key] || ""} onChange={(v) => onChange(f.key, v)} />
+          <SelectField
+            key={f.key}
+            field={f}
+            value={values[f.key] || ""}
+            onChange={(v) => onChange(f.key, v)}
+          />
         ))}
       </Collapsible>
 
@@ -150,7 +210,9 @@ export function EnvFieldEditor({
             value={apiFormat}
             onChange={(e) => onApiFormatChange(e.target.value)}
           >
-            <option value="">{t("form.defaultOption", { value: preset?.apiFormat || "anthropic" })}</option>
+            <option value="">
+              {t("form.defaultOption", { value: preset?.apiFormat || "anthropic" })}
+            </option>
             <option value="anthropic">anthropic</option>
             <option value="openai_chat">openai_chat</option>
             <option value="openai_responses">openai_responses</option>
@@ -165,7 +227,9 @@ export function EnvFieldEditor({
             value={authField}
             onChange={(e) => onAuthFieldChange(e.target.value)}
           >
-            <option value="">{t("form.defaultOption", { value: preset?.authField || "ANTHROPIC_AUTH_TOKEN" })}</option>
+            <option value="">
+              {t("form.defaultOption", { value: preset?.authField || "ANTHROPIC_AUTH_TOKEN" })}
+            </option>
             <option value="ANTHROPIC_AUTH_TOKEN">ANTHROPIC_AUTH_TOKEN</option>
             <option value="ANTHROPIC_API_KEY">ANTHROPIC_API_KEY</option>
           </Select>
@@ -175,7 +239,15 @@ export function EnvFieldEditor({
   );
 }
 
-function TextField({ field, value, onChange }: { field: EnvField; value: string; onChange: (v: string) => void }) {
+function TextField({
+  field,
+  value,
+  onChange,
+}: {
+  field: EnvField;
+  value: string;
+  onChange: (v: string) => void;
+}) {
   const { t } = useTranslation("providers");
   const id = useId();
   return (
@@ -192,7 +264,15 @@ function TextField({ field, value, onChange }: { field: EnvField; value: string;
   );
 }
 
-function SelectField({ field, value, onChange }: { field: EnvField; value: string; onChange: (v: string) => void }) {
+function SelectField({
+  field,
+  value,
+  onChange,
+}: {
+  field: EnvField;
+  value: string;
+  onChange: (v: string) => void;
+}) {
   const { t } = useTranslation("providers");
   const id = useId();
   const options = [

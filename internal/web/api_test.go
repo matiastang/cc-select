@@ -25,7 +25,7 @@ func newTestServer(t *testing.T) (*httptest.Server, string) {
 	_ = os.WriteFile(cfg, []byte(`{"providers":{"glm":{"id":"glm","name":"GLM"}}}`), 0o600)
 	// 建一个含明文 token 的 profile（验证 GET 不泄露）。
 	profile.Ensure("glm", map[string]string{
-		"ANTHROPIC_BASE_URL":  "https://glm",
+		"ANTHROPIC_BASE_URL":   "https://glm",
 		"ANTHROPIC_AUTH_TOKEN": "tok-secret-123",
 	})
 
@@ -431,12 +431,12 @@ func TestCreate_NoPlaintextInProvidersJSON(t *testing.T) {
 
 func TestIsSensitiveVar(t *testing.T) {
 	cases := map[string]bool{
-		"ANTHROPIC_API_KEY":     true,
-		"ANTHROPIC_AUTH_TOKEN":  true,
-		"SECRET_STUFF":          true,
-		"PASSWORD":              true,
-		"ANTHROPIC_BASE_URL":    false,
-		"ANTHROPIC_MODEL":       false,
+		"ANTHROPIC_API_KEY":      true,
+		"ANTHROPIC_AUTH_TOKEN":   true,
+		"SECRET_STUFF":           true,
+		"PASSWORD":               true,
+		"ANTHROPIC_BASE_URL":     false,
+		"ANTHROPIC_MODEL":        false,
 		"CLAUDE_CODE_ENTRYPOINT": false,
 	}
 	for name, want := range cases {

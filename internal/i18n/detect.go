@@ -45,10 +45,10 @@ func NormalizeLocale(raw string) Locale {
 }
 
 // ResolveLocale picks the effective locale using the priority:
-//   1. CC_SELECT_LANGUAGE env var
-//   2. prefsLang (user setting from prefs.json)
-//   3. OS detection
-//   4. Default English
+//  1. CC_SELECT_LANGUAGE env var
+//  2. prefsLang (user setting from prefs.json)
+//  3. OS detection
+//  4. Default English
 func ResolveLocale(prefsLang string) Locale {
 	if env := os.Getenv("CC_SELECT_LANGUAGE"); env != "" {
 		if l := NormalizeLocale(env); l != "" {

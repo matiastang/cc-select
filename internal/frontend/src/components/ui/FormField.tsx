@@ -8,13 +8,7 @@ type FormFieldProps = {
   className?: string;
 };
 
-export function FormField({
-  label,
-  htmlFor,
-  helper,
-  children,
-  className = "",
-}: FormFieldProps) {
+export function FormField({ label, htmlFor, helper, children, className = "" }: FormFieldProps) {
   const helperId = useId();
   const child = React.isValidElement(children)
     ? React.cloneElement(children, {
@@ -28,7 +22,11 @@ export function FormField({
         {label}
       </label>
       {child}
-      {helper && <span id={helperId} className="ui-form-field__helper">{helper}</span>}
+      {helper && (
+        <span id={helperId} className="ui-form-field__helper">
+          {helper}
+        </span>
+      )}
     </div>
   );
 }

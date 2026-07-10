@@ -15,8 +15,8 @@ import (
 var editFl addFlags
 
 var editCmd = &cobra.Command{
-	Use:   "edit <id>",
-	Args:  cobra.ExactArgs(1),
+	Use:  "edit <id>",
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.New()
 		if err != nil {

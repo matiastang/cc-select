@@ -91,7 +91,8 @@ describe("JsonForm", () => {
       if (url.includes("/presets/zhipu-glm")) return res(PRESET_DETAIL_GLM);
       if (url.includes("/presets/deepseek")) return res(PRESET_DETAIL);
       if (url.includes("/presets")) return res(PRESET_LIST);
-      if (url.includes("/providers/")) return res({ id: "glm", name: "", settings: { env: {} }, isolationMode: "" });
+      if (url.includes("/providers/"))
+        return res({ id: "glm", name: "", settings: { env: {} }, isolationMode: "" });
       return res({});
     });
     vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
@@ -101,9 +102,7 @@ describe("JsonForm", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("编辑时空 name 应回退到 id 回填输入框", async () => {
-    renderWithI18n(
-      <JsonForm mode="edit" id="glm" onCancel={() => {}} onSaved={() => {}} />
-    );
+    renderWithI18n(<JsonForm mode="edit" id="glm" onCancel={() => {}} onSaved={() => {}} />);
     const nameInput = (await screen.findByTestId("provider-name-input")) as HTMLInputElement;
     await waitFor(() => expect(nameInput.value).toBe("glm"));
   });
@@ -118,25 +117,19 @@ describe("JsonForm", () => {
       }
       return res({});
     });
-    renderWithI18n(
-      <JsonForm mode="edit" id="glm" onCancel={() => {}} onSaved={() => {}} />
-    );
+    renderWithI18n(<JsonForm mode="edit" id="glm" onCancel={() => {}} onSaved={() => {}} />);
     const nameInput = (await screen.findByTestId("provider-name-input")) as HTMLInputElement;
     await waitFor(() => expect(nameInput.value).toBe("智谱 GLM"));
   });
 
   it("创建时 name 输入框初始为空", async () => {
-    renderWithI18n(
-      <JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />
-    );
+    renderWithI18n(<JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />);
     const nameInput = (await screen.findByTestId("provider-name-input")) as HTMLInputElement;
     expect(nameInput.value).toBe("");
   });
 
   it("选择 preset 后 API key 输入框不应显示 ${API_KEY} 占位符", async () => {
-    renderWithI18n(
-      <JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />
-    );
+    renderWithI18n(<JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />);
     const presetSelect = (await screen.findByTestId("preset-select")) as HTMLSelectElement;
     await act(async () => {
       presetSelect.value = "deepseek";
@@ -149,9 +142,7 @@ describe("JsonForm", () => {
   });
 
   it("选择 preset 后应自动填充 baseURL、model 和 JSON", async () => {
-    renderWithI18n(
-      <JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />
-    );
+    renderWithI18n(<JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />);
     const presetSelect = (await screen.findByTestId("preset-select")) as HTMLSelectElement;
     await act(async () => {
       presetSelect.value = "deepseek";
@@ -172,9 +163,7 @@ describe("JsonForm", () => {
   });
 
   it("切换 preset 后 JSON 应更新为新 preset 的默认配置", async () => {
-    renderWithI18n(
-      <JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />
-    );
+    renderWithI18n(<JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />);
     const presetSelect = (await screen.findByTestId("preset-select")) as HTMLSelectElement;
 
     await act(async () => {
@@ -202,9 +191,7 @@ describe("JsonForm", () => {
 
   it("API key 输入框可在明文/密文之间切换", async () => {
     const user = userEvent.setup();
-    renderWithI18n(
-      <JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />
-    );
+    renderWithI18n(<JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />);
     const apiKeyInput = (await screen.findByTestId("provider-api-key-input")) as HTMLInputElement;
     const toggleButton = screen.getByTestId("provider-api-key-toggle");
 
@@ -216,10 +203,10 @@ describe("JsonForm", () => {
   });
 
   it("修改表单字段后 JSON 应同步更新", async () => {
-    renderWithI18n(
-      <JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />
-    );
-    const baseUrlInput = (await screen.findByTestId("env-field-ANTHROPIC_BASE_URL")) as HTMLInputElement;
+    renderWithI18n(<JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />);
+    const baseUrlInput = (await screen.findByTestId(
+      "env-field-ANTHROPIC_BASE_URL",
+    )) as HTMLInputElement;
     await act(async () => {
       await userEvent.clear(baseUrlInput);
       await userEvent.type(baseUrlInput, "https://example.com");
@@ -233,10 +220,10 @@ describe("JsonForm", () => {
 
   it("修改 JSON 后表单字段应同步更新", async () => {
     const user = userEvent.setup();
-    renderWithI18n(
-      <JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />
-    );
-    const jsonTextarea = (await screen.findByTestId("provider-json-textarea")) as HTMLTextAreaElement;
+    renderWithI18n(<JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />);
+    const jsonTextarea = (await screen.findByTestId(
+      "provider-json-textarea",
+    )) as HTMLTextAreaElement;
     const nextValue = JSON.stringify({ env: { ANTHROPIC_BASE_URL: "https://json-edited.com" } });
     await act(async () => {
       await user.clear(jsonTextarea);
@@ -251,9 +238,7 @@ describe("JsonForm", () => {
 
   it("删除 API key 后 JSON 中仍保留 ANTHROPIC_AUTH_TOKEN 字段（必填字段不删除）", async () => {
     const user = userEvent.setup();
-    renderWithI18n(
-      <JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />
-    );
+    renderWithI18n(<JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />);
     const apiKeyInput = (await screen.findByTestId("provider-api-key-input")) as HTMLInputElement;
     await act(async () => {
       await user.type(apiKeyInput, "sk-test");
@@ -270,10 +255,10 @@ describe("JsonForm", () => {
 
   it("清空 Base URL 后 JSON 中仍保留 ANTHROPIC_BASE_URL 字段", async () => {
     const user = userEvent.setup();
-    renderWithI18n(
-      <JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />
-    );
-    const baseUrlInput = (await screen.findByTestId("env-field-ANTHROPIC_BASE_URL")) as HTMLInputElement;
+    renderWithI18n(<JsonForm mode="create" onCancel={() => {}} onSaved={() => {}} />);
+    const baseUrlInput = (await screen.findByTestId(
+      "env-field-ANTHROPIC_BASE_URL",
+    )) as HTMLInputElement;
     await act(async () => {
       await user.type(baseUrlInput, "https://example.com");
       await user.clear(baseUrlInput);
@@ -290,9 +275,7 @@ describe("JsonForm", () => {
   it("必填字段为空时保存应提示校验错误", async () => {
     const user = userEvent.setup();
     const onSaved = vi.fn();
-    renderWithI18n(
-      <JsonForm mode="create" onCancel={() => {}} onSaved={onSaved} />
-    );
+    renderWithI18n(<JsonForm mode="create" onCancel={() => {}} onSaved={onSaved} />);
     const idInput = (await screen.findByTestId("provider-id-input")) as HTMLInputElement;
     await user.type(idInput, "no-key");
 
@@ -311,9 +294,7 @@ describe("JsonForm", () => {
   it("切换认证字段后，校验应针对新的认证字段", async () => {
     const user = userEvent.setup();
     const onSaved = vi.fn();
-    renderWithI18n(
-      <JsonForm mode="create" onCancel={() => {}} onSaved={onSaved} />
-    );
+    renderWithI18n(<JsonForm mode="create" onCancel={() => {}} onSaved={onSaved} />);
     const idInput = (await screen.findByTestId("provider-id-input")) as HTMLInputElement;
     const baseUrlInput = screen.getByTestId("env-field-ANTHROPIC_BASE_URL") as HTMLInputElement;
 
@@ -345,9 +326,7 @@ describe("JsonForm", () => {
   it("在 preset 模式下切换认证字段，只校验新的认证字段", async () => {
     const user = userEvent.setup();
     const onSaved = vi.fn();
-    renderWithI18n(
-      <JsonForm mode="create" onCancel={() => {}} onSaved={onSaved} />
-    );
+    renderWithI18n(<JsonForm mode="create" onCancel={() => {}} onSaved={onSaved} />);
     const idInput = (await screen.findByTestId("provider-id-input")) as HTMLInputElement;
     const presetSelect = screen.getByTestId("preset-select") as HTMLSelectElement;
 
@@ -389,9 +368,7 @@ describe("JsonForm", () => {
 
   it("保存时应提交 settings JSON", async () => {
     const onSaved = vi.fn();
-    renderWithI18n(
-      <JsonForm mode="create" onCancel={() => {}} onSaved={onSaved} />
-    );
+    renderWithI18n(<JsonForm mode="create" onCancel={() => {}} onSaved={onSaved} />);
     const idInput = (await screen.findByTestId("provider-id-input")) as HTMLInputElement;
     const apiKeyInput = screen.getByTestId("provider-api-key-input") as HTMLInputElement;
     const baseUrlInput = screen.getByTestId("env-field-ANTHROPIC_BASE_URL") as HTMLInputElement;

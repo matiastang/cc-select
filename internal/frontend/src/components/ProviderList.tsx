@@ -27,18 +27,9 @@ export function ProviderList({
         .map((provider) => (
           <Card key={provider.id}>
             {editingId === provider.id ? (
-              <JsonForm
-                mode="edit"
-                id={provider.id}
-                onCancel={onEditCancel}
-                onSaved={onSaved}
-              />
+              <JsonForm mode="edit" id={provider.id} onCancel={onEditCancel} onSaved={onSaved} />
             ) : (
-              <ProviderCard
-                provider={provider}
-                onEdit={onEditStart}
-                onDelete={onDelete}
-              />
+              <ProviderCard provider={provider} onEdit={onEditStart} onDelete={onDelete} />
             )}
           </Card>
         ))}

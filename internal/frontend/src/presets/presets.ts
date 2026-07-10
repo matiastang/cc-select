@@ -7,12 +7,7 @@ export type AuthField = "ANTHROPIC_AUTH_TOKEN" | "ANTHROPIC_API_KEY";
 export const AUTH_FIELDS: AuthField[] = ["ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY"];
 
 export type PresetCategory =
-  | "official"
-  | "cn_official"
-  | "cloud_provider"
-  | "aggregator"
-  | "third_party"
-  | "custom";
+  "official" | "cn_official" | "cloud_provider" | "aggregator" | "third_party" | "custom";
 
 export type Preset = {
   id: string;
@@ -85,7 +80,7 @@ export const MODEL_KEY = "ANTHROPIC_MODEL";
 // Apply a preset template and merge user overrides. Missing placeholders are left as-is.
 export function applyPresetTemplate(
   preset: PresetDetail,
-  overrides: Record<string, string>
+  overrides: Record<string, string>,
 ): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(preset.envTemplate)) {
@@ -109,10 +104,7 @@ export function placeholdersIn(value: string): string[] {
 }
 
 // Return required env keys that are still placeholders in the final env.
-export function missingRequired(
-  preset: PresetDetail,
-  env: Record<string, string>
-): string[] {
+export function missingRequired(preset: PresetDetail, env: Record<string, string>): string[] {
   const missing: string[] = [];
   for (const key of preset.requiredVars) {
     const value = env[key] ?? "";
@@ -126,7 +118,7 @@ export function missingRequired(
 // Group presets by category in the order returned by the backend.
 export function groupPresetsByCategory(
   presets: Preset[],
-  categories: PresetCategory[]
+  categories: PresetCategory[],
 ): Record<PresetCategory, Preset[]> {
   const groups: Partial<Record<PresetCategory, Preset[]>> = {};
   for (const cat of categories) {

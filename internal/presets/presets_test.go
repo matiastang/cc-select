@@ -19,8 +19,8 @@ func TestAll_ReturnsCopy(t *testing.T) {
 
 func TestByID(t *testing.T) {
 	cases := []struct {
-		id      string
-		wantOK  bool
+		id       string
+		wantOK   bool
 		wantName string
 	}{
 		{"deepseek", true, "DeepSeek"},

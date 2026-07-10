@@ -151,7 +151,30 @@ make all      # 构建前端 + 二进制，输出到 ./bin/cc-select
 make test     # 运行 Go 单元测试
 make vet      # 运行 go vet
 make e2e      # 运行 Playwright 端到端测试
+make check    # 运行所有静态检查（格式、类型、Lint、脚本、mod tidy）
 ```
+
+## 本地开发
+
+安装依赖并注册 git hooks（在 `internal/frontend` 执行 `npm install` 时会自动安装 hooks）：
+
+```bash
+cd internal/frontend && npm install
+```
+
+本地运行所有静态检查：
+
+```bash
+make check
+```
+
+自动格式化全部代码：
+
+```bash
+make fmt
+```
+
+`git commit` 时会通过 pre-commit hook 自动校验；任何静态检查不通过都会拦截提交。
 
 ## 许可
 

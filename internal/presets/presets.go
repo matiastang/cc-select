@@ -1,7 +1,7 @@
 // Package presets 提供内置的 Claude Code 服务商预设模板。
 //
 // 预设以 Go 代码形式编译进二进制，用户选择 preset 后只需填写少量必填字段
-//（通常是 API Key），即可得到一份完整的 Claude settings.json env 配置。
+// （通常是 API Key），即可得到一份完整的 Claude settings.json env 配置。
 package presets
 
 import (
@@ -47,12 +47,12 @@ type Preset struct {
 type Category string
 
 const (
-	CategoryOfficial     Category = "official"
-	CategoryCNOfficial   Category = "cn_official"
-	CategoryAggregator   Category = "aggregator"
-	CategoryThirdParty   Category = "third_party"
-	CategoryCloud        Category = "cloud_provider"
-	CategoryCustom       Category = "custom"
+	CategoryOfficial   Category = "official"
+	CategoryCNOfficial Category = "cn_official"
+	CategoryAggregator Category = "aggregator"
+	CategoryThirdParty Category = "third_party"
+	CategoryCloud      Category = "cloud_provider"
+	CategoryCustom     Category = "custom"
 )
 
 // placeholder 匹配 ${VAR} 语法，用于模板中标记用户必填项。
@@ -78,12 +78,12 @@ var builtin = []Preset{
 		APIFormat:   APIFormatAnthropic,
 		AuthField:   AuthFieldAuthToken,
 		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":              "https://api.deepseek.com/anthropic",
-			"ANTHROPIC_AUTH_TOKEN":            "${API_KEY}",
-			"ANTHROPIC_MODEL":                 "deepseek-v4-pro",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":   "deepseek-v4-flash",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL":  "deepseek-v4-pro",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":    "deepseek-v4-pro",
+			"ANTHROPIC_BASE_URL":             "https://api.deepseek.com/anthropic",
+			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
+			"ANTHROPIC_MODEL":                "deepseek-v4-pro",
+			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "deepseek-v4-flash",
+			"ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-pro",
+			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "deepseek-v4-pro",
 		},
 		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
 		OptionalVars: []string{"ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL"},
@@ -97,12 +97,12 @@ var builtin = []Preset{
 		APIFormat:   APIFormatAnthropic,
 		AuthField:   AuthFieldAuthToken,
 		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":              "https://open.bigmodel.cn/api/anthropic",
-			"ANTHROPIC_AUTH_TOKEN":            "${API_KEY}",
-			"ANTHROPIC_MODEL":                 "glm-5.1",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":   "glm-5.1",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL":  "glm-5.1",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":    "glm-5.1",
+			"ANTHROPIC_BASE_URL":             "https://open.bigmodel.cn/api/anthropic",
+			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
+			"ANTHROPIC_MODEL":                "glm-5.1",
+			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "glm-5.1",
+			"ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5.1",
+			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "glm-5.1",
 		},
 		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
 		OptionalVars: []string{"ANTHROPIC_MODEL"},
@@ -116,12 +116,12 @@ var builtin = []Preset{
 		APIFormat:   APIFormatAnthropic,
 		AuthField:   AuthFieldAuthToken,
 		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":              "https://api.z.ai/api/anthropic",
-			"ANTHROPIC_AUTH_TOKEN":            "${API_KEY}",
-			"ANTHROPIC_MODEL":                 "glm-5.1",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":   "glm-5.1",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL":  "glm-5.1",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":    "glm-5.1",
+			"ANTHROPIC_BASE_URL":             "https://api.z.ai/api/anthropic",
+			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
+			"ANTHROPIC_MODEL":                "glm-5.1",
+			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "glm-5.1",
+			"ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5.1",
+			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "glm-5.1",
 		},
 		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
 		OptionalVars: []string{"ANTHROPIC_MODEL"},
@@ -135,12 +135,12 @@ var builtin = []Preset{
 		APIFormat:   APIFormatAnthropic,
 		AuthField:   AuthFieldAuthToken,
 		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":              "https://api.moonshot.cn/anthropic",
-			"ANTHROPIC_AUTH_TOKEN":            "${API_KEY}",
-			"ANTHROPIC_MODEL":                 "kimi-k2.7-code",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":   "kimi-k2.7-code",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL":  "kimi-k2.7-code",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":    "kimi-k2.7-code",
+			"ANTHROPIC_BASE_URL":             "https://api.moonshot.cn/anthropic",
+			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
+			"ANTHROPIC_MODEL":                "kimi-k2.7-code",
+			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "kimi-k2.7-code",
+			"ANTHROPIC_DEFAULT_SONNET_MODEL": "kimi-k2.7-code",
+			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "kimi-k2.7-code",
 		},
 		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
 		OptionalVars: []string{"ANTHROPIC_MODEL"},
@@ -154,12 +154,12 @@ var builtin = []Preset{
 		APIFormat:   APIFormatAnthropic,
 		AuthField:   AuthFieldAuthToken,
 		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":              "https://api.kimi.com/coding/",
-			"ANTHROPIC_AUTH_TOKEN":            "${API_KEY}",
-			"ANTHROPIC_MODEL":                 "kimi-k2.7-code",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":   "kimi-k2.7-code",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL":  "kimi-k2.7-code",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":    "kimi-k2.7-code",
+			"ANTHROPIC_BASE_URL":             "https://api.kimi.com/coding/",
+			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
+			"ANTHROPIC_MODEL":                "kimi-k2.7-code",
+			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "kimi-k2.7-code",
+			"ANTHROPIC_DEFAULT_SONNET_MODEL": "kimi-k2.7-code",
+			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "kimi-k2.7-code",
 		},
 		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
 		OptionalVars: []string{"ANTHROPIC_MODEL"},
@@ -173,12 +173,12 @@ var builtin = []Preset{
 		APIFormat:   APIFormatAnthropic,
 		AuthField:   AuthFieldAuthToken,
 		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":              "https://openrouter.ai/api",
-			"ANTHROPIC_AUTH_TOKEN":            "${API_KEY}",
-			"ANTHROPIC_MODEL":                 "anthropic/claude-sonnet-5",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":   "anthropic/claude-haiku-4.5",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL":  "anthropic/claude-sonnet-5",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":    "anthropic/claude-opus-4.8",
+			"ANTHROPIC_BASE_URL":             "https://openrouter.ai/api",
+			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
+			"ANTHROPIC_MODEL":                "anthropic/claude-sonnet-5",
+			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "anthropic/claude-haiku-4.5",
+			"ANTHROPIC_DEFAULT_SONNET_MODEL": "anthropic/claude-sonnet-5",
+			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "anthropic/claude-opus-4.8",
 		},
 		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
 		OptionalVars: []string{"ANTHROPIC_MODEL"},
@@ -192,12 +192,12 @@ var builtin = []Preset{
 		APIFormat:   APIFormatAnthropic,
 		AuthField:   AuthFieldAuthToken,
 		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":              "https://api.siliconflow.cn",
-			"ANTHROPIC_AUTH_TOKEN":            "${API_KEY}",
-			"ANTHROPIC_MODEL":                 "Pro/MiniMaxAI/MiniMax-M2.7",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":   "Pro/MiniMaxAI/MiniMax-M2.7",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL":  "Pro/MiniMaxAI/MiniMax-M2.7",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":    "Pro/MiniMaxAI/MiniMax-M2.7",
+			"ANTHROPIC_BASE_URL":             "https://api.siliconflow.cn",
+			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
+			"ANTHROPIC_MODEL":                "Pro/MiniMaxAI/MiniMax-M2.7",
+			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "Pro/MiniMaxAI/MiniMax-M2.7",
+			"ANTHROPIC_DEFAULT_SONNET_MODEL": "Pro/MiniMaxAI/MiniMax-M2.7",
+			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "Pro/MiniMaxAI/MiniMax-M2.7",
 		},
 		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
 		OptionalVars: []string{"ANTHROPIC_MODEL"},
@@ -211,12 +211,12 @@ var builtin = []Preset{
 		APIFormat:   APIFormatAnthropic,
 		AuthField:   AuthFieldAuthToken,
 		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":              "https://ark.cn-beijing.volces.com/api/coding",
-			"ANTHROPIC_AUTH_TOKEN":            "${API_KEY}",
-			"ANTHROPIC_MODEL":                 "ark-code-latest",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":   "ark-code-latest",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL":  "ark-code-latest",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":    "ark-code-latest",
+			"ANTHROPIC_BASE_URL":             "https://ark.cn-beijing.volces.com/api/coding",
+			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
+			"ANTHROPIC_MODEL":                "ark-code-latest",
+			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "ark-code-latest",
+			"ANTHROPIC_DEFAULT_SONNET_MODEL": "ark-code-latest",
+			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "ark-code-latest",
 		},
 		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
 		OptionalVars: []string{"ANTHROPIC_MODEL"},
@@ -229,16 +229,16 @@ var builtin = []Preset{
 		APIFormat:   APIFormatAnthropic,
 		AuthField:   AuthFieldAuthToken,
 		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":              "https://bedrock-runtime.${AWS_REGION}.amazonaws.com",
-			"ANTHROPIC_AUTH_TOKEN":            "${API_KEY}",
-			"AWS_ACCESS_KEY_ID":               "${AWS_ACCESS_KEY_ID}",
-			"AWS_SECRET_ACCESS_KEY":           "${AWS_SECRET_ACCESS_KEY}",
-			"AWS_REGION":                      "${AWS_REGION}",
-			"ANTHROPIC_MODEL":                 "global.anthropic.claude-opus-4-8",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":   "global.anthropic.claude-haiku-4.5-20251001-v1:0",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL":  "global.anthropic.claude-sonnet-5",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":    "global.anthropic.claude-opus-4-8",
-			"CLAUDE_CODE_USE_BEDROCK":         "1",
+			"ANTHROPIC_BASE_URL":             "https://bedrock-runtime.${AWS_REGION}.amazonaws.com",
+			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
+			"AWS_ACCESS_KEY_ID":              "${AWS_ACCESS_KEY_ID}",
+			"AWS_SECRET_ACCESS_KEY":          "${AWS_SECRET_ACCESS_KEY}",
+			"AWS_REGION":                     "${AWS_REGION}",
+			"ANTHROPIC_MODEL":                "global.anthropic.claude-opus-4-8",
+			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "global.anthropic.claude-haiku-4.5-20251001-v1:0",
+			"ANTHROPIC_DEFAULT_SONNET_MODEL": "global.anthropic.claude-sonnet-5",
+			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "global.anthropic.claude-opus-4-8",
+			"CLAUDE_CODE_USE_BEDROCK":        "1",
 		},
 		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"},
 		OptionalVars: []string{"ANTHROPIC_MODEL", "AWS_REGION"},
@@ -251,14 +251,14 @@ var builtin = []Preset{
 		APIFormat:   APIFormatAnthropic,
 		AuthField:   AuthFieldAPIKey,
 		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":              "https://bedrock-runtime.${AWS_REGION}.amazonaws.com",
-			"ANTHROPIC_API_KEY":               "${API_KEY}",
-			"AWS_REGION":                      "${AWS_REGION}",
-			"ANTHROPIC_MODEL":                 "global.anthropic.claude-opus-4-8",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":   "global.anthropic.claude-haiku-4.5-20251001-v1:0",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL":  "global.anthropic.claude-sonnet-5",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":    "global.anthropic.claude-opus-4-8",
-			"CLAUDE_CODE_USE_BEDROCK":         "1",
+			"ANTHROPIC_BASE_URL":             "https://bedrock-runtime.${AWS_REGION}.amazonaws.com",
+			"ANTHROPIC_API_KEY":              "${API_KEY}",
+			"AWS_REGION":                     "${AWS_REGION}",
+			"ANTHROPIC_MODEL":                "global.anthropic.claude-opus-4-8",
+			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "global.anthropic.claude-haiku-4.5-20251001-v1:0",
+			"ANTHROPIC_DEFAULT_SONNET_MODEL": "global.anthropic.claude-sonnet-5",
+			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "global.anthropic.claude-opus-4-8",
+			"CLAUDE_CODE_USE_BEDROCK":        "1",
 		},
 		RequiredVars: []string{"ANTHROPIC_API_KEY", "AWS_REGION"},
 		OptionalVars: []string{"ANTHROPIC_MODEL", "AWS_REGION"},
@@ -270,11 +270,11 @@ var builtin = []Preset{
 		WebsiteURL:  "https://github.com/copilot",
 		APIFormat:   APIFormatOpenAIChat,
 		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":              "https://api.githubcopilot.com",
-			"ANTHROPIC_MODEL":                 "claude-sonnet-5",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":   "claude-haiku-4.5",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL":  "claude-sonnet-5",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":    "claude-sonnet-5",
+			"ANTHROPIC_BASE_URL":             "https://api.githubcopilot.com",
+			"ANTHROPIC_MODEL":                "claude-sonnet-5",
+			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "claude-haiku-4.5",
+			"ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-5",
+			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "claude-sonnet-5",
 		},
 		OAuth:        true,
 		RequiredVars: []string{},

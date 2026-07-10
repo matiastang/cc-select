@@ -51,9 +51,11 @@ test("表单和 JSON 双向同步", async ({ page, server }) => {
   );
 
   // JSON -> 表单：修改 JSON 后表单应同步。
-  await page.getByTestId("provider-json-textarea").fill(
-    JSON.stringify({ env: { ANTHROPIC_BASE_URL: "https://json-sync.example.com" } }, null, 2),
-  );
+  await page
+    .getByTestId("provider-json-textarea")
+    .fill(
+      JSON.stringify({ env: { ANTHROPIC_BASE_URL: "https://json-sync.example.com" } }, null, 2),
+    );
   await expect(page.getByTestId("env-field-ANTHROPIC_BASE_URL")).toHaveValue(
     "https://json-sync.example.com",
   );
@@ -113,7 +115,10 @@ test("full 模式下非 env 字段随 JSON 一起落盘", async ({ page, server 
   // 在 JSON 里加入 env 之外的字段，并保留必填的 API key。
   await page.getByTestId("provider-json-textarea").fill(
     JSON.stringify(
-      { env: { ANTHROPIC_BASE_URL: "https://e2e-full", ANTHROPIC_AUTH_TOKEN: "sk-full" }, model: "opusplan" },
+      {
+        env: { ANTHROPIC_BASE_URL: "https://e2e-full", ANTHROPIC_AUTH_TOKEN: "sk-full" },
+        model: "opusplan",
+      },
       null,
       2,
     ),

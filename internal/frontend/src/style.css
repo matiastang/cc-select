@@ -83,16 +83,16 @@ html {
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-    "Microsoft YaHei", sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
 }
 
 code {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
-    "Liberation Mono", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 0.9em;
   padding: 0.1em 0.3em;
   background: var(--bg);
@@ -282,8 +282,10 @@ code {
   cursor: pointer;
   background: var(--accent);
   color: #fff;
-  transition: background-color var(--transition-fast),
-    border-color var(--transition-fast), box-shadow var(--transition-fast),
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
     transform 60ms ease;
 }
 
@@ -383,8 +385,10 @@ code {
   line-height: 1.35;
   font-family: inherit;
   box-shadow: var(--shadow-sm);
-  transition: border-color var(--transition-fast),
-    box-shadow var(--transition-fast), background-color var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background-color var(--transition-fast);
 }
 
 .ui-input:hover,
@@ -463,7 +467,8 @@ code {
   font-weight: 500;
   line-height: 1.4;
   cursor: pointer;
-  transition: background-color var(--transition-fast),
+  transition:
+    background-color var(--transition-fast),
     color var(--transition-fast);
   white-space: nowrap;
   overflow: hidden;
@@ -502,7 +507,8 @@ code {
   font-weight: 500;
   line-height: 1.4;
   cursor: pointer;
-  transition: background-color var(--transition-fast),
+  transition:
+    background-color var(--transition-fast),
     border-color var(--transition-fast);
 }
 

@@ -118,7 +118,11 @@ export function ShellIntegrationBanner() {
         {t(legacy ? "legacyTitle" : "neededTitle", { shell: shell ? `（${shell}）` : "" })}
       </strong>
       <div className="muted">
-        <Trans i18nKey="neededHint" ns="shell" components={{ code: <code />, id: <IdPlaceholder /> }} />
+        <Trans
+          i18nKey="neededHint"
+          ns="shell"
+          components={{ code: <code />, id: <IdPlaceholder /> }}
+        />
       </div>
       {err && (
         <div className="muted" role="alert" style={{ color: "var(--danger)", marginTop: "0.5rem" }}>
@@ -126,7 +130,11 @@ export function ShellIntegrationBanner() {
         </div>
       )}
       <div style={{ marginTop: "0.5rem" }}>
-        <Button data-testid="shell-install-button" onClick={install} disabled={state === "installing"}>
+        <Button
+          data-testid="shell-install-button"
+          onClick={install}
+          disabled={state === "installing"}
+        >
           {state === "installing" ? t("installing") : t("installButton")}
         </Button>
       </div>

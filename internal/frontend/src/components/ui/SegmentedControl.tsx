@@ -25,7 +25,7 @@ export function SegmentedControl<T extends string>({
   "data-testid": testId,
 }: SegmentedControlProps<T>) {
   const activeIndex = options.findIndex((o) => o.value === value);
-  const buttonRefs = useRef<(Array<HTMLButtonElement | null>)>([]);
+  const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const focusAndSelect = useCallback(
     (nextIndex: number) => {
@@ -34,7 +34,7 @@ export function SegmentedControl<T extends string>({
       onChange(options[idx].value);
       btn?.focus();
     },
-    [onChange, options]
+    [onChange, options],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {

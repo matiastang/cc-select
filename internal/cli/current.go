@@ -9,7 +9,7 @@ import (
 )
 
 var currentCmd = &cobra.Command{
-	Use:   "current",
+	Use: "current",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		id := envOrDefault(config.ActiveVar)
 		if id == "" {

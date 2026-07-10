@@ -28,6 +28,9 @@ make integration
 # Run e2e tests (requires frontend deps + Playwright browsers)
 make e2e
 
+# Run all static checks (format, type, lint, scripts, mod tidy)
+make check
+
 # Lint/vet
 make vet
 ```
@@ -99,6 +102,6 @@ This is the same `eval "$(tool ...)"` pattern used by `nvm`, `pyenv`, and `diren
 ## When making changes
 
 - **README i18n convention**: Keep the default `README.md` in the repository root. Place translations under `docs/language/` as `docs/language/README.<lang>.md` (e.g. `docs/language/README.zh.md`). Update the language switcher in every README to point to the correct relative paths. This keeps the root directory clean while still letting GitHub render the translations when visited directly.
-- Run `make test` and `make vet` before committing.
+- Run `make check` before committing. Pre-commit hooks run automatically on `git commit` and block if any static check fails.
 - Update `docs/acceptance-tests.md` when behavior changes.
 - Preserve the eval/wrapper split — do not try to modify the parent shell environment from the binary.

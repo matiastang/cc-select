@@ -29,16 +29,16 @@ func TestValidateID(t *testing.T) {
 	}
 
 	invalid := []string{
-		"",                  // 空
-		".",                 // 当前目录
-		"..",                // 上级目录
-		"../evil",           // 路径穿越
-		"../../tmp/x",       // 路径穿越
-		"a/b",               // 含分隔符
-		`a\b`,               // Windows 分隔符
-		"with space",        // 空白
-		"semi;colon",        // 特殊字符
-		"name$VAR",          // shell 元字符
+		"",            // 空
+		".",           // 当前目录
+		"..",          // 上级目录
+		"../evil",     // 路径穿越
+		"../../tmp/x", // 路径穿越
+		"a/b",         // 含分隔符
+		`a\b`,         // Windows 分隔符
+		"with space",  // 空白
+		"semi;colon",  // 特殊字符
+		"name$VAR",    // shell 元字符
 	}
 	for _, id := range invalid {
 		if err := ValidateID(id); err == nil {

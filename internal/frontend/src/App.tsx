@@ -95,7 +95,11 @@ export default function App() {
       <ShellIntegrationBanner />
 
       <div className="notice">
-        <Trans i18nKey="notice" ns="common" components={{ code: <code />, strong: <strong />, id: <IdPlaceholder /> }} />
+        <Trans
+          i18nKey="notice"
+          ns="common"
+          components={{ code: <code />, strong: <strong />, id: <IdPlaceholder /> }}
+        />
       </div>
 
       {error && (
@@ -104,11 +108,7 @@ export default function App() {
         </div>
       )}
 
-      <GlobalModeCard
-        mode={globalMode}
-        loading={globalModeLoading}
-        onChange={saveGlobalMode}
-      />
+      <GlobalModeCard mode={globalMode} loading={globalModeLoading} onChange={saveGlobalMode} />
 
       <ProviderList
         providers={Object.values(providers)}

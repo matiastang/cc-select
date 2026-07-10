@@ -18,7 +18,7 @@ var (
 )
 
 var guiCmd = &cobra.Command{
-	Use:   "gui",
+	Use: "gui",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		srv := web.NewServer(guiPort)
 

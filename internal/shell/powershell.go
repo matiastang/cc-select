@@ -27,7 +27,7 @@ func init() {
 type PowerShellEmitter struct{}
 
 // Emit 生成可被 Invoke-Expression 执行的语句。
-// PowerShell 单引号串内部的单引号转义为两个单引号（''）。
+// PowerShell 单引号串内部的单引号转义为两个单引号（”）。
 func (PowerShellEmitter) Emit(changes []Change) string {
 	var b strings.Builder
 	for _, c := range changes {

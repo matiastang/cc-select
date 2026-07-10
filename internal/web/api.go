@@ -166,6 +166,7 @@ func toPresetDetailDTO(p presets.Preset) presetDetailDTO {
 		EnvTemplate: p.EnvTemplate,
 	}
 }
+
 //   - GET  → {"isolationMode": "settings-only" | "full"}（未设置时返回默认）
 //   - PUT  → 同结构，设置全局模式。
 //
@@ -530,6 +531,7 @@ func normalizeSettings(raw json.RawMessage) ([]byte, error) {
 // applySettings 按 mode 把 settings 写入 profile。
 //   - Mode A（full）：原文写入 data，保留 env 之外字段（permissions、model 等）。
 //   - Mode B（settings-only）：只取 env 做整体替换，非 env 字段来自全局 ~/.claude/settings.json。
+//
 // data 应是已校验/规范化的 JSON 对象字节。官方 provider 无 profile（no-op）。
 func applySettings(id string, data []byte, mode prefs.Mode) error {
 	switch mode {

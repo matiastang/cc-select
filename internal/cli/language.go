@@ -9,9 +9,9 @@ import (
 )
 
 var languageCmd = &cobra.Command{
-	Use:   "language [en|zh]",
-	Args:  cobra.MaximumNArgs(1),
-	RunE:  runLanguage,
+	Use:  "language [en|zh]",
+	Args: cobra.MaximumNArgs(1),
+	RunE: runLanguage,
 }
 
 func runLanguage(cmd *cobra.Command, args []string) error {

@@ -151,7 +151,30 @@ make all      # build frontend + binary -> ./bin/cc-select
 make test     # run Go unit tests
 make vet      # run go vet
 make e2e      # run Playwright e2e tests
+make check    # run all static checks (format, type, lint, scripts, mod tidy)
 ```
+
+## Development
+
+Install dependencies and git hooks (hooks are installed automatically when you run `npm install` in `internal/frontend`):
+
+```bash
+cd internal/frontend && npm install
+```
+
+Run all static checks locally:
+
+```bash
+make check
+```
+
+Auto-format everything:
+
+```bash
+make fmt
+```
+
+`git commit` will run a pre-commit hook that blocks the commit if any static check fails.
 
 ## License
 

@@ -34,8 +34,8 @@ type addFlags struct {
 var addFl addFlags
 
 var addCmd = &cobra.Command{
-	Use:   "add <id>",
-	Args:  cobra.ExactArgs(1),
+	Use:  "add <id>",
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.New()
 		if err != nil {

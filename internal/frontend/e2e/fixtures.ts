@@ -21,11 +21,9 @@ async function startServer(opts: { configPath: string; homeDir?: string; stderr?
     env.USERPROFILE = opts.homeDir;
     env.CC_SELECT_SHELL = "zsh"; // 固定 zsh，使 banner 行为确定
   }
-  const proc: ChildProcessWithoutNullStreams = spawn(
-    BIN,
-    ["gui", "--no-browser", "--port", "0"],
-    { env },
-  );
+  const proc: ChildProcessWithoutNullStreams = spawn(BIN, ["gui", "--no-browser", "--port", "0"], {
+    env,
+  });
   if (opts.stderr) proc.stderr.pipe(process.stderr); // 诊断：转发 server 日志
 
   const baseURL = await new Promise<string>((resolve, reject) => {

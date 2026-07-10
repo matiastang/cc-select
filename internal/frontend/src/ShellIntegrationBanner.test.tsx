@@ -74,7 +74,9 @@ describe("ShellIntegrationBanner", () => {
   it("点击安装成功(appended)进入 done", async () => {
     fetchMock
       .mockResolvedValueOnce(res(getBody({ shell: "zsh" })))
-      .mockResolvedValueOnce(res({ action: "appended", shell: "zsh", rcPath: "/x/.zshrc", message: "已写入" }));
+      .mockResolvedValueOnce(
+        res({ action: "appended", shell: "zsh", rcPath: "/x/.zshrc", message: "已写入" }),
+      );
     renderWithI18n(<ShellIntegrationBanner />);
     fireEvent.click(await screen.findByRole("button", { name: "一键安装" }));
     await waitFor(() => expect(screen.getByText(/✅/)).toBeInTheDocument());
@@ -82,9 +84,14 @@ describe("ShellIntegrationBanner", () => {
   });
 
   it("manual 降级展示 snippet 文本框", async () => {
-    fetchMock
-      .mockResolvedValueOnce(res(getBody({})))
-      .mockResolvedValueOnce(res({ action: "manual", shell: "powershell", snippet: "function ccs { }", message: "复制粘贴" }));
+    fetchMock.mockResolvedValueOnce(res(getBody({}))).mockResolvedValueOnce(
+      res({
+        action: "manual",
+        shell: "powershell",
+        snippet: "function ccs { }",
+        message: "复制粘贴",
+      }),
+    );
     renderWithI18n(<ShellIntegrationBanner />);
     fireEvent.click(await screen.findByRole("button", { name: "一键安装" }));
     await waitFor(() => expect(screen.getByText("需要手动完成 shell 集成")).toBeInTheDocument());
@@ -94,7 +101,9 @@ describe("ShellIntegrationBanner", () => {
   it("POST 随请求回传 shell 字段（GET/POST 同一 shell）", async () => {
     fetchMock
       .mockResolvedValueOnce(res(getBody({ shell: "bash" })))
-      .mockResolvedValueOnce(res({ action: "appended", shell: "bash", rcPath: "/x", message: "ok" }));
+      .mockResolvedValueOnce(
+        res({ action: "appended", shell: "bash", rcPath: "/x", message: "ok" }),
+      );
     renderWithI18n(<ShellIntegrationBanner />);
     fireEvent.click(await screen.findByRole("button", { name: "一键安装" }));
     await waitFor(() => expect(screen.getByText(/✅/)).toBeInTheDocument());

@@ -33,8 +33,11 @@ export function ProviderCard({ provider, onEdit, onDelete }: ProviderCardProps) 
             t("officialNotice")
           ) : (
             <>
-              {(provider.env.ANTHROPIC_BASE_URL && t("urlLabel", { url: provider.env.ANTHROPIC_BASE_URL })) || t("noBaseUrl")}
-              {provider.env.ANTHROPIC_MODEL && t("modelLabel", { model: provider.env.ANTHROPIC_MODEL })}
+              {(provider.env.ANTHROPIC_BASE_URL &&
+                t("urlLabel", { url: provider.env.ANTHROPIC_BASE_URL })) ||
+                t("noBaseUrl")}
+              {provider.env.ANTHROPIC_MODEL &&
+                t("modelLabel", { model: provider.env.ANTHROPIC_MODEL })}
               {t("modeLabel", { mode: modeLabel })}
             </>
           )}

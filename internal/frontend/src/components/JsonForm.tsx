@@ -167,7 +167,10 @@ export function JsonForm(props: JsonFormProps) {
         setSettings((prev) => {
           const prevEnv = prev.env as EnvFieldValues;
           const prevAuthField =
-            (prevEnv._auth_field as string) || presetDetail?.authField || p.authField || "ANTHROPIC_AUTH_TOKEN";
+            (prevEnv._auth_field as string) ||
+            presetDetail?.authField ||
+            p.authField ||
+            "ANTHROPIC_AUTH_TOKEN";
           const prevApiKey = prevEnv[prevAuthField] || "";
 
           const nextEnv = applyPresetTemplate(p, {});
@@ -191,6 +194,11 @@ export function JsonForm(props: JsonFormProps) {
     return () => {
       cancelled = true;
     };
+    // presetDetail is intentionally excluded: this effect runs on presetId change,
+    // and presetDetail still holds the *previous* preset's metadata, which we need
+    // to locate the previously-typed API key. Adding it would re-trigger the effect
+    // after setPresetDetail and apply the template twice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [presetId, t]);
 
   // Sync jsonText from settings whenever settings changes (unless user is typing JSON).
@@ -411,7 +419,14 @@ export function JsonForm(props: JsonFormProps) {
             onAuthFieldChange={handleAuthFieldChange}
           />
 
-          <hr style={{ margin: "1.5rem 0", borderColor: "var(--border)", borderStyle: "solid", borderWidth: "1px 0 0" }} />
+          <hr
+            style={{
+              margin: "1.5rem 0",
+              borderColor: "var(--border)",
+              borderStyle: "solid",
+              borderWidth: "1px 0 0",
+            }}
+          />
 
           <FormField label={t("form.jsonLabel")} htmlFor="provider-json-textarea">
             <Textarea
@@ -457,11 +472,7 @@ export function JsonForm(props: JsonFormProps) {
         <Button data-testid="provider-save-button" onClick={submit} disabled={loading}>
           {t("save", { ns: "common" })}
         </Button>
-        <Button
-          data-testid="provider-cancel-button"
-          variant="secondary"
-          onClick={props.onCancel}
-        >
+        <Button data-testid="provider-cancel-button" variant="secondary" onClick={props.onCancel}>
           {t("cancel", { ns: "common" })}
         </Button>
       </div>
