@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Provider } from "../types";
 import { OFFICIAL_ID } from "../constants";
+import { Button } from "./ui";
 
 type ProviderCardProps = {
   provider: Provider;
@@ -42,20 +43,24 @@ export function ProviderCard({ provider, onEdit, onDelete }: ProviderCardProps) 
       <div className="row-actions">
         {provider.id !== OFFICIAL_ID && (
           <>
-            <button
+            <Button
               data-testid={`edit-provider-${provider.id}`}
-              className="secondary"
+              variant="secondary"
+              size="sm"
+              icon="pencil"
               onClick={() => onEdit(provider.id)}
             >
               {t("edit", { ns: "common" })}
-            </button>{" "}
-            <button
+            </Button>
+            <Button
               data-testid={`delete-provider-${provider.id}`}
-              className="danger"
+              variant="danger"
+              size="sm"
+              icon="trash"
               onClick={handleDelete}
             >
               {t("delete", { ns: "common" })}
-            </button>
+            </Button>
           </>
         )}
       </div>

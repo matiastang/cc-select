@@ -3,7 +3,7 @@
   "installed": "Installed",
   "manualTitle": "Manual shell integration required",
   "unsupportedTitle": "Current shell{{shell}} does not support one-click install",
-  "unsupportedHint": "Please use zsh / bash / PowerShell, or run <1>cc-select init</1><2> in the terminal.</2>",
+  "unsupportedHint": "Please use zsh / bash / PowerShell, or run <code>cc-select init</code> in the terminal.",
   "legacyTitle": "Legacy shell integration detected, upgrade recommended{{shell}}",
   "neededTitle": "Shell integration not yet installed{{shell}}",
   "neededHint": "After installation, use <code>ccs use <id/></code> in the terminal to switch provider.",

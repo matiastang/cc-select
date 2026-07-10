@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   PresetDetail,
@@ -10,6 +10,7 @@ import {
   FABLE_MODEL_KEY,
   SUBAGENT_MODEL_KEY,
 } from "../presets/presets";
+import { Button, Collapsible, FormField, Input, SegmentedControl, Select } from "./ui";
 
 type EnvField = {
   key: string;
@@ -49,6 +50,8 @@ export function EnvFieldEditor({
   const [showModelMapping, setShowModelMapping] = useState(false);
   const [showCommon, setShowCommon] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const apiFormatId = useId();
+  const authFieldId = useId();
 
   const oauth = preset?.oauth ?? false;
   const authFieldName = authField || preset?.authField || "ANTHROPIC_AUTH_TOKEN";
@@ -75,146 +78,138 @@ export function EnvFieldEditor({
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
       {!oauth && (
-        <div>
-          <label>{t("form.apiKeyLabel", { field: authFieldName })}</label>
+        <FormField
+          label={t("form.apiKeyLabel", { field: authFieldName })}
+          htmlFor="provider-api-key-input"
+        >
           <div style={{ display: "flex", gap: "0.5rem" }}>
-            <input
+            <Input
+              id="provider-api-key-input"
               data-testid="provider-api-key-input"
               type={showKey ? "text" : "password"}
               value={apiKey}
               onChange={(e) => onApiKeyChange(e.target.value)}
               placeholder={t("form.apiKeyPlaceholder")}
-              style={{ flex: 1, padding: "0.5rem" }}
+              style={{ flex: 1 }}
             />
-            <button
+            <Button
               type="button"
-              className="secondary"
+              variant="secondary"
+              size="sm"
+              icon={showKey ? "eyeOff" : "eye"}
               onClick={() => setShowKey((s) => !s)}
               data-testid="provider-api-key-toggle"
+              aria-pressed={showKey}
+              aria-label={showKey ? t("form.hideApiKey") : t("form.showApiKey")}
               style={{ whiteSpace: "nowrap" }}
             >
               {showKey ? t("form.hideApiKey") : t("form.showApiKey")}
-            </button>
+            </Button>
           </div>
-        </div>
+        </FormField>
       )}
 
       {commonFields.map((f) => (
         <TextField key={f.key} field={f} value={values[f.key] || ""} onChange={(v) => onChange(f.key, v)} />
       ))}
 
-      <button
-        type="button"
-        className="secondary"
-        onClick={() => setShowModelMapping((s) => !s)}
+      <Collapsible
+        title={t("form.modelMappingTitle")}
+        open={showModelMapping}
+        onToggle={() => setShowModelMapping((s) => !s)}
         data-testid="toggle-model-mapping"
       >
-        {showModelMapping ? "▾" : "▸"} {t("form.modelMappingTitle")}
-      </button>
-      {showModelMapping && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          {modelFields.map((f) => (
-            <TextField key={f.key} field={f} value={values[f.key] || ""} onChange={(v) => onChange(f.key, v)} />
-          ))}
-        </div>
-      )}
+        {modelFields.map((f) => (
+          <TextField key={f.key} field={f} value={values[f.key] || ""} onChange={(v) => onChange(f.key, v)} />
+        ))}
+      </Collapsible>
 
-      <button
-        type="button"
-        className="secondary"
-        onClick={() => setShowCommon((s) => !s)}
+      <Collapsible
+        title={t("form.commonSettingsTitle")}
+        open={showCommon}
+        onToggle={() => setShowCommon((s) => !s)}
         data-testid="toggle-common-settings"
       >
-        {showCommon ? "▾" : "▸"} {t("form.commonSettingsTitle")}
-      </button>
-      {showCommon && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          {commonToggleFields.map((f) => (
-            <SelectField key={f.key} field={f} value={values[f.key] || ""} onChange={(v) => onChange(f.key, v)} />
-          ))}
-        </div>
-      )}
+        {commonToggleFields.map((f) => (
+          <SelectField key={f.key} field={f} value={values[f.key] || ""} onChange={(v) => onChange(f.key, v)} />
+        ))}
+      </Collapsible>
 
-      <button
-        type="button"
-        className="secondary"
-        onClick={() => setShowAdvanced((s) => !s)}
+      <Collapsible
+        title={t("form.advancedTitle")}
+        open={showAdvanced}
+        onToggle={() => setShowAdvanced((s) => !s)}
         data-testid="toggle-advanced"
       >
-        {showAdvanced ? "▾" : "▸"} {t("form.advancedTitle")}
-      </button>
-      {showAdvanced && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          <div>
-            <label>{t("form.apiFormatLabel")}</label>
-            <select
-              data-testid="provider-api-format-select"
-              value={apiFormat}
-              onChange={(e) => onApiFormatChange(e.target.value)}
-              style={{ width: "100%", padding: "0.5rem" }}
-            >
-              <option value="">{t("form.defaultOption", { value: preset?.apiFormat || "anthropic" })}</option>
-              <option value="anthropic">anthropic</option>
-              <option value="openai_chat">openai_chat</option>
-              <option value="openai_responses">openai_responses</option>
-              <option value="gemini_native">gemini_native</option>
-            </select>
-          </div>
-          <div>
-            <label>{t("form.authFieldLabel")}</label>
-            <select
-              data-testid="provider-auth-field-select"
-              value={authField}
-              onChange={(e) => onAuthFieldChange(e.target.value)}
-              style={{ width: "100%", padding: "0.5rem" }}
-            >
-              <option value="">{t("form.defaultOption", { value: preset?.authField || "ANTHROPIC_AUTH_TOKEN" })}</option>
-              <option value="ANTHROPIC_AUTH_TOKEN">ANTHROPIC_AUTH_TOKEN</option>
-              <option value="ANTHROPIC_API_KEY">ANTHROPIC_API_KEY</option>
-            </select>
-          </div>
-        </div>
-      )}
+        <FormField label={t("form.apiFormatLabel")} htmlFor={apiFormatId}>
+          <Select
+            id={apiFormatId}
+            data-testid="provider-api-format-select"
+            value={apiFormat}
+            onChange={(e) => onApiFormatChange(e.target.value)}
+          >
+            <option value="">{t("form.defaultOption", { value: preset?.apiFormat || "anthropic" })}</option>
+            <option value="anthropic">anthropic</option>
+            <option value="openai_chat">openai_chat</option>
+            <option value="openai_responses">openai_responses</option>
+            <option value="gemini_native">gemini_native</option>
+          </Select>
+        </FormField>
+
+        <FormField label={t("form.authFieldLabel")} htmlFor={authFieldId}>
+          <Select
+            id={authFieldId}
+            data-testid="provider-auth-field-select"
+            value={authField}
+            onChange={(e) => onAuthFieldChange(e.target.value)}
+          >
+            <option value="">{t("form.defaultOption", { value: preset?.authField || "ANTHROPIC_AUTH_TOKEN" })}</option>
+            <option value="ANTHROPIC_AUTH_TOKEN">ANTHROPIC_AUTH_TOKEN</option>
+            <option value="ANTHROPIC_API_KEY">ANTHROPIC_API_KEY</option>
+          </Select>
+        </FormField>
+      </Collapsible>
     </div>
   );
 }
 
 function TextField({ field, value, onChange }: { field: EnvField; value: string; onChange: (v: string) => void }) {
   const { t } = useTranslation("providers");
+  const id = useId();
   return (
-    <div>
-      <label>{t(field.labelKey)}</label>
-      <input
+    <FormField label={t(field.labelKey)} htmlFor={id}>
+      <Input
+        id={id}
         data-testid={`env-field-${field.key}`}
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={field.placeholderKey ? t(field.placeholderKey) : undefined}
-        style={{ width: "100%", padding: "0.5rem" }}
       />
-    </div>
+    </FormField>
   );
 }
 
 function SelectField({ field, value, onChange }: { field: EnvField; value: string; onChange: (v: string) => void }) {
   const { t } = useTranslation("providers");
+  const id = useId();
+  const options = [
+    { value: "", label: t("form.unsetOption") },
+    ...(field.options?.filter((o) => o !== "").map((o) => ({ value: o, label: o })) ?? []),
+  ];
+
   return (
-    <div>
-      <label>{t(field.labelKey)}</label>
-      <select
+    <FormField label={t(field.labelKey)} htmlFor={id}>
+      <SegmentedControl
+        id={id}
         data-testid={`env-field-${field.key}`}
+        options={options}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{ width: "100%", padding: "0.5rem" }}
-      >
-        {field.options?.map((opt) => (
-          <option key={opt} value={opt}>
-            {opt === "" ? t("form.unsetOption") : opt}
-          </option>
-        ))}
-      </select>
-    </div>
+        onChange={onChange}
+        aria-label={t(field.labelKey)}
+      />
+    </FormField>
   );
 }

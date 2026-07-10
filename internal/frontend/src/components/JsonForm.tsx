@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ProviderDetail, IsolationMode } from "../types";
 import { API_BASE } from "../constants";
@@ -15,6 +15,7 @@ import {
 } from "../presets/presets";
 import { PresetSelect } from "./PresetSelect";
 import { EnvFieldEditor, EnvFieldValues } from "./EnvFieldEditor";
+import { Button, FormField, Input, Select, Textarea } from "./ui";
 
 const PROVIDERS_API = `${API_BASE}/providers`;
 
@@ -29,6 +30,7 @@ type JsonFormProps =
 export function JsonForm(props: JsonFormProps) {
   const { t } = useTranslation("providers");
   const isEdit = props.mode === "edit";
+  const modeControlId = useId();
 
   const [id, setId] = useState(isEdit ? props.id : "");
   const [name, setName] = useState("");
@@ -62,11 +64,11 @@ export function JsonForm(props: JsonFormProps) {
 
   const authField = useMemo(() => {
     return (env._auth_field as string) || presetDetail?.authField || "ANTHROPIC_AUTH_TOKEN";
-  }, [env._auth_field, presetDetail]);
+  }, [env, presetDetail]);
 
   const apiFormat = useMemo(() => {
     return (env._api_format as string) || presetDetail?.apiFormat || "anthropic";
-  }, [env._api_format, presetDetail]);
+  }, [env, presetDetail]);
 
   // 输入框里不显示 ${API_KEY} 这类模板占位符，只显示用户真正输入过的值。
   const apiKey = useMemo(() => {
@@ -231,7 +233,9 @@ export function JsonForm(props: JsonFormProps) {
       const oldKey = authField;
       const value = prevEnv[oldKey] || "";
       delete prevEnv[oldKey];
-      prevEnv[newAuthField] = value;
+      // 如果旧值只是模板占位符，迁移后会导致输入框为空但校验失败；
+      // 这种情况下清空，让用户重新输入。
+      prevEnv[newAuthField] = placeholdersIn(value).length > 0 ? "" : value;
       prevEnv._auth_field = newAuthField;
       return { ...prev, env: prevEnv };
     });
@@ -296,13 +300,33 @@ export function JsonForm(props: JsonFormProps) {
     setErr("");
     if (!validate()) return;
 
-    // Sanitize settings: remove internal meta fields before saving.
-    const cleanEnv = { ...env };
-    delete cleanEnv._api_format;
-    delete cleanEnv._auth_field;
-    const bodySettings = { ...settings, env: cleanEnv };
+    const isPresetMode = presetId !== CUSTOM_PRESET_ID;
+    const apiKeyValue = env[authField] || "";
 
-    const body = { name, settings: bodySettings, isolationMode, apiFormat, authField };
+    const baseBody = {
+      name,
+      isolationMode,
+      apiFormat,
+      authField,
+    };
+
+    let body: Record<string, unknown>;
+    if (isPresetMode) {
+      // Preset 模式下后端用 preset + apiKey + overrides 重新生成 settings。
+      const overrides: Record<string, string> = {};
+      for (const [k, v] of Object.entries(env)) {
+        if (k === authField || k === "_api_format" || k === "_auth_field") continue;
+        overrides[k] = v;
+      }
+      body = { ...baseBody, preset: presetId, apiKey: apiKeyValue, overrides };
+    } else {
+      // 自定义模式下直接提交完整 settings。
+      const cleanEnv = { ...env };
+      delete cleanEnv._api_format;
+      delete cleanEnv._auth_field;
+      body = { ...baseBody, settings: { ...settings, env: cleanEnv } };
+    }
+
     const r = isEdit
       ? await fetch(`${PROVIDERS_API}/${props.id}`, {
           method: "PUT",
@@ -326,34 +350,42 @@ export function JsonForm(props: JsonFormProps) {
   return (
     <div>
       <h2>{isEdit ? t("editTitle", { id: props.id }) : t("addTitle")}</h2>
+
       {!isEdit && (
-        <>
-          <label>{t("form.idLabel")}</label>
-          <input
+        <FormField label={t("form.idLabel")} htmlFor="provider-id-input">
+          <Input
+            id="provider-id-input"
             data-testid="provider-id-input"
             value={id}
             onChange={(e) => setId(e.target.value)}
             placeholder={t("form.idPlaceholder")}
           />
-        </>
+        </FormField>
       )}
-      <label>{t("form.nameLabel")}</label>
-      <input
-        data-testid="provider-name-input"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder={t("form.namePlaceholder")}
-      />
-      <label>{t("form.modeLabel")}</label>
-      <select
-        data-testid="provider-mode-select"
-        value={isolationMode}
-        onChange={(e) => setIsolationMode(e.target.value as IsolationMode)}
-      >
-        <option value="">{t("mode.inherit")}</option>
-        <option value="settings-only">{t("mode.settingsOnly")}</option>
-        <option value="full">{t("mode.full")}</option>
-      </select>
+
+      <FormField label={t("form.nameLabel")} htmlFor="provider-name-input">
+        <Input
+          id="provider-name-input"
+          data-testid="provider-name-input"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t("form.namePlaceholder")}
+        />
+      </FormField>
+
+      <FormField label={t("form.modeLabel")} htmlFor={modeControlId}>
+        <Select
+          id={modeControlId}
+          data-testid="provider-mode-select"
+          value={isolationMode}
+          onChange={(e) => setIsolationMode(e.target.value as IsolationMode)}
+          aria-label={t("form.modeLabel")}
+        >
+          <option value="">{t("mode.inherit")}</option>
+          <option value="settings-only">{t("mode.settingsOnly")}</option>
+          <option value="full">{t("mode.full")}</option>
+        </Select>
+      </FormField>
 
       {loading ? (
         <p className="muted">{t("form.loadingRealConfig")}</p>
@@ -379,33 +411,29 @@ export function JsonForm(props: JsonFormProps) {
             onAuthFieldChange={handleAuthFieldChange}
           />
 
-          <hr style={{ margin: "1.5rem 0", borderColor: "var(--border)" }} />
+          <hr style={{ margin: "1.5rem 0", borderColor: "var(--border)", borderStyle: "solid", borderWidth: "1px 0 0" }} />
 
-          <label>{t("form.jsonLabel")}</label>
-          <textarea
-            data-testid="provider-json-textarea"
-            value={jsonText}
-            onChange={(e) => handleJsonChange(e.target.value)}
-            onBlur={() => {
-              jsonEditingRef.current = false;
-              // Normalize valid JSON on blur.
-              if (!jsonError) {
-                setJsonText(JSON.stringify(settings, null, 2));
-              }
-            }}
-            spellCheck={false}
-            rows={12}
-            style={{
-              width: "100%",
-              fontFamily: "monospace",
-              fontSize: "0.85rem",
-              padding: "0.5rem",
-              border: "1px solid var(--border)",
-              borderRadius: 6,
-              background: "var(--bg)",
-              color: "var(--text)",
-            }}
-          />
+          <FormField label={t("form.jsonLabel")} htmlFor="provider-json-textarea">
+            <Textarea
+              id="provider-json-textarea"
+              data-testid="provider-json-textarea"
+              value={jsonText}
+              onChange={(e) => handleJsonChange(e.target.value)}
+              onBlur={() => {
+                jsonEditingRef.current = false;
+                // Normalize valid JSON on blur.
+                if (!jsonError) {
+                  setJsonText(JSON.stringify(settings, null, 2));
+                }
+              }}
+              spellCheck={false}
+              rows={12}
+              style={{
+                fontFamily: "monospace",
+                fontSize: "0.85rem",
+              }}
+            />
+          </FormField>
           {jsonError && (
             <div style={{ color: "var(--danger)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
               {jsonError}
@@ -415,17 +443,27 @@ export function JsonForm(props: JsonFormProps) {
       )}
 
       {err && (
-        <div data-testid="provider-form-error" className="muted" style={{ color: "var(--danger)", margin: "0.5rem 0" }}>
+        <div
+          role="alert"
+          data-testid="provider-form-error"
+          className="muted"
+          style={{ color: "var(--danger)", margin: "0.5rem 0" }}
+        >
           {err}
         </div>
       )}
-      <div style={{ marginTop: "1rem" }}>
-        <button data-testid="provider-save-button" onClick={submit} disabled={loading}>
+
+      <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
+        <Button data-testid="provider-save-button" onClick={submit} disabled={loading}>
           {t("save", { ns: "common" })}
-        </button>{" "}
-        <button data-testid="provider-cancel-button" className="secondary" onClick={props.onCancel}>
+        </Button>
+        <Button
+          data-testid="provider-cancel-button"
+          variant="secondary"
+          onClick={props.onCancel}
+        >
           {t("cancel", { ns: "common" })}
-        </button>
+        </Button>
       </div>
     </div>
   );
