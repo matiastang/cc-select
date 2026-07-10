@@ -13,6 +13,7 @@
 # 前端构建产物（由 internal/frontend 构建生成，不提交）
 internal/frontend/node_modules/
 internal/frontend/dist/
+node_modules/
 
 # Playwright E2E 产物
 internal/frontend/test-results/

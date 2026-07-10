@@ -151,7 +151,30 @@ make all      # フロントエンド + バイナリをビルド → ./bin/cc-se
 make test     # Go ユニットテストを実行
 make vet      # go vet を実行
 make e2e      # Playwright エンドツーエンドテストを実行
+make check    # すべての静的チェック（フォーマット、型、Lint、スクリプト、mod tidy）を実行
 ```
+
+## ローカル開発
+
+リポジトリルートで1回実行すれば、依存関係のインストールと git hooks の登録が完了します：
+
+```bash
+npm install
+```
+
+すべての静的チェックをローカルで実行：
+
+```bash
+make check
+```
+
+すべてのコードを自動フォーマット：
+
+```bash
+make fmt
+```
+
+`git commit` 実行時に pre-commit hook が自動で検証し、静的チェックが失敗するとコミットをブロックします。
 
 ## ライセンス
 

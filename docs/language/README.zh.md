@@ -156,10 +156,10 @@ make check    # 运行所有静态检查（格式、类型、Lint、脚本、mod
 
 ## 本地开发
 
-安装依赖并注册 git hooks（在 `internal/frontend` 执行 `npm install` 时会自动安装 hooks）：
+在仓库根目录执行一次命令即可安装依赖并注册 git hooks：
 
 ```bash
-cd internal/frontend && npm install
+npm install
 ```
 
 本地运行所有静态检查：

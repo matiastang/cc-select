@@ -156,10 +156,10 @@ make check    # run all static checks (format, type, lint, scripts, mod tidy)
 
 ## Development
 
-Install dependencies and git hooks (hooks are installed automatically when you run `npm install` in `internal/frontend`):
+Install dependencies and git hooks (one command at the repo root):
 
 ```bash
-cd internal/frontend && npm install
+npm install
 ```
 
 Run all static checks locally:
