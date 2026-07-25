@@ -86,10 +86,14 @@ cc-select init >> ~/.bashrc && source ~/.bashrc
 
 ```powershell
 # Windows — PowerShell
+if (!(Test-Path $PROFILE)) { New-Item -Path $PROFILE -ItemType File -Force }
 cc-select init >> $PROFILE
+. $PROFILE
 ```
 
 > Supported shells: **zsh / bash / PowerShell**. CMD is not supported on Windows; fish is not yet supported.
+>
+> Prefer not to edit startup files by hand? Run `cc-select gui` and use the **One-click install** button in the web UI — it writes the startup file for you (creates `$PROFILE` and handles encoding on Windows).
 
 ### 2. Add a provider
 

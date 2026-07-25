@@ -93,3 +93,21 @@ func TestDetect_DefaultZshOnUnix(t *testing.T) {
 		t.Errorf("Detect 不应返回 Unknown（应有平台默认）")
 	}
 }
+
+// TestInitSnippets_AreASCIIOnly 锁定：cc-select init 生成的 ccs() 代码必须纯 ASCII。
+// 这些输出会被 shell 重定向捕获（>> $PROFILE / >> ~/.zshrc）。Windows PowerShell 5.1
+// 按控制台代码页（中文系统=GBK）解码外部命令 stdout，非 ASCII（如中文）注释会被错位
+// 解码、吞掉换行，破坏生成的 rc 语法。防止日后"贴心"地重新本地化注释而引入回归。
+func TestInitSnippets_AreASCIIOnly(t *testing.T) {
+	snippets := map[string]string{
+		"zsh":        ZshEmitter{}.InitSnippet("/usr/local/bin/cc-select"),
+		"powershell": PowerShellEmitter{}.InitSnippet(`C:\tools\cc-select.exe`),
+	}
+	for name, snip := range snippets {
+		for _, r := range snip {
+			if r > 127 {
+				t.Errorf("%s InitSnippet 必须纯 ASCII，发现非 ASCII 字符 %q:\n%s", name, r, snip)
+			}
+		}
+	}
+}

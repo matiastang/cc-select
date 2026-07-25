@@ -190,12 +190,6 @@
       "invalidLanguage": "language must be en or zh"
     }
   },
-  "shell": {
-    "init": {
-      "zshComment": "# ccs is the short alias for cc-select: use is injected via eval, other subcommands are forwarded directly.",
-      "powershellComment": "# ccs is the short alias for cc-select: use is injected via Invoke-Expression, other subcommands are forwarded directly."
-    }
-  },
   "profile": {
     "serializeEnv": "serialize env: %w",
     "cleanIsolation": "clean up profile isolation: %w",

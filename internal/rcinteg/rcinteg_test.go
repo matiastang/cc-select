@@ -284,7 +284,7 @@ func TestInstall_Zsh_AppendsThenNoop(t *testing.T) {
 	t.Setenv("CC_SELECT_SHELL", "zsh")
 	setHomeEnv(t, home)
 
-	r1, err := Install("zsh")
+	r1, err := Install("zsh", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +294,7 @@ func TestInstall_Zsh_AppendsThenNoop(t *testing.T) {
 	if st := DetectStatus(); !st.Installed {
 		t.Error("安装后 DetectStatus 应报 installed")
 	}
-	if r2, _ := Install("zsh"); r2.Action != ActionNoop {
+	if r2, _ := Install("zsh", ""); r2.Action != ActionNoop {
 		t.Errorf("二次相同应 noop, got %s", r2.Action)
 	}
 }
@@ -417,7 +417,7 @@ func TestResolve_BashPrefersProfileWhenBothExist(t *testing.T) {
 
 func TestInstall_UnsupportedShellReturnsManual(t *testing.T) {
 	// fish：shell.For 不支持。Install 应返回 manual（非 error），让 API 给结构化响应而非 500。
-	res, err := Install("fish")
+	res, err := Install("fish", "")
 	if err != nil {
 		t.Fatalf("不支持 shell 不应 error: %v", err)
 	}
@@ -451,14 +451,26 @@ func TestHasLegacy_PerShell(t *testing.T) {
 // ---- PowerShell 探测（注入 profileProbe，不依赖真实 pwsh）----
 
 // withProbe 临时替换 profileProbe 并重置缓存，测试结束还原。
+// 同时把单路径探针语义映射到多目标 pwshTargetsProbe（探测成功=仅 PS7 存在，失败=无
+// PowerShell），使依赖 withProbe 的 PowerShell 用例对 detectPwshProfileTargets 路径一致生效。
 func withProbe(t *testing.T, probe func() (string, error)) {
 	t.Helper()
 	resetPwshCache()
+	resetPwshTargetsCache()
 	old := profileProbe
+	oldTargets := pwshTargetsProbe
 	profileProbe = probe
+	pwshTargetsProbe = func() []pwshProfileTarget {
+		if p, err := probe(); err == nil {
+			return []pwshProfileTarget{{ID: "powershell7", Exe: "pwsh", Path: p}}
+		}
+		return nil
+	}
 	t.Cleanup(func() {
 		profileProbe = old
+		pwshTargetsProbe = oldTargets
 		resetPwshCache()
+		resetPwshTargetsCache()
 	})
 }
 
@@ -505,7 +517,7 @@ func TestDetectStatus_PwshUnresolvableIsManual(t *testing.T) {
 func TestInstall_PwshManualReturnsSnippet(t *testing.T) {
 	withProbe(t, func() (string, error) { return "", errors.New("no pwsh") })
 	t.Setenv("CC_SELECT_SHELL", "powershell")
-	res, err := Install("powershell")
+	res, err := Install("powershell", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -514,6 +526,109 @@ func TestInstall_PwshManualReturnsSnippet(t *testing.T) {
 	}
 	if !strings.Contains(res.Snippet, "function ccs") {
 		t.Errorf("manual 应附 PS snippet 供用户粘贴: %q", res.Snippet)
+	}
+}
+
+// withPwshTargets 临时注入多目标探针（PS7+PS5.1 各自路径），测试结束还原缓存。
+// 用于 DetectStatus/Install 的 PowerShell 多 profile 行为测试，避免依赖真实进程。
+func withPwshTargets(t *testing.T, targets []pwshProfileTarget) {
+	t.Helper()
+	resetPwshTargetsCache()
+	old := pwshTargetsProbe
+	pwshTargetsProbe = func() []pwshProfileTarget { return targets }
+	t.Cleanup(func() {
+		pwshTargetsProbe = old
+		resetPwshTargetsCache()
+	})
+}
+
+func TestDetectStatus_PowerShellMultiTarget(t *testing.T) {
+	// 模拟 PS7 与 PS5.1 并存：PS7 profile 已装(marker)，PS5.1 未装。
+	dir := t.TempDir()
+	ps7 := filepath.Join(dir, "ps7_profile.ps1")
+	ps5 := filepath.Join(dir, "ps5_profile.ps1")
+	if err := os.WriteFile(ps7, []byte(markerBegin+"\nfunction ccs {}\n"+markerEnd+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	withPwshTargets(t, []pwshProfileTarget{
+		{ID: "powershell7", Exe: "pwsh", Path: ps7},
+		{ID: "powershell5", Exe: "powershell.exe", Path: ps5},
+	})
+	t.Setenv("CC_SELECT_SHELL", "powershell")
+
+	st := DetectStatus()
+	if !st.Supported {
+		t.Fatal("powershell 应 supported")
+	}
+	if len(st.Targets) != 2 {
+		t.Fatalf("应有 2 个 target(PS7+PS5.1), got %d: %+v", len(st.Targets), st.Targets)
+	}
+	if st.Targets[0].ID != "powershell7" || !st.Targets[0].Installed {
+		t.Errorf("PS7 应已装: %+v", st.Targets[0])
+	}
+	if st.Targets[1].ID != "powershell5" || st.Targets[1].Installed {
+		t.Errorf("PS5.1 应未装: %+v", st.Targets[1])
+	}
+	if !st.Installed {
+		t.Error("顶层 Installed=任一已装，应为 true")
+	}
+	if st.RCPath != ps7 {
+		t.Errorf("RCPath 应为主 target(PS7 优先): got %s", st.RCPath)
+	}
+	if !st.CanAutoInstall {
+		t.Error("有 target 应 CanAutoInstall=true")
+	}
+}
+
+func TestInstall_PowerShellTarget5_WritesOnlyPS5(t *testing.T) {
+	// target=powershell5 应只写 PS5.1 profile，不碰 PS7。
+	dir := t.TempDir()
+	ps7 := filepath.Join(dir, "ps7_profile.ps1")
+	ps5 := filepath.Join(dir, "ps5_profile.ps1")
+	withPwshTargets(t, []pwshProfileTarget{
+		{ID: "powershell7", Exe: "pwsh", Path: ps7},
+		{ID: "powershell5", Exe: "powershell.exe", Path: ps5},
+	})
+	t.Setenv("CC_SELECT_SHELL", "powershell")
+
+	res, err := Install("powershell", "powershell5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Action != ActionAppended {
+		t.Errorf("首次应 appended, got %s", res.Action)
+	}
+	if res.RCPath != ps5 {
+		t.Errorf("应写入 PS5.1 profile, got rcPath=%s", res.RCPath)
+	}
+	if ps5Data, _ := os.ReadFile(ps5); !strings.Contains(string(ps5Data), markerBegin) {
+		t.Errorf("PS5.1 profile 应含 marker: %s", ps5Data)
+	}
+	if ps7Data, _ := os.ReadFile(ps7); strings.Contains(string(ps7Data), markerBegin) {
+		t.Errorf("PS7 profile 不应被写入（target=powershell5）: %s", ps7Data)
+	}
+}
+
+func TestInstall_PowerShellDefaultTargetIsPS7(t *testing.T) {
+	// target 空 → 默认 PS7 优先（与旧 pwsh-first 行为一致）。
+	dir := t.TempDir()
+	ps7 := filepath.Join(dir, "ps7_profile.ps1")
+	ps5 := filepath.Join(dir, "ps5_profile.ps1")
+	withPwshTargets(t, []pwshProfileTarget{
+		{ID: "powershell7", Exe: "pwsh", Path: ps7},
+		{ID: "powershell5", Exe: "powershell.exe", Path: ps5},
+	})
+	t.Setenv("CC_SELECT_SHELL", "powershell")
+
+	res, err := Install("powershell", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.RCPath != ps7 {
+		t.Errorf("空 target 应默认写 PS7, got %s", res.RCPath)
+	}
+	if ps5Data, _ := os.ReadFile(ps5); strings.Contains(string(ps5Data), markerBegin) {
+		t.Errorf("PS5.1 不应被写入: %s", ps5Data)
 	}
 }
 

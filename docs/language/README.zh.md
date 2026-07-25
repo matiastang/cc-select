@@ -86,10 +86,14 @@ cc-select init >> ~/.bashrc && source ~/.bashrc
 
 ```powershell
 # Windows — PowerShell
+if (!(Test-Path $PROFILE)) { New-Item -Path $PROFILE -ItemType File -Force }
 cc-select init >> $PROFILE
+. $PROFILE
 ```
 
 > 已支持的 shell：**zsh / bash / PowerShell**。Windows 的 CMD 不支持；fish 暂未支持。
+>
+> 不想手动改启动文件？运行 `cc-select gui`，在网页界面点「一键安装」即可——它会自动写入启动文件（Windows 上还会自动创建 `$PROFILE` 并处理编码）。
 
 ### 2. 添加服务商
 

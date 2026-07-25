@@ -748,6 +748,10 @@ func TestShellIntegration_GetStatus(t *testing.T) {
 	if out["canAutoInstall"] != true {
 		t.Errorf("zsh 应可自动安装, got %v", out["canAutoInstall"])
 	}
+	targets, ok := out["targets"].([]any)
+	if !ok || len(targets) != 1 {
+		t.Errorf("zsh 应返回 1 个 target, got %v", out["targets"])
+	}
 }
 
 func TestShellIntegration_InstallAppended(t *testing.T) {

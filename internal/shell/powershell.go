@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"text/template"
-
-	"github.com/cc-select/cc-select/internal/i18n"
 )
 
 // PowerShellEmitter 生成 PowerShell 语句：$env:NAME='val' / Remove-Item Env:\NAME。
@@ -42,12 +40,18 @@ func (PowerShellEmitter) Emit(changes []Change) string {
 	return b.String()
 }
 
+// pwshInitComment 刻意保持 ASCII-only（英文）。cc-select init 的输出会被 shell 重定向
+// 捕获（>> $PROFILE）。Windows PowerShell 5.1 按控制台代码页（中文系统=GBK）解码外部
+// 命令 stdout，本地化/CJK 注释会被错位解码、吞掉换行，破坏生成的 $PROFILE 语法。
+// 生成代码的注释必须与 locale 无关。见 docs/windows-support.md。
+const pwshInitComment = "# ccs is the short alias for cc-select: use is injected via Invoke-Expression, other subcommands are forwarded directly."
+
 // InitSnippet 渲染 PowerShell 版 ccs 函数。
 func (PowerShellEmitter) InitSnippet(binaryPath string) string {
 	var b strings.Builder
 	data := map[string]string{
 		"BinaryPath": binaryPath,
-		"Comment":    i18n.T("shell.init.powershellComment"),
+		"Comment":    pwshInitComment,
 	}
 	if err := pwshTmpl.Execute(&b, data); err != nil {
 		return ""

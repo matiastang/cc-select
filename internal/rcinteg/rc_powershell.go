@@ -85,3 +85,61 @@ func queryProfile(exe string) (string, error) {
 	}
 	return p, nil
 }
+
+// pwshProfileTarget 描述一个已安装的 PowerShell 版本及其 $PROFILE。
+// 同一台 Windows 上 PS7(pwsh) 与 PS5.1(powershell.exe) 可并存，$PROFILE 是两个不同文件，
+// 集成需分别检测/安装——这是 DetectStatus 多目标与 Install target 路由的基础。
+type pwshProfileTarget struct {
+	ID   string // "powershell7" | "powershell5"
+	Exe  string // "pwsh" | "powershell.exe"
+	Path string // 该变体 $PROFILE 绝对路径
+}
+
+// pwshTargetsCache 缓存「所有可用 PowerShell profile 目标」，理由同 pwshCache：
+// DetectStatus 每次 GET 都调，避免重复 spawn pwsh + powershell.exe（各 ~200ms-1s）。
+type pwshTargetsMemo struct {
+	mu      sync.Mutex
+	done    bool
+	targets []pwshProfileTarget
+}
+
+var pwshTargetsCache pwshTargetsMemo
+
+// resetPwshTargetsCache 清空多目标探测缓存，仅用于测试隔离（每个用例独立探测）。
+func resetPwshTargetsCache() {
+	pwshTargetsCache.mu.Lock()
+	defer pwshTargetsCache.mu.Unlock()
+	pwshTargetsCache.done = false
+	pwshTargetsCache.targets = nil
+}
+
+// pwshTargetsProbe 实际执行多目标探测；声明为变量以便测试注入（模拟 pwsh/powershell.exe
+// 存在/缺失/返回路径），避免单测依赖真实 PowerShell 进程。生产用 probeAllPwshProfiles。
+var pwshTargetsProbe = probeAllPwshProfiles
+
+// detectPwshProfileTargets 返回机器上所有可用 PowerShell profile 目标（PS7 + PS5.1），
+// 进程级缓存（同 pwshCache）。顺序固定 PS7 在前；返回 0/1/2 个。
+func detectPwshProfileTargets() []pwshProfileTarget {
+	pwshTargetsCache.mu.Lock()
+	defer pwshTargetsCache.mu.Unlock()
+	if !pwshTargetsCache.done {
+		pwshTargetsCache.targets = pwshTargetsProbe()
+		pwshTargetsCache.done = true
+	}
+	return pwshTargetsCache.targets
+}
+
+// probeAllPwshProfiles 探测 PS7（若 pwsh 在）与 PS5.1（Windows 上若 powershell.exe 在）的
+// $PROFILE。任一变体未安装则跳过，不返回 error。
+func probeAllPwshProfiles() []pwshProfileTarget {
+	var targets []pwshProfileTarget
+	if p, err := queryProfile("pwsh"); err == nil {
+		targets = append(targets, pwshProfileTarget{ID: "powershell7", Exe: "pwsh", Path: p})
+	}
+	if runtime.GOOS == "windows" {
+		if p, err := queryProfile("powershell.exe"); err == nil {
+			targets = append(targets, pwshProfileTarget{ID: "powershell5", Exe: "powershell.exe", Path: p})
+		}
+	}
+	return targets
+}
