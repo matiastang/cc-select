@@ -8,5 +8,11 @@
   "neededTitle": "检测到尚未安装 shell 集成{{shell}}",
   "neededHint": "安装后才能在终端用 <code>ccs use <id/></code> 切换 provider。",
   "installing": "安装中…",
-  "installButton": "一键安装"
+  "installButton": "一键安装",
+  "multiTitle": "安装 shell 集成",
+  "multiHint": "PowerShell 5.1 与 7 的 <code>$PROFILE</code> 是两个不同的文件，按你实际使用的分别安装。",
+  "target": {
+    "powershell7": "PowerShell（7）",
+    "powershell5": "Windows PowerShell（5.1）"
+  }
 }

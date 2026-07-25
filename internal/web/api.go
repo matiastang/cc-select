@@ -267,6 +267,7 @@ func (h *apiHandler) handleShellIntegration(w http.ResponseWriter, r *http.Reque
 		"legacy":         st.Legacy,
 		"rcPath":         st.RCPath,
 		"canAutoInstall": st.CanAutoInstall,
+		"targets":        st.Targets,
 	})
 }
 
@@ -278,10 +279,11 @@ func (h *apiHandler) handleShellIntegrationInstall(w http.ResponseWriter, r *htt
 		return
 	}
 	var in struct {
-		Shell string `json:"shell"`
+		Shell  string `json:"shell"`
+		Target string `json:"target"` // PowerShell 变体：powershell7 | powershell5；空=PS7 优先
 	}
-	_ = json.NewDecoder(r.Body).Decode(&in) // shell 可选，空=自动检测
-	res, err := rcinteg.Install(in.Shell)
+	_ = json.NewDecoder(r.Body).Decode(&in) // shell/target 可选，空=自动检测
+	res, err := rcinteg.Install(in.Shell, in.Target)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

@@ -121,4 +121,66 @@ describe("ShellIntegrationBanner", () => {
     await waitFor(() => expect(screen.getByText(/写失败啦/)).toBeInTheDocument());
     expect(screen.getByRole("button", { name: "一键安装" })).toBeInTheDocument();
   });
+
+  // ---- PowerShell 多 target（PS7 + PS5.1 并存）----
+
+  const psTargets = (installed7: boolean, installed5: boolean) => ({
+    supported: true,
+    installed: installed7 || installed5,
+    legacy: false,
+    shell: "powershell",
+    targets: [
+      { id: "powershell7", rcPath: "/Documents/PowerShell/profile.ps1", installed: installed7 },
+      {
+        id: "powershell5",
+        rcPath: "/Documents/WindowsPowerShell/profile.ps1",
+        installed: installed5,
+      },
+    ],
+  });
+
+  it("多 target 都未装：显示两个可点按钮 + 说明文案", async () => {
+    fetchMock.mockResolvedValue(res(psTargets(false, false)));
+    renderWithI18n(<ShellIntegrationBanner />);
+    const ps7 = await screen.findByTestId("shell-install-button-powershell7");
+    const ps5 = screen.getByTestId("shell-install-button-powershell5");
+    expect(ps7).not.toBeDisabled();
+    expect(ps5).not.toBeDisabled();
+    expect(screen.getByText(/分别安装/)).toBeInTheDocument(); // multiHint 说明两 profile 不同
+  });
+
+  it("多 target 其中一个已装：对应按钮置灰，另一个仍可点", async () => {
+    fetchMock.mockResolvedValue(res(psTargets(true, false)));
+    renderWithI18n(<ShellIntegrationBanner />);
+    const ps7 = await screen.findByTestId("shell-install-button-powershell7");
+    const ps5 = screen.getByTestId("shell-install-button-powershell5");
+    expect(ps7).toBeDisabled(); // 已装 → 置灰
+    expect(ps5).not.toBeDisabled();
+  });
+
+  it("多 target 都已装：隐藏整个模块", async () => {
+    fetchMock.mockResolvedValue(res(psTargets(true, true)));
+    const { container } = renderWithI18n(<ShellIntegrationBanner />);
+    await waitFor(() => expect(container.querySelector(".notice")).toBeNull());
+  });
+
+  it("多 target 点击安装回传 target 字段，并刷新置灰", async () => {
+    fetchMock
+      .mockResolvedValueOnce(res(psTargets(false, false))) // 初始 GET
+      .mockResolvedValueOnce(
+        res({ action: "appended", shell: "powershell", rcPath: "/ps7", message: "ok" }),
+      ) // POST
+      .mockResolvedValueOnce(res(psTargets(true, false))); // 装完刷新 GET
+    renderWithI18n(<ShellIntegrationBanner />);
+    const ps7 = await screen.findByTestId("shell-install-button-powershell7");
+    fireEvent.click(ps7);
+    const post = fetchMock.mock.calls[1];
+    expect(post[0]).toBe("/api/v1/shell-integration/install");
+    expect(JSON.parse(post[1].body).target).toBe("powershell7");
+    // 装完后 PS7 置灰、PS5 仍可点
+    await waitFor(() =>
+      expect(screen.getByTestId("shell-install-button-powershell7")).toBeDisabled(),
+    );
+    expect(screen.getByTestId("shell-install-button-powershell5")).not.toBeDisabled();
+  });
 });

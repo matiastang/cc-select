@@ -8,5 +8,11 @@
   "neededTitle": "Shell integration not yet installed{{shell}}",
   "neededHint": "After installation, use <code>ccs use <id/></code> in the terminal to switch provider.",
   "installing": "Installing…",
-  "installButton": "One-click install"
+  "installButton": "One-click install",
+  "multiTitle": "Install shell integration",
+  "multiHint": "PowerShell 5.1 and 7 use separate profiles (<code>$PROFILE</code>). Install the one(s) you actually use.",
+  "target": {
+    "powershell7": "PowerShell (7)",
+    "powershell5": "Windows PowerShell (5.1)"
+  }
 }

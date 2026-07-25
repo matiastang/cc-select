@@ -53,12 +53,22 @@ type Strategy interface {
 
 // Status 是 GET /shell-integration 返回的当前安装状态。
 type Status struct {
-	Supported      bool   // 该 shell 是否被 cc-select 支持（fish=false）
-	Shell          string // Detect() 结果
-	Installed      bool   // rc 中已有 marker 块
-	Legacy         bool   // rc 中有老的无 marker ccs()（可提示升级）
-	RCPath         string // 解析出的目标 rc；空=无法自动写
-	CanAutoInstall bool   // false → 前端只给手动指引
+	Supported      bool     // 该 shell 是否被 cc-select 支持（fish=false）
+	Shell          string   // Detect() 结果
+	Installed      bool     // 任一 target rc 已有 marker 块
+	Legacy         bool     // rc 中有老的无 marker ccs()（可提示升级）
+	RCPath         string   // 主 target 的 rc 路径；空=无法自动写
+	CanAutoInstall bool     // false → 前端只给手动指引
+	Targets        []Target // 可安装的具体目标（PowerShell 可能有 PS7+PS5.1 两个）
+}
+
+// Target 是一个可安装 shell 集成的具体目标（一个 rc 文件）。PowerShell 在同一台机器上
+// 可能有 PS7、PS5.1 两个独立 $PROFILE，故 Status 用 Targets 列表逐个表达。
+// JSON tag 供 api.go 直接把 []Target 放进响应。
+type Target struct {
+	ID        string `json:"id"` // powershell7 | powershell5 | zsh | bash
+	RCPath    string `json:"rcPath"`
+	Installed bool   `json:"installed"` // markerBegin 命中该 rcPath
 }
 
 // InstallResult 是 POST /shell-integration/install 的结果。
@@ -100,6 +110,8 @@ func RenderInit(shellName string) (snippet string, s shell.Shell, err error) {
 }
 
 // DetectStatus 探测当前 shell 的集成状态（供 GET）。
+// PowerShell 单独处理：PS7(pwsh) 与 PS5.1(powershell.exe) 的 $PROFILE 是两个不同文件，
+// 逐个探测并填 Targets；顶层 Installed=任一已装、RCPath=主 target(PS7 优先)。
 func DetectStatus() Status {
 	s := shell.Detect()
 	st := Status{Shell: string(s)}
@@ -110,6 +122,28 @@ func DetectStatus() Status {
 		return st
 	}
 	st.Supported = true
+
+	if s == shell.PowerShell {
+		for _, pt := range detectPwshProfileTargets() {
+			content, _ := os.ReadFile(pt.Path)
+			c := string(content)
+			installed := strings.Contains(c, markerBegin)
+			st.Targets = append(st.Targets, Target{ID: pt.ID, RCPath: pt.Path, Installed: installed})
+			if installed {
+				st.Installed = true
+			} else if hasLegacy(c, s) {
+				st.Legacy = true
+			}
+		}
+		if len(st.Targets) > 0 {
+			st.RCPath = st.Targets[0].RCPath
+			st.CanAutoInstall = true
+		}
+		// 无任何 PowerShell 变体可解析（如未装 PowerShell）→ CanAutoInstall=false，前端降级 manual。
+		return st
+	}
+
+	// zsh / bash：单 profile 单目标。
 	home, err := os.UserHomeDir()
 	if err != nil {
 		st.CanAutoInstall = false
@@ -117,7 +151,6 @@ func DetectStatus() Status {
 	}
 	rc, err := strat.Resolve(home)
 	if err != nil || rc == "" {
-		// PowerShell 探测失败等 → 手动降级。
 		st.CanAutoInstall = false
 		return st
 	}
@@ -130,12 +163,14 @@ func DetectStatus() Status {
 	} else if hasLegacy(c, s) {
 		st.Legacy = true
 	}
+	st.Targets = []Target{{ID: string(s), RCPath: rc, Installed: st.Installed}}
 	return st
 }
 
-// Install 把集成写入当前 shell 的 rc（供 POST）。
+// Install 把集成写入指定 shell 的 rc（供 POST）。PowerShell 用 target 选择具体变体
+// （"powershell5"→PS5.1，其余/"powershell7"/空→PS7）；zsh/bash 忽略 target。
 // 不支持的 shell（fish 等）返回 manual 结果（无 snippet + 提示），而非 error。
-func Install(shellName string) (InstallResult, error) {
+func Install(shellName, target string) (InstallResult, error) {
 	s := resolveShell(shellName)
 	strat, ok := strategyFor(s)
 	if !ok {
@@ -149,7 +184,31 @@ func Install(shellName string) (InstallResult, error) {
 	if err != nil {
 		return InstallResult{Shell: string(s)}, err
 	}
+	if s == shell.PowerShell {
+		return installPwshTarget(s, snippet, target)
+	}
 	return installWith(s, snippet, strat)
+}
+
+// installPwshTarget 把 snippet 写入指定 PowerShell 变体的 $PROFILE。target 经
+// detectPwshProfileTargets()（可注入）解析到具体路径；target 为空取首个（PS7 优先）。
+// 解析不到（如该变体未安装）降级 manual。复用 writeManagedBlock（路径无关）。
+func installPwshTarget(s shell.Shell, snippet, target string) (InstallResult, error) {
+	var path string
+	for _, pt := range detectPwshProfileTargets() {
+		if target == "" || pt.ID == target {
+			path = pt.Path
+			break
+		}
+	}
+	if path == "" {
+		return manualResult(s, snippet, manualMessage(s, nil)), nil
+	}
+	action, err := writeManagedBlock(path, snippet)
+	if err != nil {
+		return InstallResult{Shell: string(s)}, fmt.Errorf("write %s: %w", path, err)
+	}
+	return InstallResult{Action: action, Shell: string(s), RCPath: path, Message: successMessage(s, path, action)}, nil
 }
 
 // installWith 是 Install 的可注入核心（测试可传 mock strategy）：
