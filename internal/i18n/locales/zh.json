@@ -190,12 +190,6 @@
       "invalidLanguage": "language 必须是 en 或 zh"
     }
   },
-  "shell": {
-    "init": {
-      "zshComment": "# ccs 是 cc-select 的短别名：use 走 eval 注入当前 shell，其余子命令直接转发。",
-      "powershellComment": "# ccs 是 cc-select 的短别名：use 走 Invoke-Expression 注入当前会话，其余子命令直接转发。"
-    }
-  },
   "profile": {
     "serializeEnv": "序列化 env: %w",
     "cleanIsolation": "清理 profile 隔离: %w",

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"text/template"
-
-	"github.com/cc-select/cc-select/internal/i18n"
 )
 
 // initZshTmpl 是 ccs() 函数体模板（由 //go:embed 嵌入）。
@@ -41,12 +39,18 @@ func (ZshEmitter) Emit(changes []Change) string {
 	return b.String()
 }
 
+// zshInitComment 刻意保持 ASCII-only（英文）。cc-select init 的输出会被 shell 重定向
+// 捕获（>> ~/.zshrc 等）。为与 PowerShell 路径保持一致、避免日后本地化引入非 ASCII，
+// 生成代码的注释统一与 locale 无关（zsh/bash 本身不受 GBK 影响，但同样保持 ASCII）。
+// 见 docs/windows-support.md。
+const zshInitComment = "# ccs is the short alias for cc-select: use is injected via eval, other subcommands are forwarded directly."
+
 // InitSnippet 渲染 ccs() 函数。
 func (ZshEmitter) InitSnippet(binaryPath string) string {
 	var b strings.Builder
 	data := map[string]string{
 		"BinaryPath": binaryPath,
-		"Comment":    i18n.T("shell.init.zshComment"),
+		"Comment":    zshInitComment,
 	}
 	if err := zshTmpl.Execute(&b, data); err != nil {
 		// 模板是静态的，Execute 只在模板语法错时失败，此处不可能。

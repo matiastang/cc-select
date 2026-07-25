@@ -86,10 +86,14 @@ cc-select init >> ~/.bashrc && source ~/.bashrc
 
 ```powershell
 # Windows — PowerShell
+if (!(Test-Path $PROFILE)) { New-Item -Path $PROFILE -ItemType File -Force }
 cc-select init >> $PROFILE
+. $PROFILE
 ```
 
 > 対応済み shell：**zsh / bash / PowerShell**。Windows の CMD は非対応です。fish はまだ対応していません。
+>
+> 起動ファイルを手動で編集したくない場合は、`cc-select gui` を実行し、Web UI の「ワンクリックインストール」ボタンを使ってください。起動ファイルを自動で書き込みます（Windows では `$PROFILE` の作成やエンコーディングも自動処理します）。
 
 ### 2. プロバイダーを追加
 
