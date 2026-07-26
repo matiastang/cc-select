@@ -61,11 +61,13 @@ func DetectContext() (Context, error) {
 }
 
 // DetectManager 按路径分类安装来源。纯函数，可单测。
-// 归一化为小写 + 正斜杠后做子串匹配：
+// 归一化为小写 + 正斜杠后做子串匹配；反斜杠替换用 strings.ReplaceAll 而非
+// filepath.ToSlash——后者 OS 相关（Unix 上 \ 是合法文件名字符，不会转换），
+// 而本函数是纯分类器，输入可能是任一平台风格的路径（测试即跨平台跑 Windows 路径）。
 //   - Homebrew：/opt/homebrew/Cellar/... 与 /usr/local/Cellar/... 都含 "/cellar/"
 //   - Scoop：%USERPROFILE%\scoop\apps\cc-select\current\... 含 "/scoop/apps/"
 func DetectManager(execPath string) Manager {
-	p := strings.ToLower(filepath.ToSlash(execPath))
+	p := strings.ToLower(strings.ReplaceAll(execPath, "\\", "/"))
 	if strings.Contains(p, "/cellar/") {
 		return ManagerHomebrew
 	}
