@@ -795,3 +795,77 @@ func TestShellIntegration_MethodNotAllowed(t *testing.T) {
 		t.Errorf("DELETE 应 405, got %d", resp.StatusCode)
 	}
 }
+
+// TestUpdateCheck_DevBuild 覆盖 GET /api/v1/update/check：
+// 测试进程无 ldflags 注入（version=dev），应返回 devBuild:true 且不访问网络。
+func TestUpdateCheck_DevBuild(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	resp, err := http.Get(srv.URL + "/api/v1/update/check")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /update/check want 200 got %d", resp.StatusCode)
+	}
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body["devBuild"] != true || body["hasUpdate"] != false {
+		t.Errorf("dev 构建应 devBuild=true 且 hasUpdate=false, got %v", body)
+	}
+}
+
+// TestUpdateRun_DevBuildRefused 覆盖 POST /api/v1/update：
+// dev 构建应返回 409 + refused:true + kind:"dev"（前端据此渲染 dev 指引）。
+func TestUpdateRun_DevBuildRefused(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	resp, err := http.Post(srv.URL+"/api/v1/update", "application/json", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("POST /update want 409 got %d", resp.StatusCode)
+	}
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body["refused"] != true || body["kind"] != "dev" {
+		t.Errorf("应 refused=true kind=dev, got %v", body)
+	}
+}
+
+// TestUpdateEndpoints_MethodNotAllowed 覆盖两个端点的方法约束。
+func TestUpdateEndpoints_MethodNotAllowed(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	// POST 到 check 端点 → 405
+	resp, err := http.Post(srv.URL+"/api/v1/update/check", "application/json", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("POST /update/check want 405 got %d", resp.StatusCode)
+	}
+	// GET 到 update 端点 → 405
+	resp2, err := http.Get(srv.URL + "/api/v1/update")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp2.Body.Close()
+	if resp2.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("GET /update want 405 got %d", resp2.StatusCode)
+	}
+}

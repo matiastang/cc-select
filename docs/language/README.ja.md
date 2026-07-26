@@ -70,6 +70,27 @@ irm https://raw.githubusercontent.com/matiastang/cc-select/main/scripts/install.
 
 [GitHub Releases](https://github.com/matiastang/cc-select/releases) からプラットフォームに応じたアーカイブをダウンロードし、`cc-select`（Windows の場合は `cc-select.exe`）を `PATH` の通ったディレクトリに展開してから、以下の shell 統合手順を実行してください。
 
+## アップデート
+
+更新方法はインストール方法によって異なります：
+
+| インストール方法 | 更新コマンド |
+|---|---|
+| Homebrew | `brew upgrade cc-select` |
+| Scoop | `scoop update cc-select` |
+| インストールスクリプト / 手動 | `cc-select update` |
+
+`cc-select update` は GitHub Releases を確認し、プラットフォームに応じたアーカイブをダウンロードして、`checksums.txt` で SHA-256 を検証した上でバイナリをその場で置き換えます（置き換え前に現在のバイナリをバックアップします）。Homebrew/Scoop でインストールされたものと dev ビルドはセルフアップデートを拒否します——その場合はパッケージマネージャーのコマンドまたはインストールスクリプトを使ってください。
+
+便利なフラグ：
+
+```bash
+cc-select update --check    # 新しいバージョンの確認のみ
+cc-select update --dry-run  # ダウンロードと検証のみ（バイナリは置き換えない）
+```
+
+アップデート後、すでに起動しているプロセス（実行中の `cc-select gui` を含む）は古いバージョンのままです——新しいバージョンを使うには再起動してください。新しいバージョンがある場合、Web GUI のヘッダーにも更新ボタンが表示されます。
+
 ## クイックスタート
 
 ### 1. shell 統合

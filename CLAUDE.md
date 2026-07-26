@@ -77,6 +77,7 @@ This is the same `eval "$(tool ...)"` pattern used by `nvm`, `pyenv`, and `diren
 │   ├── secrets/                # OS keychain abstraction (macOS/Linux/Windows)
 │   ├── shell/                  # Shell statement emitters (zsh/bash/powershell)
 │   ├── switcher/               # Plans environment variable changes for switching
+│   ├── updater/                # Self-update engine (GitHub Releases check/download/verify/replace)
 │   ├── version/                # Build-time version injection
 │   ├── web/                    # Local HTTP server + REST API + embedded frontend assets
 │   └── frontend/               # React/TypeScript web configuration UI

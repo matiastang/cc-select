@@ -37,6 +37,9 @@
 | `language [en\|zh]` | 查看或设置显示语言 | ❌ | `cc-select language zh` |
 | `init` | 输出要追加到 `.zshrc`/`.bashrc`/`$PROFILE` 的 `ccs()` 函数代码 | ❌ | `cc-select init >> ~/.zshrc` |
 | `gui` | 启动 GUI 配置界面（本地 Web 服务，见 [架构 §5](./architecture.md#5-gui-配置界面)） | ❌ | `cc-select gui` |
+| `update` | 自更新：检查 GitHub Releases 并原地替换二进制（SHA-256 校验 + 备份） | ❌ | `cc-select update --check` / `cc-select update` |
+
+`update` 的 flag：`--check`（仅检查是否有新版本）/ `--dry-run`（下载并校验但不替换）/ `--force`（强制重装当前版本）/ `--prerelease`（允许预发布版本）。Homebrew/Scoop 安装与 dev 构建会拒绝自更新并提示对应命令；详细行为与信任边界见 [distribution.md §3](./distribution.md#3-自更新已实现)。
 
 `add` / `edit` / `use` 均支持 `--mode settings-only|full|default` 以设置/覆盖隔离模式：
 - `cc-select edit glm --mode full`：把 `glm` 的 per-provider 模式设为 Mode A（落盘到 `providers.json`）。

@@ -22,6 +22,7 @@
 | AC11 shell 集成一键安装 | [distribution §2](./distribution.md#2-web-配置页一键安装-shell-集成已实现) | 阶段 3 |
 | AC12 多语言（i18n） | CLI/GUI 语言偏好 | 阶段 4 |
 | AC13 Preset 快速配置 | Preset 供应商模板 | 阶段 2 |
+| AC14 自更新 | [distribution §3](./distribution.md#3-自更新已实现) | 阶段 5 |
 
 ---
 
@@ -231,3 +232,37 @@
 | 4. 编辑 provider，修改默认模型并保存 | profile 中模型更新，其他字段保留 |
 
 **判定**：CLI 与 GUI 均能通过 preset 快速创建/编辑 provider；preset 只提供默认值，保存后可独立修改；必填字段缺失时给出明确错误。
+
+---
+
+## AC14. 自更新（CLI `update` + GUI 更新按钮）
+
+**前提**：已安装一个旧版本 cc-select（非 dev 构建、非 brew/scoop 安装、目录可写）。
+
+### CLI 侧
+
+| 步骤 | 预期 |
+|---|---|
+| 1. `cc-select update --check`（有新版时） | 输出「发现更新：当前 → 最新」，exit 0 |
+| 2. `cc-select update --check`（已最新） | 输出「已是最新」，exit 0 |
+| 3. `cc-select update --dry-run` | 下载并校验通过但不替换；`cc-select --version` 仍是旧版 |
+| 4. `cc-select update` | 下载 → SHA-256 校验 → 原子替换；提示重启生效 |
+| 5. `cc-select --version`（新开进程） | 显示新版本号 |
+| 6. dev 构建执行 `cc-select update` | 拒绝并提示用安装脚本/`make install`，exit 0 |
+| 7. brew 安装的执行 `cc-select update` | 拒绝并提示 `brew upgrade cc-select`，exit 0 |
+| 8. scoop 安装的执行 `cc-select update` | 拒绝并提示 `scoop update cc-select`，exit 0 |
+| 9. 人为篡改下载内容（校验和不匹配） | 报错且旧二进制保持可用（不被破坏） |
+| 10. 两个终端同时执行 `cc-select update` | 一个成功，另一个得到「另一个更新正在进行中」 |
+
+### GUI 侧
+
+| 步骤 | 预期 |
+|---|---|
+| 1. 打开配置页（有新版时） | Header 显示「立即更新 · vX.Y.Z」按钮 |
+| 2. 点击按钮 | 按钮变为「正在更新…」并禁用；完成后显示「已更新」卡片 |
+| 3. 查看卡片 | 提示关闭页面并在终端重跑 `cc-select gui` 生效 |
+| 4. 重开 `cc-select gui` | Header 按钮消失（已最新） |
+| 5. dev 构建的 GUI | Header 不显示更新按钮（check 返回 `hasUpdate=false`，组件静默隐藏，不干扰配置页） |
+| 6. brew/scoop 安装的 GUI 点击更新 | 显示对应的 `brew upgrade` / `scoop update` 指引卡片 |
+
+**判定**：更新链路「检查→下载→校验→替换」端到端可用；所有拒绝场景给出可操作的指引而非报错；任何失败（网络/校验/并发）都不破坏现有二进制；GUI 更新后明确提示需重启。
