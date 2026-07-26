@@ -115,6 +115,23 @@
       "invalid": "invalid language %q (supported: en, zh)",
       "current": "Language: %s",
       "set": "✓ Language set to %s"
+    },
+    "update": {
+      "short": "Check for and install cc-select updates",
+      "long": "Update cc-select in place from GitHub Releases.\n\n  cc-select update              download, verify and install the latest version\n  cc-select update --check      only check for updates; do not install\n  cc-select update --dry-run    download and verify but do not replace the binary\n\nSelf-update is refused for dev builds and Homebrew/Scoop installs (use \"brew upgrade cc-select\" / \"scoop update cc-select\" instead).\nAfter an update, already-running processes keep the old version; restart cc-select to use the new one.\n\nTrust boundary: releases are not code-signed; downloads are verified via HTTPS + SHA-256 against checksums.txt from the same GitHub release (equivalent to scripts/install.sh).",
+      "checkFlag": "Only check for updates; do not install",
+      "dryRunFlag": "Download and verify but do not replace the binary",
+      "forceFlag": "Install even when already up to date",
+      "prereleaseFlag": "Include pre-release versions",
+      "checking": "Checking for updates…",
+      "upToDate": "cc-select %s is up to date (latest %s).",
+      "available": "Update available: %s → %s",
+      "downloading": "Downloading %s…",
+      "verifying": "Verifying checksum…",
+      "installing": "Installing…",
+      "installed": "✓ Updated %s → %s. Restart cc-select to apply.",
+      "restartHint": "Close this process (Ctrl+C) and start cc-select again to use the new version.",
+      "dryRunOk": "✓ Dry run: %s downloaded and verified (not installed)."
     }
   },
   "errors": {
@@ -188,6 +205,25 @@
       "settingsMustBeObject": "settings must be a JSON object",
       "serializeSettings": "serialize settings: %v",
       "invalidLanguage": "language must be en or zh"
+    },
+    "update": {
+      "locateExe": "locate cc-select executable",
+      "devBuild": "cannot self-update a dev build (version=dev); install via scripts/install.sh or \"make install\"",
+      "managedHomebrew": "cc-select was installed by Homebrew; run \"brew upgrade cc-select\" to update",
+      "managedScoop": "cc-select was installed by Scoop; run \"scoop update cc-select\" to update",
+      "notWritable": "install dir %s is not writable (try sudo, or run as Administrator)",
+      "network": "check for updates failed",
+      "rateLimited": "GitHub API rate limit exceeded; set GITHUB_TOKEN to raise it",
+      "noRelease": "no release found on GitHub",
+      "checksumMissing": "checksum for %s not found in checksums.txt",
+      "checksumMismatch": "checksum mismatch for %s: expected %s, got %s",
+      "archiveInvalid": "release archive is corrupt or unreadable",
+      "archiveNoBinary": "archive did not contain the cc-select binary",
+      "downloadFailed": "download %s",
+      "replaceFailed": "replace binary",
+      "locked": "another cc-select update is already in progress",
+      "unsupportedPlatform": "no release build for %s/%s (windows/arm64 is not built)",
+      "noAssetForPlatform": "no release asset for %s/%s"
     }
   },
   "profile": {

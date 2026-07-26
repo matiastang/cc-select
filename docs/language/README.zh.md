@@ -70,6 +70,27 @@ irm https://raw.githubusercontent.com/matiastang/cc-select/main/scripts/install.
 
 从 [GitHub Releases](https://github.com/matiastang/cc-select/releases) 下载对应平台的压缩包，将 `cc-select`（Windows 为 `cc-select.exe`）解压到 `PATH` 中的某个目录，然后继续下面的 shell 集成步骤。
 
+## 更新
+
+更新方式取决于你当初的安装方式：
+
+| 安装方式 | 更新命令 |
+|---|---|
+| Homebrew | `brew upgrade cc-select` |
+| Scoop | `scoop update cc-select` |
+| 安装脚本 / 手动下载 | `cc-select update` |
+
+`cc-select update` 会检查 GitHub Releases，下载对应平台的压缩包，对照 `checksums.txt` 做 SHA-256 校验，然后原地替换二进制（替换前会先备份当前二进制）。对于 Homebrew/Scoop 安装和 dev 构建，它会拒绝自更新——这些情况请改用包管理器命令或安装脚本。
+
+常用 flag：
+
+```bash
+cc-select update --check    # 仅检查是否有新版本
+cc-select update --dry-run  # 下载并校验，但不替换二进制
+```
+
+更新后，已在运行的进程（包括正在运行的 `cc-select gui`）仍是旧版本——重启它们以使用新版本。当有新版本可用时，Web 配置页的页头也会显示更新按钮。
+
 ## 快速开始
 
 ### 1. Shell 集成

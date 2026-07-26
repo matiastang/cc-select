@@ -70,6 +70,27 @@ The script installs to `%LOCALAPPDATA%\cc-select`, adds that directory to your u
 
 Download the archive for your platform from [GitHub Releases](https://github.com/matiastang/cc-select/releases), extract `cc-select` (or `cc-select.exe` on Windows) to a directory on your `PATH`, then follow the shell integration step below.
 
+## Update
+
+How to update depends on how you installed cc-select:
+
+| Install method | Update with |
+|---|---|
+| Homebrew | `brew upgrade cc-select` |
+| Scoop | `scoop update cc-select` |
+| Install script / manual download | `cc-select update` |
+
+`cc-select update` checks GitHub Releases, downloads the archive for your platform, verifies its SHA-256 against `checksums.txt`, and replaces the binary in place (the current binary is backed up first). It refuses to self-update Homebrew/Scoop installs and dev builds — use the package-manager command or the install script in those cases.
+
+Useful flags:
+
+```bash
+cc-select update --check    # only check for a new version
+cc-select update --dry-run  # download and verify but don't replace the binary
+```
+
+After an update, already-running processes (including a running `cc-select gui`) keep the old version — restart them to pick up the new one. The Web GUI also shows an update button in the header when a new version is available.
+
 ## Quick start
 
 ### 1. Shell integration

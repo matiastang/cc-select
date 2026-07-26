@@ -2,9 +2,11 @@ package web
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/cc-select/cc-select/internal/app"
 	"github.com/cc-select/cc-select/internal/config"
@@ -13,6 +15,7 @@ import (
 	"github.com/cc-select/cc-select/internal/presets"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/rcinteg"
+	"github.com/cc-select/cc-select/internal/updater"
 )
 
 // providerDTO 是列表视图（GET /providers）里单个 provider 的精简表示。
@@ -75,6 +78,8 @@ func (h *apiHandler) routes() *http.ServeMux {
 	mux.HandleFunc("/api/v1/language", h.handleLanguage)
 	mux.HandleFunc("/api/v1/shell-integration", h.handleShellIntegration)
 	mux.HandleFunc("/api/v1/shell-integration/install", h.handleShellIntegrationInstall)
+	mux.HandleFunc("/api/v1/update/check", h.handleUpdateCheck)
+	mux.HandleFunc("/api/v1/update", h.handleUpdateRun)
 	return mux
 }
 
@@ -294,6 +299,71 @@ func (h *apiHandler) handleShellIntegrationInstall(w http.ResponseWriter, r *htt
 		"rcPath":  res.RCPath,
 		"snippet": res.Snippet,
 		"message": res.Message,
+	})
+}
+
+// handleUpdateCheck 处理 GET：查询是否有新版本（只读，不拒绝 brew/scoop——
+// 只读查询对所有安装方式都有意义；拒绝是 POST 的职责）。
+func (h *apiHandler) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	res, err := updater.Check(r.Context(), updater.Options{GitHubToken: updater.GitHubTokenFromEnv()})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"currentVersion": res.Current,
+		"latestVersion":  res.Latest,
+		"hasUpdate":      res.HasUpdate,
+		"devBuild":       res.DevBuild,
+		"assetName":      res.AssetName,
+		"releaseNotes":   res.ReleaseNotes,
+		"htmlUrl":        res.HTMLURL,
+	})
+}
+
+// updateMu 串行化安装点击：两个并发 Replace 会竞争同一路径
+// （Windows .old 删除 / Unix rename 目标）。第二个调用方得 409。
+var updateMu sync.Mutex
+
+// handleUpdateRun 处理 POST：跑完整更新流水线。
+// 关键正确性：替换后本 server 进程继续服务（Unix 持有旧 inode；Windows 走
+// renamed-.old），响应正常返回 restartRequired=true，新版本在下次启动生效。
+func (h *apiHandler) handleUpdateRun(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	if !updateMu.TryLock() {
+		writeError(w, http.StatusConflict, i18n.T("errors.update.locked"))
+		return
+	}
+	defer updateMu.Unlock()
+
+	out, err := updater.Run(r.Context(), updater.Options{GitHubToken: updater.GitHubTokenFromEnv()})
+	if err != nil {
+		var refused *updater.RefusedError
+		if errors.As(err, &refused) {
+			// 409 + kind：前端据此渲染精确的升级指引（brew/scoop/dev/不可写）。
+			writeJSON(w, http.StatusConflict, map[string]any{
+				"error":   err.Error(),
+				"refused": true,
+				"kind":    refused.Kind,
+			})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":          "installed",
+		"fromVersion":     out.FromVersion,
+		"toVersion":       out.ToVersion,
+		"message":         out.Message,
+		"restartRequired": out.Installed,
 	})
 }
 

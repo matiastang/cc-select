@@ -4,6 +4,7 @@ import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 import { updateDocumentLang, updateDocumentTitle } from "../i18n/utils";
 import { IdPlaceholder } from "./IdPlaceholder";
 import { ThemeSwitcher } from "../theme/ThemeSwitcher";
+import { CheckUpdateButton } from "./CheckUpdateButton";
 
 export function Header() {
   const { t, i18n } = useTranslation();
@@ -18,6 +19,7 @@ export function Header() {
       <div className="header-title">
         <h1>{t("appTitle")}</h1>
         <div className="header-controls">
+          <CheckUpdateButton />
           <ThemeSwitcher />
           <LanguageSwitcher />
         </div>

@@ -1,0 +1,17 @@
+{
+  "checkButton": "Check for updates",
+  "checking": "Checking…",
+  "upToDate": "cc-select is up to date (v{{version}})",
+  "available": "Update available: {{current}} → {{latest}}",
+  "installButton": "Update now",
+  "changelog": "Changelog",
+  "installing": "Updating…",
+  "installed": "✓ Updated to v{{version}}.",
+  "restartHint": "Close this tab and re-run \"cc-select gui\" in your terminal to use the new version.",
+  "error": "Update failed: {{error}}",
+  "managedHomebrew": "Installed by Homebrew. Run \"brew upgrade cc-select\" to update.",
+  "managedScoop": "Installed by Scoop. Run \"scoop update cc-select\" to update.",
+  "notWritable": "Install directory is not writable. Retry with sudo / as Administrator.",
+  "devBuild": "Dev build — update via the install script or \"make install\".",
+  "badge": "Update"
+}

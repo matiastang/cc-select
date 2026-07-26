@@ -115,6 +115,23 @@
       "invalid": "无效语言 %q（可选：en、zh）",
       "current": "语言: %s",
       "set": "✓ 语言已设为 %s"
+    },
+    "update": {
+      "short": "检查并安装 cc-select 更新",
+      "long": "从 GitHub Releases 原地更新 cc-select。\n\n  cc-select update              下载、校验并安装最新版本\n  cc-select update --check      仅检查更新，不安装\n  cc-select update --dry-run    下载并校验，但不替换二进制\n\ndev 构建与 Homebrew/Scoop 安装会被拒绝自更新（请改用 \"brew upgrade cc-select\" / \"scoop update cc-select\"）。\n更新后，已在运行的进程仍是旧版本；重启 cc-select 以使用新版本。\n\n信任边界：release 未做代码签名；下载经 HTTPS + SHA-256（对同一 GitHub release 的 checksums.txt）校验，与 scripts/install.sh 等同。",
+      "checkFlag": "仅检查更新，不安装",
+      "dryRunFlag": "下载并校验，但不替换二进制",
+      "forceFlag": "即使已为最新也强制安装",
+      "prereleaseFlag": "包含预发布版本",
+      "checking": "正在检查更新…",
+      "upToDate": "cc-select %s 已是最新（latest %s）。",
+      "available": "发现更新：%s → %s",
+      "downloading": "正在下载 %s…",
+      "verifying": "正在校验 checksum…",
+      "installing": "正在安装…",
+      "installed": "✓ 已更新 %s → %s。重启 cc-select 使其生效。",
+      "restartHint": "关闭本进程（Ctrl+C）并重新启动 cc-select 以使用新版本。",
+      "dryRunOk": "✓ Dry run：%s 已下载并校验（未安装）。"
     }
   },
   "errors": {
@@ -188,6 +205,25 @@
       "settingsMustBeObject": "settings 必须是 JSON 对象",
       "serializeSettings": "序列化 settings: %v",
       "invalidLanguage": "language 必须是 en 或 zh"
+    },
+    "update": {
+      "locateExe": "定位 cc-select 可执行文件",
+      "devBuild": "dev 构建无法自更新（version=dev）；请用 scripts/install.sh 或 make install 安装",
+      "managedHomebrew": "cc-select 由 Homebrew 安装；请运行 \"brew upgrade cc-select\" 更新",
+      "managedScoop": "cc-select 由 Scoop 安装；请运行 \"scoop update cc-select\" 更新",
+      "notWritable": "安装目录 %s 不可写（请尝试 sudo 或以管理员身份运行）",
+      "network": "检查更新失败",
+      "rateLimited": "GitHub API 速率限制；设置 GITHUB_TOKEN 以提升额度",
+      "noRelease": "GitHub 上未找到 release",
+      "checksumMissing": "checksums.txt 中找不到 %s 的校验值",
+      "checksumMismatch": "%s 的 checksum 不匹配：期望 %s，实际 %s",
+      "archiveInvalid": "release 压缩包损坏或无法读取",
+      "archiveNoBinary": "压缩包未包含 cc-select 二进制",
+      "downloadFailed": "下载 %s",
+      "replaceFailed": "替换二进制",
+      "locked": "另一个 cc-select 更新正在进行中",
+      "unsupportedPlatform": "%s/%s 没有发布构建（windows/arm64 未构建）",
+      "noAssetForPlatform": "没有适配 %s/%s 的发布产物"
     }
   },
   "profile": {

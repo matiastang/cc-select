@@ -88,7 +88,49 @@ cc-select gui        # 开浏览器配置页
 
 ---
 
-## 3. 备选：桌面 App + Homebrew Cask（若日后 GUI 改回桌面 App）
+## 3. 自更新（已实现）
+
+`cc-select update` 命令与 Web 配置页 Header 的更新按钮共用 `internal/updater` 内核
+（CLI/Web 同源，同 `rcinteg` 模式），从 GitHub Releases 原地更新二进制。
+
+### 用法
+
+```bash
+cc-select update              # 检查 → 下载 → SHA-256 校验 → 原子替换
+cc-select update --check      # 仅检查，不安装
+cc-select update --dry-run    # 下载+校验但不替换
+cc-select update --force      # 即使已最新也重装（修复损坏二进制）
+cc-select update --prerelease # 含预发布版本
+```
+
+Web：`GET /api/v1/update/check` → `{currentVersion, latestVersion, hasUpdate, devBuild, assetName, releaseNotes, htmlUrl}`；
+`POST /api/v1/update` → `{status, fromVersion, toVersion, restartRequired}`，
+策略拒绝时返回 `409 {refused:true, kind: dev|homebrew|scoop|notWritable}`。
+
+### 关键行为
+
+- **拒绝自更新的场景**：dev 构建（`version=dev`，请用安装脚本/`make install`）；
+  Homebrew 安装（路径含 `/Cellar/`，请 `brew upgrade cc-select`）；
+  Scoop 安装（路径含 `\scoop\apps\`，请 `scoop update cc-select`）；
+  安装目录不可写（提示 sudo/管理员）。拒绝不是失败（CLI exit 0）。
+- **替换语义**：Unix 先备份 `<exe>.bak` 再 `rename` 原子替换（运行中进程持有旧 inode）；
+  Windows 走 `.old` rename dance（运行中的 exe 先改名再移入新文件，移植自 `install.ps1`）。
+  **已在运行的进程（含 `cc-select gui` 本身）仍是旧版本，重启后生效**。
+- **并发**：单进程内由 Web `updateMu` 互斥；跨进程由 `~/.cc-select/update.lock`
+  （mtime 超过 10 分钟视为陈旧可窃取）防护。
+- **限流**：GitHub API 未认证 60/hr；设置 `GITHUB_TOKEN`/`GH_TOKEN` 环境变量升至 5000/hr。
+
+### 信任边界
+
+Release 未做代码签名。更新器经 **HTTPS + SHA-256**（对同一 release 的 `checksums.txt`）
+校验下载，与 `scripts/install.sh` / `install.ps1` 等同。开启 Smart App Control 的
+Windows 上，替换后的二进制与全新安装一样可能被拦截（见
+[windows-support §7](./windows-support.md#7-smart-app-control-与未签名可执行文件)）。
+未来如需更强保障，可在 `updater` 的校验接缝处引入 cosign/sigstore，无需改架构。
+
+---
+
+## 4. 备选：桌面 App + Homebrew Cask（若日后 GUI 改回桌面 App）
 
 一些现有全局切换工具（如 cc-switch）走的是桌面 App + Cask 路线。该路线作为本项目的**备选保留**。原理：`brew install --cask <name>` 让 Homebrew 自动「下载 `.dmg` → 挂载 → 拖进 `/Applications`」。
 
@@ -108,13 +150,13 @@ winget install cc-select             # Windows
 
 ---
 
-## 4. 跨平台注意（Q6）
+## 5. 跨平台注意（Q6）
 
 - **macOS/Linux**：`export`/`unset` + `.zshrc`/`.bashrc`，机制一致。
 - **Windows**：PowerShell 集成已实现，含 `$PROFILE` 委托探测、UTF-8 BOM 写入与加载验证，由 CI 的「Windows PowerShell integration」步骤覆盖。CMD 不支持（见 [windows-support §4](./windows-support.md#4-为何不支持-cmd)）。
 
 ---
 
-## 5. 维护者参考
+## 6. 维护者参考
 
 包管理器 manifest 的自动发布、Token 配置、发版验证等维护者流程，详见 [docs/release.md](./release.md)。
