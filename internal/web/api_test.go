@@ -396,9 +396,11 @@ func mustJSON(t *testing.T, v any) string {
 	return string(b)
 }
 
-// TestCreate_NoPlaintextInProvidersJSON 验证敏感值只进 profile settings.json，
-// 不落到全局共享的 providers.json（元信息只存 id/name）。
-func TestCreate_NoPlaintextInProvidersJSON(t *testing.T) {
+// TestCreate_PersistsEnvTruthInProvidersJSON 验证 env 真值（含敏感值）持久化到
+// providers.json——Mode P 时代的统一契约：providers.json 是 env 唯一持久真值源
+// （0600/0700，防护等级与 profile settings.json 相同；启用 Mode P 时敏感值
+// 迁 keychain 占位化，见 specs/001 研究 D8）。
+func TestCreate_PersistsEnvTruthInProvidersJSON(t *testing.T) {
 	srv, cfg := newTestServer(t)
 	defer srv.Close()
 	defer os.Unsetenv("CC_SELECT_CONFIG")
@@ -415,10 +417,10 @@ func TestCreate_NoPlaintextInProvidersJSON(t *testing.T) {
 		t.Fatalf("POST want 201 got %d", resp.StatusCode)
 	}
 
-	// providers.json（全局元信息）不应含任何 env 值（含 token、base url）。
+	// providers.json 应持久化完整 env 真值，且文件 0600。
 	raw, _ := os.ReadFile(cfg)
-	if strings.Contains(string(raw), "tok-secret-123") || strings.Contains(string(raw), "https://imp") {
-		t.Errorf("providers.json 不应含 env 值：%s", string(raw))
+	if !strings.Contains(string(raw), "tok-secret-123") || !strings.Contains(string(raw), "https://imp") {
+		t.Errorf("providers.json 应含 env 真值：%s", string(raw))
 	}
 	// profile settings.json 应含明文 env（含敏感 token）——claude 靠它工作。
 	env, err := profile.ReadEnv("imp")
@@ -1113,5 +1115,37 @@ func TestListProviders_ProxyArtifactShowsTruth(t *testing.T) {
 	}
 	if env["ANTHROPIC_MODEL"] != "glm-5.3" {
 		t.Errorf("列表应展示真值 model: %v", env)
+	}
+}
+
+// 全局模式为 proxy 时，保存 provider 不得被 Sync 的防误用守卫拦截——
+// 真值落 providers.json，profile 重建为代理派生产物。
+func TestUpdateProvider_GlobalProxyModeSucceeds(t *testing.T) {
+	srv, cfgPath := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	os.WriteFile(filepath.Join(filepath.Dir(cfgPath), "prefs.json"), []byte(`{"isolationMode":"proxy"}`), 0o600)
+
+	body := `{"name":"GLM","settings":{"env":{"ANTHROPIC_BASE_URL":"https://open.bigmodel.cn/api/anthropic","ANTHROPIC_AUTH_TOKEN":"sk-real","ANTHROPIC_MODEL":"glm-5.3"}}}`
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/providers/glm", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("全局 proxy 下保存应成功，got %d: %s", resp.StatusCode, b)
+	}
+	// 真值进 providers.json。
+	data, _ := os.ReadFile(cfgPath)
+	if !strings.Contains(string(data), "sk-real") || !strings.Contains(string(data), "open.bigmodel.cn") {
+		t.Errorf("providers.json 应保存真值: %s", data)
+	}
+	// profile = 代理派生产物。
+	env, _ := profile.ReadEnv("glm")
+	if env["ANTHROPIC_BASE_URL"] != "http://127.0.0.1:48270" {
+		t.Errorf("proxy 模式下 profile 应指向 daemon: %+v", env)
 	}
 }

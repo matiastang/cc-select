@@ -464,13 +464,15 @@ func (h *apiHandler) createProvider(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	mode := prefs.ResolveMode("", in.IsolationMode, a.Prefs.IsolationMode)
-	if err := applySettings(in.ID, data, mode); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+	envSaved, aerr := applySettings(in.ID, data, mode)
+	if aerr != nil {
+		writeError(w, http.StatusInternalServerError, aerr.Error())
 		return
 	}
 	a.Config.Providers[in.ID] = config.Provider{
 		ID:            in.ID,
 		Name:          in.Name,
+		Env:           envSaved,
 		IsolationMode: in.IsolationMode,
 		PresetID:      in.Preset,
 		APIFormat:     in.APIFormat,
@@ -542,14 +544,16 @@ func (h *apiHandler) updateProvider(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 	mode := prefs.ResolveMode("", in.IsolationMode, a.Prefs.IsolationMode)
-	// 整体覆盖：按 mode 写 profile。
-	if err := applySettings(id, data, mode); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+	// 整体覆盖：按 mode 写 profile（env 真值随 applySettings 落盘 providers.json）。
+	envSaved, aerr := applySettings(id, data, mode)
+	if aerr != nil {
+		writeError(w, http.StatusInternalServerError, aerr.Error())
 		return
 	}
 	a.Config.Providers[id] = config.Provider{
 		ID:            id,
 		Name:          in.Name,
+		Env:           envSaved, // 写回快照，防下方 config.Save 旧值覆盖刚落盘的 env
 		IsolationMode: in.IsolationMode,
 		PresetID:      in.Preset,
 		APIFormat:     in.APIFormat,
@@ -635,34 +639,53 @@ func normalizeSettings(raw json.RawMessage) ([]byte, error) {
 	return out, nil
 }
 
-// applySettings 按 mode 把 settings 写入 profile。
+// applySettings 按 mode 把 settings 写入 profile，并把 env 真值持久化到 providers.json。
 //   - Mode A（full）：原文写入 data，保留 env 之外字段（permissions、model 等）。
-//   - Mode B（settings-only）：只取 env 做整体替换，非 env 字段来自全局 ~/.claude/settings.json。
+//   - Mode B（settings-only）/ Mode P：只取 env 做整体替换；Mode P 下 profile 是
+//     派生产物（仅代理 BASE_URL），env 的持久真值必须落 providers.json。
 //
 // data 应是已校验/规范化的 JSON 对象字节。官方 provider 无 profile（no-op）。
-func applySettings(id string, data []byte, mode prefs.Mode) error {
-	switch mode {
-	case prefs.ModeFull:
-		if _, err := profile.EnsureRaw(id, data); err != nil {
-			return err
-		}
-	default:
-		var settings map[string]any
-		if err := json.Unmarshal(data, &settings); err != nil {
-			return fmt.Errorf(i18n.T("profile.parseGlobalSettings"), err)
-		}
-		envAny, _ := settings["env"].(map[string]any)
-		env := map[string]string{}
-		for k, v := range envAny {
-			if s, ok := v.(string); ok {
-				env[k] = s
-			}
-		}
-		if _, _, err := profile.Sync(id, env, mode); err != nil {
-			return err
+func applySettings(id string, data []byte, mode prefs.Mode) (map[string]string, error) {
+	var settings map[string]any
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return nil, fmt.Errorf(i18n.T("profile.parseGlobalSettings"), err)
+	}
+	envAny, _ := settings["env"].(map[string]any)
+	env := map[string]string{}
+	for k, v := range envAny {
+		if s, ok := v.(string); ok {
+			env[k] = s
 		}
 	}
-	return nil
+	// env 真值 → providers.json（与 CLI add/edit 的 writeProvider 行为对齐）。
+	if err := saveProviderEnv(id, env); err != nil {
+		return nil, err
+	}
+	if mode == prefs.ModeFull {
+		if _, err := profile.EnsureRaw(id, data); err != nil {
+			return nil, err
+		}
+		return env, nil
+	}
+	if _, _, err := router.SyncProfile(id, env, mode); err != nil {
+		return nil, err
+	}
+	return env, nil
+}
+
+// saveProviderEnv 把 env 写入 providers.json 对应 provider（存在则更新 Env 字段）。
+func saveProviderEnv(id string, env map[string]string) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	p, ok := cfg.Providers[id]
+	if !ok {
+		p = config.Provider{ID: id} // create 流程：applySettings 先于元信息落库
+	}
+	p.Env = env
+	cfg.Providers[id] = p
+	return config.Save(cfg)
 }
 
 // isSensitiveVar 判断变量名是否敏感（用于 toDTO 脱敏：值不回传前端）。

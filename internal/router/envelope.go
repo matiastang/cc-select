@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/cc-select/cc-select/internal/config"
+	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/profile"
 )
 
@@ -28,4 +29,19 @@ func providerEnvFor(providerID string) (map[string]string, error) {
 		return p.Env, nil
 	}
 	return profile.ReadEnv(providerID) // legacy 回退；读取失败或为空都交给调用方判定
+}
+
+// SyncProfile 是 add/edit/web 保存路径的统一 profile 构造入口：
+// proxy 模式转 SyncProxy（addr 来自 ResolveAddr——无需 daemon 在位，只是写指向），
+// 其余模式直通 profile.Sync。消除「全局 proxy 下保存被 Sync 防误用守卫拦截」的死角
+// （真机使用中发现）。官方 provider 两边都是 no-op。
+func SyncProfile(id string, env map[string]string, mode prefs.Mode) (dir string, warnings []string, err error) {
+	if mode == prefs.ModeProxy && id != config.OfficialProviderID {
+		addr, aerr := ResolveAddr()
+		if aerr != nil {
+			return "", nil, aerr
+		}
+		return profile.SyncProxy(id, "http://"+addr)
+	}
+	return profile.Sync(id, env, mode)
 }

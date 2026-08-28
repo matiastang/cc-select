@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cc-select/cc-select/internal/config"
+	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/routes"
 	"github.com/cc-select/cc-select/internal/secrets"
 )
@@ -275,5 +276,26 @@ func TestRouteList_ToleratesShortCorruptTID(t *testing.T) {
 	_ = routes.Save(tbl)
 	if _, _, err := execRoot(t, "", "route", "list"); err != nil {
 		t.Errorf("畸形 tid 不应 panic: %v", err)
+	}
+}
+
+func TestEdit_GlobalProxyModeSucceeds(t *testing.T) {
+	setTempCfg(t)
+	// 完整 env（避免 edit 走交互式 key 提示）。
+	os.WriteFile(os.Getenv("CC_SELECT_CONFIG"),
+		[]byte(`{"providers":{"glm":{"id":"glm","name":"GLM","env":{"ANTHROPIC_BASE_URL":"https://open.bigmodel.cn/api/anthropic","ANTHROPIC_AUTH_TOKEN":"sk-real"}}}}`), 0o600)
+	os.WriteFile(filepath.Join(filepath.Dir(os.Getenv("CC_SELECT_CONFIG")), "prefs.json"),
+		[]byte(`{"isolationMode":"proxy"}`), 0o600)
+
+	if _, _, err := execRoot(t, "", "edit", "glm", "--model", "glm-5.3"); err != nil {
+		t.Fatalf("全局 proxy 下 edit 不应被守卫拦截: %v", err)
+	}
+	data, _ := os.ReadFile(os.Getenv("CC_SELECT_CONFIG"))
+	if !strings.Contains(string(data), "glm-5.3") {
+		t.Errorf("edit 应写入 providers.json 真值: %s", data)
+	}
+	env, _ := profile.ReadEnv("glm")
+	if env["ANTHROPIC_BASE_URL"] != "http://127.0.0.1:48270" {
+		t.Errorf("profile 应为代理派生产物: %+v", env)
 	}
 }
