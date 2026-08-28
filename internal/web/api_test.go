@@ -922,6 +922,9 @@ func TestRoutesEndpoint_List(t *testing.T) {
 	srv, _ := newTestServer(t)
 	defer srv.Close()
 	defer os.Unsetenv("CC_SELECT_CONFIG")
+	// 探活地址指向死端口：本机可能有真实 daemon 在默认端口跑着（开发机常态），
+	// 测试不得依赖机器状态——固定断言 running=false。
+	t.Setenv("CC_SELECT_PROXY_ADDR", "127.0.0.1:1")
 	tidA, _ := routes.NewTID()
 	tidB, _ := routes.NewTID()
 	_ = routes.Set(tidA, "glm")
