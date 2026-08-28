@@ -112,6 +112,46 @@
 - **重要** 每一个功能点一个 commit，不要把多个功能点放在一个 commit 中，这样不利于代码的维护和回滚
 - 项目需要提供 GitHub Issue 模板，规范 issue 提交（如 Bug 报告、功能建议）
 
+### v0.0.6
+
+#### R9. Claude Code 会话内切换 provider（热切换，不丢上下文）
+
+> 用户原话：开始进入的时候是 GLM，结果 GLM 5 小时窗口用量到了，我想切换到其他服务商（比如 MiniMax）来继续任务。
+
+**场景**：某终端已进入 Claude Code 会话（provider A），A 到达用量限额或不可用时，需切换到 provider B 继续当前任务。
+
+**验收性要求**：
+
+- **上下文延续**：切换后，原会话的对话历史与任务进度可继续，不从头开始。
+- **会话内触发**：切换在 Claude Code 会话内即可完成，不要求退出重启会话（「退出 → 重进」仅作为降级手段）。
+- **不破坏 R1（shell 级隔离）**：切换只影响当前终端，其他终端正在使用的 provider 不受影响。
+
+**分级交付**：
+
+- **P0（基线，补强现状）**：将「退出 → `ccs use B` → `claude --continue`」的跨 provider 续会话确立为受验收的标准工作流（依赖 Mode B 的 projects/ 共享；需补验收用例与文档说明；Mode A 下不适用，需注明）。
+- **P1（完整目标）**：引入**本地路由代理模式**（opt-in 的第三种隔离模式，与现有模式并存）：`ANTHROPIC_BASE_URL` 恒定指向本地代理，代理按 per-terminal 身份查路由表转发；切换 = 改路由表，会话不重启。
+
+**P1 派生要求**：
+
+- 每终端唯一身份标识（伪 token），代理按身份分流，保住 R1。
+- 真 API token 收敛到代理侧（接 keychain），不再明文落 profile `settings.json`（顺带收敛 R7 已知风险）。
+- 代理须处理：model 名改写、SSE 流式透传、daemon 生命周期、三平台可用（Q6）。
+
+**非目标（本期不做）**：
+
+- 不做限额自动检测 / 自动 failover（仅记录为候选增强）。
+- 不替换现有 eval 直连模式，代理模式为 opt-in。
+
+**开放问题**：
+
+| 编号 | 问题 | 当前倾向 |
+|---|---|---|
+| Q8 | 会话内切换的触发形态 | 候选：CLI 子命令（Bash 内执行）/ MCP 工具 / 代理拦截 in-band 命令（CCR 式）。先 CLI，MCP 作后续增强。 |
+| Q9 | daemon 形态与生命周期 | 候选：用户级常驻服务（launchd/systemd/任务计划）vs 首次 use 按需拉起 + 空闲退出。涉及产品形态变化（单二进制无常驻 → 有常驻），需确认。 |
+| Q10 | 是否支持自动 failover | 检测 429/限额自动切备用 provider。建议本期不做。 |
+
+→ 可行性分析与架构决策待 SDD 流程（`/speckit-specify`）产出后回填文档链。
+
 ## 变更记录
 
 | 日期 | 变更 | 来源 |
@@ -126,4 +166,5 @@
 | 2026-07-05 | **文档重构**：保留 cc-switch 作为「其他方案分析」的对比与能力分析；补充 i18n（Q7）已定决策；梳理「问题→方案→架构→实施」叙事主线。 | 文档整理 |
 | 2026-08-28 | 新增「新增需求记录」段（说明 + 开发基本要求）；其中 git hooks 管理器决策：**沿用 lefthook、不引入 husky**，commitlint（或等效 commit-msg 校验）为待补项。 | 用户确认 |
 | 2026-08-28 | **流程纪律缺口补齐**：commitlint（conventional）挂入 lefthook commit-msg hook；TDD / 循环 code review / commit 粒度写入 SpecKit 宪法 v1.1.0 与 CLAUDE.md；Playwright e2e 纳入 CI。 | 开发补齐 |
+| 2026-08-28 | 新增 v0.0.6 需求 R9：Claude Code 会话内切换 provider（限额救急；上下文延续 + 保持 shell 级隔离），含 P0/P1 分级与开放问题 Q8–Q10。 | 用户提出 |
 
