@@ -4,7 +4,8 @@
   "mode": {
     "inherit": "继承全局",
     "settingsOnly": "仅 settings.json 隔离（共享历史/插件）",
-    "full": "整目录隔离（完全独立）"
+    "full": "整目录隔离（完全独立）",
+    "proxy": "代理路由（会话内热切，可选启用）"
   },
   "configuredKey": "已配置 key",
   "officialNotice": "使用系统默认配置（~/.claude），不可自定义",
@@ -71,5 +72,17 @@
     "deleteFailed": "删除失败",
     "saveGlobalModeFailed": "保存全局模式失败",
     "missingRequired": "缺少必填字段：{{vars}}"
+  },
+  "routes": {
+    "title": "活跃路由",
+    "hint": "Mode P 的终端路由表与路由 daemon 状态。在 Claude Code 会话内执行 cc-select route switch <provider> 即可热切。",
+    "routerRunning": "路由运行中（{{addr}}）",
+    "routerDown": "路由未运行",
+    "ensureButton": "启动 / 修复路由服务",
+    "pruneButton": "清理过期路由",
+    "provider": "服务商",
+    "updatedAt": "更新时间",
+    "ensureFailed": "路由服务启动失败",
+    "migrated": "已启用代理模式：{{n}} 条敏感值迁入 keychain。"
   }
 }
