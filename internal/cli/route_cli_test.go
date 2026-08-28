@@ -168,3 +168,36 @@ func twoTIDs(t *testing.T) (a, b string, err error) {
 }
 
 var _ = filepath.Join // 保留 import 以防后续用
+
+func TestCurrent_RouteTableWinsOverActive(t *testing.T) {
+	setTempCfg(t)
+	writeProviders(t)
+	tid, _ := routes.NewTID()
+	_ = routes.Set(tid, "minimax")
+	t.Setenv(config.TerminalIDVar, tid)
+	t.Setenv(config.ActiveVar, "glm") // 会话内切换后 shell 侧滞后（FR-008 场景）
+
+	out, _, err := execRoot(t, "", "current")
+	if err != nil {
+		t.Fatalf("current: %v", err)
+	}
+	if !strings.Contains(out, "minimax") || strings.Contains(out, "glm") {
+		t.Errorf("Mode P 下应以路由表为真值: %q", out)
+	}
+}
+
+func TestCurrent_NoRouteFallsBackToActive(t *testing.T) {
+	setTempCfg(t)
+	writeProviders(t)
+	tid, _ := routes.NewTID() // 有 TID 但路由表无条目
+	t.Setenv(config.TerminalIDVar, tid)
+	t.Setenv(config.ActiveVar, "glm")
+
+	out, _, err := execRoot(t, "", "current")
+	if err != nil {
+		t.Fatalf("current: %v", err)
+	}
+	if !strings.Contains(out, "glm") {
+		t.Errorf("无路由条目应回退读 CC_SELECT_ACTIVE: %q", out)
+	}
+}
