@@ -162,6 +162,7 @@ cc-select は**未署名のオープンソース**バイナリです。Windows �
 
 - **Mode B — `settings-only`（デフォルト）**: 各プロバイダーごとに `settings.json` のみ分離します。履歴・プラグイン・commands などは `~/.claude` へのリンクで共有されます。
 - **Mode A — `full`**: profile ディレクトリ全体を完全に分離します。
+- **Mode P — `proxy`**（v0.0.6、オプトイン）: ローカルルーティング daemon によるセッション内ホットスイッチ——現在のプロバイダーがレート制限に達したら、実行中の Claude Code セッション内で `cc-select route switch <provider>` を実行するだけです。詳細は [docs/isolation-modes.md §10](../isolation-modes.md)。
 
 グローバル既定値は `cc-select mode` で確認・設定できます。per-provider 上書きや一度きりの上書きには `cc-select edit <id> --mode ...` または `ccs use <id> --mode ...` を使ってください。詳細は [docs/isolation-modes.md](../isolation-modes.md) を参照。
 

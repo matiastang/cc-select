@@ -140,3 +140,24 @@ shell 是对的，是 claude 启动时用 settings.json 盖掉了它。
 
 > 完整设计与按文件实现方案见 [isolation-modes.md](./isolation-modes.md)；全部决策已定，见 [§9](./isolation-modes.md#9-已定决策)。
 
+
+---
+
+## 8. 身份/路由分离：会话内切换如何绕开两条物理约束（Mode P，v0.0.6）
+
+R9（会话内热切 provider）面对的两条硬约束与解法：
+
+| 约束 | 事实来源 | 解法 |
+|---|---|---|
+| claude env 会话启动即冻结 | 官方文档 + anthropics/claude-code#62656（env 不热重载） | env 只装**恒定身份**（BASE_URL=本地 daemon、AUTH_TOKEN=TID 伪 token），provider 信息一个都不进 env |
+| 子进程改不了父进程环境 | Unix 语义（= 本项目立项约束） | 切换 = 改路由表**文件**（`route switch`），daemon 每请求重读——不碰任何进程的 env |
+
+关键工程细节（详见 specs/001 research.md D1–D13）：
+
+1. **BASE_URL 走 profile settings.json 而非 shell export**——借 Mode B「env 整体替换」语义顺带屏蔽用户全局 `~/.claude/settings.json` 遗留 `ANTHROPIC_*` 的污染（§6 的老坑）。
+2. **路由同步语句**：`use` 发射的第 5 条语句在 eval 上下文里按 shell 的**真实** TID 静默执行 `route switch`——二进制无法得知 shell 既有 TID，守卫只负责首建。这是 use 路径路由写入的唯一真值来源。
+3. **daemon 重启必须沿用状态文件里的 addr**：claude 的 BASE_URL 已固化在该端口上。
+4. **model 改写必须在 daemon 侧**：切换后 claude 仍按启动时认知发送旧 model id。
+5. **密钥真值只在 daemon 内存**：keychain 占位解析 + 缓存，profile/providers.json 均无明文（启用即迁移）。
+
+测试锚点：集成测试（fake upstream）覆盖切换时序/在途完成/零串扰（SC-003 脚本化）；SSE 即时 flush 有时序断言。

@@ -24,6 +24,7 @@
 | AC13 Preset 快速配置 | Preset 供应商模板 | 阶段 2 |
 | AC14 自更新 | [distribution §3](./distribution.md#3-自更新已实现) | 阶段 5 |
 | AC15 跨 provider 续会话 | R9（P0 降级工作流）/ [isolation-modes §2.1](./isolation-modes.md#21-mode-b-的直接收益跨-provider-续会话限额救急) | v0.0.6 |
+| AC16 会话内热切（Mode P） | R9（P1）/ [isolation-modes §10](./isolation-modes.md#10-mode-p代理路由模式v006--r9-新增) | v0.0.6 |
 
 ---
 
@@ -286,3 +287,26 @@
 | 6. 在 Mode A（full）下重复步骤 1–3 | **不适用**：历史随 provider 隔离，`--continue` 看不到 glm 的会话（设计使然，文档已标注） |
 
 **判定**：「退出 → `ccs use <另一家>` → `claude --continue`」三步是受验收保护的标准工作流（R9-P0）；上下文零丢失；仅 Mode B 承诺，Mode A 显式不适用。
+
+
+---
+
+## AC16. 会话内热切（R9 P1：Mode P）
+
+> 机制见 [isolation-modes §10](./isolation-modes.md#10-mode-p代理路由模式v006--r9-新增)；自动化覆盖：`go test -tags integration ./internal/router/...`（切换时序/在途完成/零串扰）。
+
+**前提**：已配置两个第三方 provider（glm、minimax）；`cc-select mode proxy` 已启用（密钥已迁 keychain）。
+
+| 步骤 | 预期 |
+|---|---|
+| 1. `ccs use glm` 后 `claude` 正常对话 | 走 GLM；`echo $CC_SELECT_TID` 形如 `ccs-<32hex>`；`cc-select route status` 显示 `provider=glm router=ok` |
+| 2. 会话内执行 `cc-select route switch minimax` | 输出 `glm → minimax`，<1s；**会话未重启** |
+| 3. 继续对话并引用切换前内容 | 由 MiniMax 服务且上下文完整（AC15 暗号法可复用验证） |
+| 4. `cc-select current` | 显示 `minimax`（路由表真值，与切换一致） |
+| 5. 另一终端（用 deepseek）持续对话，终端 A 反复 `route switch` ≥10 次 | 终端 B 始终 deepseek，零串扰（自动化：TestIntegration_CrossSwitchZeroCrosstalk） |
+| 6. `cc-select router stop` 后继续对话 | 连接失败提示；执行任一 `cc-select` 命令（如 `route status`）自愈后**无需重开会话**继续 |
+| 7. `route switch <未配置>` / `route switch claude-official` | 明确报错；当前会话不受影响（原子性，无中间态） |
+| 8. 启用后 grep `~/.cc-select/providers.json` 与 `profiles/*/settings.json` | 前者为 `$keychain:` 占位，后者无任何真实密钥（US4） |
+| 9. Web GUI | 模式选择器含「代理路由」；「活跃路由」面板显示 daemon 状态与路由表，ensure/prune 可用 |
+
+**判定**：会话内切换下一笔生效、上下文零丢失、终端间零串扰、失败原子、daemon 自愈不重开会话、Mode P 下无明文密钥落盘。

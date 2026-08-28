@@ -162,6 +162,7 @@ A child process cannot modify its parent shell's environment. `cc-select` theref
 
 - **Mode B — `settings-only` (default)**: only `settings.json` is isolated per provider; history, plugins, commands, etc. are shared via links back to `~/.claude`.
 - **Mode A — `full`**: the entire profile directory is isolated.
+- **Mode P — `proxy`** (v0.0.6, opt-in): in-session hot-switching via a local routing daemon — run `cc-select route switch <provider>` inside a running Claude Code session when the current provider hits its quota. See [docs/isolation-modes.md §10](docs/isolation-modes.md).
 
 Use `cc-select mode` to view/set the global default, or `cc-select edit <id> --mode ...` / `ccs use <id> --mode ...` for per-provider or one-time overrides. See [docs/isolation-modes.md](docs/isolation-modes.md) for details.
 

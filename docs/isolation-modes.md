@@ -383,3 +383,52 @@ ResolveMode(oneOff, provider, global):
 | 4 | **不做迁移**；Mode B 构造权威化（空真实条目清掉重建，非空警告+跳过） |
 | 5 | profile settings.json 的 env **整体替换**为 provider env（非深合并） |
 | 6 | `use` **每次重建** profile（幂等，自愈） |
+
+---
+
+## 10. Mode P：代理路由模式（v0.0.6 / R9 新增）
+
+> 需求：[requirements.md R9](./requirements.md)（会话内切换 provider）；设计过程：specs/001-in-session-provider-switch/（spec/plan/research/contracts）。
+
+### 10.1 动机
+
+Mode A/B 的切换都发生在 claude **启动前**（改 env/profile）。R9 要求：provider 限额时**在运行中的 Claude Code 会话内**切换、不重启、上下文延续、不影响其他终端。两条物理约束决定了必须换轨：
+
+- claude 的 env 在会话启动时冻结（官方确认 env 类不热重载）；
+- 子进程（Bash/MCP）改不了父进程环境（= 本项目宪法 I 的立身约束）。
+
+### 10.2 机制：身份/路由分离
+
+```
+恒定项（env，冻结无所谓）             可变项（daemon 侧，随时改）
+├─ ANTHROPIC_BASE_URL = 127.0.0.1:48270   ├─ ~/.cc-select/routes.json
+│   （经 profile settings.json 注入，      │   tid → provider，每请求重读
+│    借 Mode B 整体替换屏蔽全局污染）      │
+└─ ANTHROPIC_AUTH_TOKEN = $CC_SELECT_TID   └─ 真 token 只存 daemon 内存
+    （shell 守卫式注入，每 shell 一次；       （keychain 解析+缓存）
+     伪 token 即终端身份）
+```
+
+- **会话内切换** = `cc-select route switch <provider>`（普通命令，改路由表文件，不碰任何进程 env——可在 Claude Code 的 Bash 工具里直接执行），下一笔模型请求生效；在途请求按原 provider 完成。
+- **终端隔离** = 每 shell 一个 TID，路由表按 TID 分流（SC-003 自动化：双终端交叉切 10 轮零串扰）。
+- **model 改写**：切换后 claude 仍发旧 model id，daemon 按 provider 的 `ANTHROPIC_MODEL` 改写请求体（v1 已知简化：统一映射主模型）。
+- **daemon 生命周期**：按需拉起（`use`/`route`/GUI ensure 自动；崩溃自愈后无需重启会话）；状态文件 `router.json` 恒定 addr（换端口=运行中会话全体失联）。
+- **密钥**：启用 Mode P 时明文 token 迁 keychain（`$keychain:` 占位），profile settings.json 不含任何密钥。
+
+### 10.3 使用
+
+```bash
+cc-select mode proxy          # 启用（触发密钥迁移）；离开 = mode settings-only，不回迁
+ccs use glm                   # 正常 use（多出发射 TID 守卫 + 路由同步语句）
+claude                        # 正常进入会话
+# —— GLM 限额爆了，在会话内（Bash 工具或 ! 前缀）：
+cc-select route switch minimax
+# —— 下一句继续任务，MiniMax 接管，上下文完整
+```
+
+### 10.4 边界
+
+- **官方 provider 不参与**（v1）：`use claude-official` 回退既有语义并清伪 token。
+- 崩溃窗口内的在途请求由 claude 自身重试语义处理；恢复后无需重开会话。
+- TID 随 shell 消亡，孤儿路由条目用 `cc-select route prune` 清理。
+- 宪法原则 II 已修订（v1.2.0）纳入本模式豁免条款。
