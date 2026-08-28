@@ -111,3 +111,22 @@ func TestInitSnippets_AreASCIIOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestZshEmit_SetIfUnset(t *testing.T) {
+	got := ZshEmitter{}.Emit([]Change{
+		{Op: OpSetIfUnset, Name: "CC_SELECT_TID", Value: "ccs-3f9c"},
+		{Op: OpSet, Name: "CC_SELECT_ACTIVE", Value: "glm"},
+	})
+	want := "if [ -z \"${CC_SELECT_TID:-}\" ]; then\n  export CC_SELECT_TID='ccs-3f9c'\nfi\nexport CC_SELECT_ACTIVE='glm'\n"
+	if got != want {
+		t.Errorf("Emit SetIfUnset:\nwant %q\ngot  %q", want, got)
+	}
+}
+
+func TestZshEmit_SetIfUnset_EscapesValue(t *testing.T) {
+	// 守卫式导出的值同样要走单引号安全转义。
+	got := ZshEmitter{}.Emit([]Change{{Op: OpSetIfUnset, Name: "T", Value: "a'b"}})
+	if !strings.Contains(got, "export T='a'\\''b'") {
+		t.Errorf("守卫式导出应复用单引号转义: %q", got)
+	}
+}

@@ -22,6 +22,9 @@ type Op int
 const (
 	OpSet   Op = iota // export NAME=VALUE
 	OpUnset           // unset NAME
+	// OpSetIfUnset 仅在该变量当前为空时导出（守卫式）：每 shell 只生效一次，
+	// 用于终端身份 CC_SELECT_TID 的生成（specs/001 研究 D6）——多次 use 不换身份。
+	OpSetIfUnset
 )
 
 // Change 是单个环境变量变更。

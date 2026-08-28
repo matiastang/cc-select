@@ -35,3 +35,14 @@ func TestJoinChanges(t *testing.T) {
 		t.Errorf("JoinChanges 拼接错误，got %q", got)
 	}
 }
+
+func TestPowerShellEmit_SetIfUnset(t *testing.T) {
+	got := PowerShellEmitter{}.Emit([]Change{
+		{Op: OpSetIfUnset, Name: "CC_SELECT_TID", Value: "ccs-3f9c"},
+		{Op: OpUnset, Name: "Y"},
+	})
+	want := "if (-not $env:CC_SELECT_TID) { $env:CC_SELECT_TID = 'ccs-3f9c' }\nRemove-Item Env:\\Y -ErrorAction SilentlyContinue\n"
+	if got != want {
+		t.Errorf("PS Emit SetIfUnset:\nwant %q\ngot  %q", want, got)
+	}
+}
