@@ -678,7 +678,7 @@ func isSensitiveVar(name string) bool {
 
 // toDTO 把 provider 转为列表用的脱敏 DTO（不泄露敏感值）。env 从 profile settings.json 读真值。
 func toDTO(p config.Provider) providerDTO {
-	env, _ := profile.ReadEnv(p.ID)
+	env := displayedEnv(p)
 	dto := providerDTO{
 		ID:            p.ID,
 		Name:          p.DisplayName(),
@@ -708,8 +708,8 @@ func toDetailDTO(p config.Provider, id string) providerDetailDTO {
 	// Mode P 派生产物保护（specs/001 实测发现）：use(proxy) 会把 profile env 覆写为
 	// 仅含代理 BASE_URL，真值在 providers.json（上抬后）。编辑页若以派生产物回填，
 	// 用户一次保存就会把真值覆盖丢失——此处把 env 部分替换回真值（非 env 字段保留）。
-	if addr, aerr := router.ResolveAddr(); aerr == nil && len(p.Env) > 0 {
-		raw = restoreEnvFromTruth(raw, p.Env, "http://"+addr)
+	if len(p.Env) > 0 && isProxyArtifactEnv(profileEnvOnlyBaseURL(p)) {
+		raw = restoreEnvFromTruth(raw, p.Env)
 	}
 	return providerDetailDTO{
 		ID:            id,
@@ -815,7 +815,36 @@ func (h *apiHandler) handleRouterEnsure(w http.ResponseWriter, r *http.Request) 
 // restoreEnvFromTruth 在 raw（profile settings.json 原文）是「仅含代理 BASE_URL 的
 // 派生产物」时，把 env 键替换为 truth（providers.json 真值），其余字段原样保留。
 // 非 派生产物 形态则原样返回（Mode A 原文编辑语义不受影响）。
-func restoreEnvFromTruth(raw []byte, truth map[string]string, proxyBase string) []byte {
+// displayedEnv 返回展示用 env：profile 是 Mode P 派生产物（仅代理 BASE_URL）
+// 且 providers.json 有真值时，用真值——列表徽标/URL/model 均反映真实配置。
+func displayedEnv(p config.Provider) map[string]string {
+	env, _ := profile.ReadEnv(p.ID)
+	if len(p.Env) > 0 && isProxyArtifactEnv(env) {
+		return p.Env
+	}
+	return env
+}
+
+// profileEnvOnlyBaseURL 读取 profile env（isProxyArtifactEnv 判定用）。
+func profileEnvOnlyBaseURL(p config.Provider) map[string]string {
+	env, _ := profile.ReadEnv(p.ID)
+	return env
+}
+
+// isProxyArtifactEnv 判定 env 是否为 use(proxy) 的派生产物形态：
+// 仅含一个 ANTHROPIC_BASE_URL 且其值恰为当前 daemon 地址。
+func isProxyArtifactEnv(env map[string]string) bool {
+	if len(env) != 1 {
+		return false
+	}
+	addr, err := router.ResolveAddr()
+	if err != nil {
+		return false
+	}
+	return env["ANTHROPIC_BASE_URL"] == "http://"+addr
+}
+
+func restoreEnvFromTruth(raw []byte, truth map[string]string) []byte {
 	var m map[string]any
 	if err := json.Unmarshal(raw, &m); err != nil {
 		return raw
@@ -824,7 +853,8 @@ func restoreEnvFromTruth(raw []byte, truth map[string]string, proxyBase string) 
 	if !ok || len(envAny) != 1 {
 		return raw
 	}
-	if v, isStr := envAny["ANTHROPIC_BASE_URL"].(string); !isStr || v != proxyBase {
+	v, isStr := envAny["ANTHROPIC_BASE_URL"].(string)
+	if !isStr || !isProxyArtifactEnv(map[string]string{"ANTHROPIC_BASE_URL": v}) {
 		return raw
 	}
 	envOut := make(map[string]any, len(truth))

@@ -1085,3 +1085,33 @@ func TestGetProvider_ProxyArtifactShowsRealEnv(t *testing.T) {
 		t.Errorf("非 env 字段应保留: %+v", out.Settings)
 	}
 }
+
+// 列表页同样受 Mode P 派生产物影响：GLM 被 use 后 profile 只剩代理地址，
+// 列表应展示 providers.json 真值（URL/model/已配 key 徽标），而非吓人的空壳。
+func TestListProviders_ProxyArtifactShowsTruth(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	os.WriteFile(os.Getenv("CC_SELECT_CONFIG"), []byte(`{"providers":{"glm":{"id":"glm","env":{"ANTHROPIC_BASE_URL":"https://open.bigmodel.cn/api/anthropic","ANTHROPIC_AUTH_TOKEN":"$keychain:cc-select:glm:ANTHROPIC_AUTH_TOKEN","ANTHROPIC_MODEL":"glm-5.3"}}}}`), 0o600)
+	profile.EnsureRaw("glm", []byte(`{"env":{"ANTHROPIC_BASE_URL":"http://127.0.0.1:48270"}}`))
+
+	resp, err := http.Get(srv.URL + "/api/v1/providers")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out map[string]any
+	json.NewDecoder(resp.Body).Decode(&out)
+	got, _ := out["providers"].(map[string]any)
+	glm, _ := got["glm"].(map[string]any)
+	if glm["hasKey"] != true {
+		t.Errorf("真值含 token 占位，应显示已配 key: %v", glm)
+	}
+	env, _ := glm["env"].(map[string]any)
+	if env["ANTHROPIC_BASE_URL"] != "https://open.bigmodel.cn/api/anthropic" {
+		t.Errorf("列表 URL 应为真值而非代理地址: %v", env)
+	}
+	if env["ANTHROPIC_MODEL"] != "glm-5.3" {
+		t.Errorf("列表应展示真值 model: %v", env)
+	}
+}
