@@ -29,7 +29,7 @@ description: "Task list: 会话内切换 provider（R9 / v0.0.6）"
 
 **Purpose**: 分支与基线准备
 
-- [ ] T001 建特性分支 `001-in-session-provider-switch`（基线按 PR 计划取 main 或 dev/tdy），确认 `make check` 基线全绿
+- [x] T001 建特性分支 `001-in-session-provider-switch`（基线按 PR 计划取 main 或 dev/tdy），确认 `make check` 基线全绿
 
 ---
 
@@ -77,8 +77,8 @@ description: "Task list: 会话内切换 provider（R9 / v0.0.6）"
 
 **Independent Test**: quickstart.md §1（暗号法）。
 
-- [ ] T018 [P] [US2] `docs/acceptance-tests.md` 增「跨 provider 续会话」用例：Mode B 三步工作流（退出→`ccs use B`→`claude --continue`）上下文延续断言；Mode A 显式标注不适用及原因
-- [ ] T019 [P] [US2] 限额救急三步工作流文档化：根 `README.md` + `docs/language/README.zh.md`（语言切换器相对路径同步，宪法 IV）+ `docs/isolation-modes.md`（Mode B 共享 `projects/` 是该工作流的物质基础）；不新增组合命令（研究 D3）
+- [x] T018 [P] [US2] `docs/acceptance-tests.md` 增「跨 provider 续会话」用例：Mode B 三步工作流（退出→`ccs use B`→`claude --continue`）上下文延续断言；Mode A 显式标注不适用及原因
+- [x] T019 [P] [US2] 限额救急三步工作流文档化：根 `README.md` + `docs/language/README.zh.md`（语言切换器相对路径同步，宪法 IV）+ `docs/isolation-modes.md`（Mode B 共享 `projects/` 是该工作流的物质基础）；不新增组合命令（研究 D3）
 
 ---
 

@@ -23,6 +23,7 @@
 | AC12 多语言（i18n） | CLI/GUI 语言偏好 | 阶段 4 |
 | AC13 Preset 快速配置 | Preset 供应商模板 | 阶段 2 |
 | AC14 自更新 | [distribution §3](./distribution.md#3-自更新已实现) | 阶段 5 |
+| AC15 跨 provider 续会话 | R9（P0 降级工作流）/ [isolation-modes §2.1](./isolation-modes.md#21-mode-b-的直接收益跨-provider-续会话限额救急) | v0.0.6 |
 
 ---
 
@@ -266,3 +267,22 @@
 | 6. brew/scoop 安装的 GUI 点击更新 | 显示对应的 `brew upgrade` / `scoop update` 指引卡片 |
 
 **判定**：更新链路「检查→下载→校验→替换」端到端可用；所有拒绝场景给出可操作的指引而非报错；任何失败（网络/校验/并发）都不破坏现有二进制；GUI 更新后明确提示需重启。
+
+---
+
+## AC15. 跨 provider 续会话（R9 P0：限额救急降级工作流）
+
+> 需求见 [requirements.md v0.0.6 / R9](./requirements.md)；依赖 Mode B 的 `projects/`（对话历史）共享，见 [isolation-modes §2.1](./isolation-modes.md#21-mode-b-的直接收益跨-provider-续会话限额救急)。
+
+**前提**：Mode B（默认）下已配置 glm、minimax 两个 provider；终端 A 已用 glm 进行过一段对话。
+
+| 步骤 | 预期 |
+|---|---|
+| 1. 在 glm 会话中让 Claude 记住一个暗号（如「这个项目的暗号是 pineapple」） | 正常记住 |
+| 2. 退出会话（Ctrl+D 或 `/exit`），执行 `ccs use minimax` | 本终端切换到 minimax |
+| 3. 执行 `claude --continue` 并问「暗号是什么？」 | **答出 pineapple**——历史跨 provider 延续，任务不从头开始 |
+| 4. 继续对话 | 后续模型请求由 minimax 服务 |
+| 5. `ccs current` | 显示 minimax |
+| 6. 在 Mode A（full）下重复步骤 1–3 | **不适用**：历史随 provider 隔离，`--continue` 看不到 glm 的会话（设计使然，文档已标注） |
+
+**判定**：「退出 → `ccs use <另一家>` → `claude --continue`」三步是受验收保护的标准工作流（R9-P0）；上下文零丢失；仅 Mode B 承诺，Mode A 显式不适用。
