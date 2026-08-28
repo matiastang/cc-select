@@ -87,7 +87,9 @@
       "current": "全局隔离模式: %s",
       "defaultHint": "（未显式设置，使用默认 %s）",
       "invalid": "无效模式 %q（可选：settings-only | full）",
-      "set": "✓ 全局隔离模式设为 %s"
+      "set": "✓ 全局隔离模式设为 %s",
+      "migrated": "已将 %d 条敏感值迁入 keychain",
+      "migrateFailed": "迁移失败："
     },
     "init": {
       "short": "输出 ccs shell 函数（追加到 shell 启动脚本）",

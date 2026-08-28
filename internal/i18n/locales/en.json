@@ -87,7 +87,9 @@
       "current": "Global isolation mode: %s",
       "defaultHint": "(not explicitly set; using default %s)",
       "invalid": "invalid mode %q (options: settings-only | full)",
-      "set": "✓ Global isolation mode set to %s"
+      "set": "✓ Global isolation mode set to %s",
+      "migrated": "migrated %d secret(s) to keychain",
+      "migrateFailed": "migration failure: "
     },
     "init": {
       "short": "Output the ccs shell function (append to your shell startup script)",

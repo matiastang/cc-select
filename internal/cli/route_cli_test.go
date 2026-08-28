@@ -9,6 +9,7 @@ import (
 
 	"github.com/cc-select/cc-select/internal/config"
 	"github.com/cc-select/cc-select/internal/routes"
+	"github.com/cc-select/cc-select/internal/secrets"
 )
 
 // writeProviders 写一份含 glm/minimax 的临时 providers.json。
@@ -199,5 +200,43 @@ func TestCurrent_NoRouteFallsBackToActive(t *testing.T) {
 	}
 	if !strings.Contains(out, "glm") {
 		t.Errorf("无路由条目应回退读 CC_SELECT_ACTIVE: %q", out)
+	}
+}
+
+func TestMode_SetProxyMigratesSecrets(t *testing.T) {
+	setTempCfg(t)
+	// 明文 token 的 provider。
+	os.WriteFile(os.Getenv("CC_SELECT_CONFIG"),
+		[]byte(`{"providers":{"glm":{"id":"glm","env":{"ANTHROPIC_AUTH_TOKEN":"sk-plain","ANTHROPIC_MODEL":"glm-5.1"}}}}`), 0o600)
+	var stubCalls int
+	orig := migrateSecretsFn
+	migrateSecretsFn = func(cfg *config.Config) (int, []string) {
+		stubCalls++
+		return secrets.MigrateAll(secrets.NewFake(), cfg) // 测试用 Fake keychain
+	}
+	t.Cleanup(func() { migrateSecretsFn = orig })
+
+	if _, _, err := execRoot(t, "", "mode", "proxy"); err != nil {
+		t.Fatalf("mode proxy: %v", err)
+	}
+	if stubCalls != 1 {
+		t.Fatalf("应触发一次迁移，got %d", stubCalls)
+	}
+	// providers.json 落盘为占位；非敏感值保留。
+	data, _ := os.ReadFile(os.Getenv("CC_SELECT_CONFIG"))
+	s := string(data)
+	if !strings.Contains(s, "$keychain:cc-select:glm:ANTHROPIC_AUTH_TOKEN") {
+		t.Errorf("落盘应为占位: %s", s)
+	}
+	if !strings.Contains(s, "glm-5.1") || strings.Contains(s, "sk-plain") {
+		t.Errorf("非敏感值保留/明文不得残留: %s", s)
+	}
+
+	// 离开 proxy 不回迁、不再触发迁移。
+	if _, _, err := execRoot(t, "", "mode", "settings-only"); err != nil {
+		t.Fatalf("mode settings-only: %v", err)
+	}
+	if stubCalls != 1 {
+		t.Errorf("离开 proxy 不应触发迁移: %d", stubCalls)
 	}
 }

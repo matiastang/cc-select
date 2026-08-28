@@ -3,8 +3,10 @@ package cli
 import (
 	"fmt"
 
+	"github.com/cc-select/cc-select/internal/config"
 	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/prefs"
+	"github.com/cc-select/cc-select/internal/secrets"
 	"github.com/spf13/cobra"
 )
 
@@ -39,9 +41,31 @@ var modeCmd = &cobra.Command{
 		if err := prefs.Save(pr); err != nil {
 			return err
 		}
+		// 启用 Mode P 时迁移敏感值入 keychain（US4/研究 D8）；离开不回迁。
+		if m == prefs.ModeProxy {
+			cfg, cerr := appLoadConfig()
+			if cerr != nil {
+				return cerr
+			}
+			n, failed := migrateSecretsFn(cfg)
+			if serr := config.Save(cfg); serr != nil {
+				return serr
+			}
+			fmt.Fprintf(cmd.ErrOrStderr(), i18n.T("cli.mode.migrated")+"\n", n)
+			if len(failed) > 0 {
+				for _, f := range failed {
+					fmt.Fprintf(cmd.ErrOrStderr(), i18n.T("cli.mode.migrateFailed")+"%s\n", f)
+				}
+			}
+		}
 		fmt.Fprintln(cmd.OutOrStdout(), i18n.T("cli.mode.set", m))
 		return nil
 	},
+}
+
+// migrateSecretsFn 是迁移注入点：生产用系统 keychain，测试换 FakeStore。
+var migrateSecretsFn = func(cfg *config.Config) (int, []string) {
+	return secrets.MigrateAll(secrets.New(), cfg)
 }
 
 func init() {
