@@ -86,15 +86,11 @@ func passBody(w http.ResponseWriter, r *http.Request, next http.Handler, body []
 
 // targetModel 查当前路由 provider 配置的 ANTHROPIC_MODEL；未配置/为占位 → ok=false。
 func targetModel(providerID string) (string, bool) {
-	cfg, err := config.Load()
+	env, err := providerEnvFor(providerID)
 	if err != nil {
 		return "", false
 	}
-	p, ok := cfg.Providers[providerID]
-	if !ok {
-		return "", false
-	}
-	m := p.Env["ANTHROPIC_MODEL"]
+	m := env["ANTHROPIC_MODEL"]
 	if m == "" || config.IsKeychainPlaceholder(m) {
 		return "", false
 	}

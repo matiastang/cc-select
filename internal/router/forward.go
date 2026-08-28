@@ -40,20 +40,15 @@ func NewForward(resolver EnvResolver) http.Handler {
 			return
 		}
 
-		cfg, err := config.Load()
+		rawEnv, err := providerEnvFor(entry.Provider)
 		if err != nil {
-			gatewayError(w, fmt.Sprintf("load providers.json: %v", err))
-			return
-		}
-		provider, ok := cfg.Providers[entry.Provider]
-		if !ok {
 			gatewayError(w, fmt.Sprintf("route points to provider %q which no longer exists; re-run `ccs use` or `cc-select route switch`", entry.Provider))
 			return
 		}
 
 		// 解析 env（占位 → 真值）。
-		env := make(map[string]string, len(provider.Env))
-		for k, v := range provider.Env {
+		env := make(map[string]string, len(rawEnv))
+		for k, v := range rawEnv {
 			rv, rerr := resolver.Resolve(v)
 			if rerr != nil {
 				gatewayError(w, fmt.Sprintf("resolve %s for provider %q: %v", k, entry.Provider, rerr))

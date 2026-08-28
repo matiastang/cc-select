@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/routes"
 )
 
@@ -111,5 +112,22 @@ func TestModelRewrite_NoModelFieldPassthrough(t *testing.T) {
 	ModelRewrite(next).ServeHTTP(httptest.NewRecorder(), rewriteReq(t, body, "application/json"))
 	if cap.body != body {
 		t.Errorf("无 model 字段应透传: got %s", cap.body)
+	}
+}
+
+// legacy 形态：ANTHROPIC_MODEL 只在 profile settings.json——改写也要能取到。
+func TestModelRewrite_LegacyModelFromProfile(t *testing.T) {
+	setTempProviders(t, `{"providers":{"MiniMax":{"id":"MiniMax","env":{}}}}`)
+	profile.Ensure("MiniMax", map[string]string{"ANTHROPIC_MODEL": "minimax-m3"})
+	next, cap := captureNext()
+
+	req := withEntryToReq(
+		httptest.NewRequest(http.MethodPost, "http://router.local/v1/messages",
+			strings.NewReader(`{"model":"claude-opus-5","x":1}`)),
+		routes.Entry{Provider: "MiniMax"})
+	req.Header.Set("Content-Type", "application/json")
+	ModelRewrite(next).ServeHTTP(httptest.NewRecorder(), req)
+	if !strings.Contains(cap.body, `"model":"minimax-m3"`) {
+		t.Errorf("legacy provider 的 model 应从 profile 取得并改写: %s", cap.body)
 	}
 }

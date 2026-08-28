@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/routes"
 )
 
@@ -230,4 +231,31 @@ func TestForward_SSEFlushedImmediately(t *testing.T) {
 		t.Fatal("2s 内未收到首块——SSE 被缓冲")
 	}
 	released <- time.Now() // 放行上游结束
+}
+
+// legacy 形态：env 真值只在 profile settings.json（providers.json env 为空）。
+// daemon 必须回退读 profile，否则 route switch 到一个从未 use 过的 provider 即 502。
+func TestForward_LegacyProviderEnvFallsBackToProfile(t *testing.T) {
+	rec := &upstreamRecorder{respStatus: 200, respBody: `{}`}
+	srv := newUpstream(t, rec)
+	// providers.json：MiniMax env 为空。
+	setTempProviders(t, `{"providers":{"MiniMax":{"id":"MiniMax","name":"MiniMax"}}}`)
+	// profile settings.json：真值在这（用户在 GUI 原文编辑时代配置的）。
+	profile.Ensure("MiniMax", map[string]string{
+		"ANTHROPIC_BASE_URL":   srv.URL,
+		"ANTHROPIC_AUTH_TOKEN": "sk-legacy",
+		"ANTHROPIC_MODEL":      "minimax-m3",
+	})
+
+	fwd := NewForward(nil)
+	req := httptest.NewRequest(http.MethodPost, "http://router.local/v1/messages", nil)
+	w := httptest.NewRecorder()
+	fwd.ServeHTTP(w, withEntryToReq(req, routes.Entry{Provider: "MiniMax"}))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("legacy provider 应可转发: code=%d body=%s", w.Code, w.Body.String())
+	}
+	if rec.authz[0] != "Bearer sk-legacy" {
+		t.Errorf("应使用 profile 里的真值 token: got %q", rec.authz[0])
+	}
 }
