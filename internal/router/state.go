@@ -24,11 +24,13 @@ const DefaultAddr = "127.0.0.1:48270"
 const ProxyAddrEnv = "CC_SELECT_PROXY_ADDR"
 
 // State 是 router.json 的内容。PID 仅诊断用——存活判定以 healthz 为准（PID 复用不可靠）。
+// StopToken 是停止侧信道的内部 token（每次启动随机生成；见 server.go stopHeader）。
 type State struct {
 	Addr      string    `json:"addr"`
 	PID       int       `json:"pid"`
 	StartedAt time.Time `json:"startedAt"`
 	Version   string    `json:"version"`
+	StopToken string    `json:"stopToken,omitempty"`
 }
 
 // StatePath 返回 router.json 绝对路径：与 providers.json（CC_SELECT_CONFIG）同目录，
