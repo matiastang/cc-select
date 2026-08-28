@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/cc-select/cc-select/internal/app"
 	"github.com/cc-select/cc-select/internal/config"
@@ -15,8 +16,11 @@ import (
 	"github.com/cc-select/cc-select/internal/presets"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/rcinteg"
+	"github.com/cc-select/cc-select/internal/router"
+	"github.com/cc-select/cc-select/internal/routes"
 	"github.com/cc-select/cc-select/internal/secrets"
 	"github.com/cc-select/cc-select/internal/updater"
+	"github.com/cc-select/cc-select/internal/version"
 )
 
 // providerDTO 是列表视图（GET /providers）里单个 provider 的精简表示。
@@ -86,6 +90,8 @@ func (h *apiHandler) routes() *http.ServeMux {
 	mux.HandleFunc("/api/v1/shell-integration/install", h.handleShellIntegrationInstall)
 	mux.HandleFunc("/api/v1/update/check", h.handleUpdateCheck)
 	mux.HandleFunc("/api/v1/update", h.handleUpdateRun)
+	mux.HandleFunc("/api/v1/routes", h.handleRoutes)
+	mux.HandleFunc("/api/v1/router/ensure", h.handleRouterEnsure)
 	return mux
 }
 
@@ -718,4 +724,84 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+// ---- Mode P 路由/守护端点（specs/001 contracts/web-api.md §2–4） ----
+
+// routeEntryDTO 是路由表条目的 API 表示（tid 恒为短码，与 CLI 展示规则一致）。
+type routeEntryDTO struct {
+	TID       string `json:"tid"`
+	Provider  string `json:"provider"`
+	UpdatedAt string `json:"updatedAt"`
+}
+
+// ensureRouterFn 是 web 侧 ensure 注入点：生产走 router.EnsureDeps + SpawnDetached，
+// 测试换桩（避免真拉进程）。
+var ensureRouterFn = func() (string, error) {
+	deps := router.EnsureDeps{Spawn: router.SpawnDetached, SelfVersion: version.Version}
+	return deps.Ensure()
+}
+
+// handleRoutes 处理 GET（列路由 + daemon 状态）与 DELETE（prune）。
+func (h *apiHandler) handleRoutes(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		entries, err := routes.List()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		running, addr, ver := false, "", ""
+		if a, aerr := router.ResolveAddr(); aerr == nil {
+			addr = a
+			if hi, perr := router.Probe(a); perr == nil {
+				running, ver = true, hi.Version
+			}
+		}
+		out := make([]routeEntryDTO, 0, len(entries))
+		for _, e := range entries {
+			tid := e.TID
+			if len(tid) > 12 {
+				tid = tid[:12]
+			}
+			out = append(out, routeEntryDTO{TID: tid, Provider: e.Provider, UpdatedAt: e.UpdatedAt.Format(time.RFC3339)})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"router": map[string]any{"running": running, "addr": addr, "version": ver},
+			"routes": out,
+		})
+	case http.MethodDelete:
+		q := r.URL.Query().Get("olderThan")
+		if q == "" {
+			q = "168h"
+		}
+		d, err := time.ParseDuration(q)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid olderThan: "+err.Error())
+			return
+		}
+		n, err := routes.Prune(d)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"pruned": n})
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+// handleRouterEnsure 处理 POST /router/ensure（GUI「启动/修复路由服务」）。
+func (h *apiHandler) handleRouterEnsure(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	addr, err := ensureRouterFn()
+	if err != nil {
+		// 503 + 可诊断错误与恢复指引（FR-011）。
+		writeError(w, http.StatusServiceUnavailable, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"running": true, "addr": addr})
 }

@@ -78,7 +78,7 @@ func init() {
 // 自带恢复指引（state.go Ensure），直接透传给用户（FR-011）。
 func ensureRouter() (string, error) {
 	deps := router.EnsureDeps{
-		Spawn:       spawnDetachedRouter,
+		Spawn:       router.SpawnDetached,
 		SelfVersion: version.Version,
 	}
 	return deps.Ensure()

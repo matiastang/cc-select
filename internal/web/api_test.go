@@ -11,9 +11,11 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cc-select/cc-select/internal/config"
 	"github.com/cc-select/cc-select/internal/profile"
+	"github.com/cc-select/cc-select/internal/routes"
 	"github.com/cc-select/cc-select/internal/secrets"
 )
 
@@ -913,3 +915,141 @@ func TestModeEndpoint_PutProxyMigrates(t *testing.T) {
 		t.Errorf("providers.json 应为占位: %s", data)
 	}
 }
+
+// ---- Mode P 路由/守护端点（T023） ----
+
+func TestRoutesEndpoint_List(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	tidA, _ := routes.NewTID()
+	tidB, _ := routes.NewTID()
+	_ = routes.Set(tidA, "glm")
+	_ = routes.Set(tidB, "minimax")
+
+	resp, err := http.Get(srv.URL + "/api/v1/routes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("want 200 got %d", resp.StatusCode)
+	}
+	var out struct {
+		Router struct {
+			Running bool   `json:"running"`
+			Addr    string `json:"addr"`
+			Version string `json:"version"`
+		} `json:"router"`
+		Routes []struct {
+			TID      string `json:"tid"`
+			Provider string `json:"provider"`
+		} `json:"routes"`
+	}
+	json.NewDecoder(resp.Body).Decode(&out)
+	if len(out.Routes) != 2 {
+		t.Fatalf("应列 2 条: %+v", out.Routes)
+	}
+	byProvider := map[string]string{}
+	for _, r := range out.Routes {
+		byProvider[r.Provider] = r.TID
+	}
+	if byProvider["glm"] != tidA[:12] || byProvider["minimax"] != tidB[:12] {
+		t.Errorf("tid 应短码展示: %+v", out.Routes)
+	}
+	if out.Routes != nil && len(tidA) == 36 { /* 完整 tid 不应出现 */
+	}
+	if out.Router.Running {
+		t.Errorf("无 daemon 时 running 应为 false: %+v", out.Router)
+	}
+}
+
+func TestRoutesEndpoint_Prune(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	stale, _ := routes.NewTID()
+	fresh, _ := routes.NewTID()
+	_ = routes.Set(stale, "glm")
+	_ = routes.Set(fresh, "glm")
+	tbl, _ := routes.Load()
+	for i := range tbl.Routes {
+		if tbl.Routes[i].TID == stale {
+			tbl.Routes[i].UpdatedAt = time.Now().UTC().Add(-8 * 24 * time.Hour)
+		}
+	}
+	_ = routes.Save(tbl)
+
+	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/routes", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out map[string]any
+	json.NewDecoder(resp.Body).Decode(&out)
+	if out["pruned"] != float64(1) {
+		t.Errorf("应清理 1 条: %v", out)
+	}
+	if _, ok := routes.Get(fresh); !ok {
+		t.Error("新条目应保留")
+	}
+
+	// 非法时长 → 400。
+	req2, _ := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/routes?olderThan=bogus", nil)
+	resp2, err2 := http.DefaultClient.Do(req2)
+	if err2 != nil {
+		t.Fatal(err2)
+	}
+	defer resp2.Body.Close()
+	if resp2.StatusCode != http.StatusBadRequest {
+		t.Errorf("非法时长 want 400 got %d", resp2.StatusCode)
+	}
+}
+
+func TestRouterEnsure_Ok(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	orig := ensureRouterFn
+	ensureRouterFn = func() (string, error) { return "127.0.0.1:48270", nil }
+	defer func() { ensureRouterFn = orig }()
+
+	resp, err := http.Post(srv.URL+"/api/v1/router/ensure", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("want 200 got %d", resp.StatusCode)
+	}
+	var out map[string]any
+	json.NewDecoder(resp.Body).Decode(&out)
+	if out["running"] != true || out["addr"] != "127.0.0.1:48270" {
+		t.Errorf("ensure 响应不符: %v", out)
+	}
+}
+
+func TestRouterEnsure_Fail503(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	orig := ensureRouterFn
+	ensureRouterFn = func() (string, error) { return "", errorsNew("spawn failed") }
+	defer func() { ensureRouterFn = orig }()
+
+	resp, err := http.Post(srv.URL+"/api/v1/router/ensure", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("失败 want 503 got %d", resp.StatusCode)
+	}
+}
+
+func errorsNew(msg string) error { return &stubError{msg} }
+
+type stubError struct{ msg string }
+
+func (e *stubError) Error() string { return e.msg }

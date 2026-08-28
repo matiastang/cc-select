@@ -111,7 +111,7 @@ description: "Task list: 会话内切换 provider（R9 / v0.0.6）"
 
 **Purpose**: Web GUI、宪法修订、文档回流、整体质量门禁。
 
-- [ ] T023 [P] TDD：Web 路由/守护端点——先在 `internal/web/api_test.go` 写失败用例（GET `/api/v1/routes` 返回 `{router:{running,addr,version},routes:[...]}`（tid 短码）；DELETE `/api/v1/routes?olderThan=` 返回 `{pruned:N}`；POST `/api/v1/router/ensure` 成功/503 语义），再改 `internal/web/api.go`（contracts/web-api.md §2–4）
+- [x] T023 [P] TDD：Web 路由/守护端点——先在 `internal/web/api_test.go` 写失败用例（GET `/api/v1/routes` 返回 `{router:{running,addr,version},routes:[...]}`（tid 短码）；DELETE `/api/v1/routes?olderThan=` 返回 `{pruned:N}`；POST `/api/v1/router/ensure` 成功/503 语义），再改 `internal/web/api.go`（contracts/web-api.md §2–4）
 - [ ] T024 [P] 前端增量：`internal/frontend/src/`（模式选择器增 proxy 选项+三模式说明、「活跃路由」面板（daemon 徽标/路由表/prune/ensure 按钮）；TS `strict` 禁 `any`；react-i18next en/zh）
 - [ ] T025 [P] e2e：`internal/frontend/e2e/` 增用例（模式选择含 proxy 可切换、路由面板渲染/ensure 按钮可点）
 - [x] T026 [P] SC-003 强化：`internal/router/crossswitch_test.go`（`-tags integration`）——双 TID 交叉切换各 ≥10 次，断言 fake upstream 收到的每笔请求归属与各自路由表当前值一致、串扰为 0
