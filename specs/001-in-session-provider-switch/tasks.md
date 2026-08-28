@@ -117,7 +117,7 @@ description: "Task list: 会话内切换 provider（R9 / v0.0.6）"
 - [x] T026 [P] SC-003 强化：`internal/router/crossswitch_test.go`（`-tags integration`）——双 TID 交叉切换各 ≥10 次，断言 fake upstream 收到的每笔请求归属与各自路由表当前值一致、串扰为 0
 - [x] T027 宪法修订 1.1.0 → 1.2.0：`.specify/memory/constitution.md` 原则 II 增 Mode P 豁免条款（env 仅承载恒定身份；`current` 在 TID 存在时以路由表为 per-terminal 真值）+ 文件头 Sync Impact Report（来源 docs/requirements.md R9）（研究 D12）
 - [ ] T028 [P] docs 回流（宪法 VII）：`docs/isolation-modes.md` 增 Mode P 章节、`docs/engineering-decisions.md` 增「身份/路由分离」§、`docs/acceptance-tests.md` 增 P1 用例（热切/隔离/自愈/401）、README 各语言快速上手
-- [ ] T029 循环 code review：静态检查（`make check`）+ 代码评审，修复所有**中等严重及以上**问题并复评直至清零（宪法 Development Workflow）
+- [x] T029 循环 code review：静态检查（`make check`）+ 代码评审，修复所有**中等严重及以上**问题并复评直至清零（宪法 Development Workflow）
 - [ ] T030 quickstart.md 全场景人工验证：§1 P0 暗号法 / §2 热切 / §3 隔离+失败+自愈 / §4 自动化 / §5 安全 grep
 
 ---

@@ -240,3 +240,40 @@ func TestMode_SetProxyMigratesSecrets(t *testing.T) {
 		t.Errorf("离开 proxy 不应触发迁移: %d", stubCalls)
 	}
 }
+
+func TestUse_ProxyModeMigratesSecrets(t *testing.T) {
+	setTempCfg(t)
+	os.WriteFile(os.Getenv("CC_SELECT_CONFIG"),
+		[]byte(`{"providers":{"glm":{"id":"glm","env":{"ANTHROPIC_AUTH_TOKEN":"sk-plain"}}}}`), 0o600)
+	stubEnsure(t, "127.0.0.1:48270", nil)
+	orig := migrateSecretsFn
+	migrateSecretsFn = func(cfg *config.Config) (int, []string) {
+		return secrets.MigrateAll(secrets.NewFake(), cfg)
+	}
+	t.Cleanup(func() { migrateSecretsFn = orig })
+
+	if _, _, err := execRoot(t, "", "use", "glm", "--mode", "proxy", "--shell", "zsh"); err != nil {
+		t.Fatalf("use --mode proxy: %v", err)
+	}
+	data, _ := os.ReadFile(os.Getenv("CC_SELECT_CONFIG"))
+	if !strings.Contains(string(data), "$keychain:cc-select:glm:ANTHROPIC_AUTH_TOKEN") {
+		t.Errorf("use（proxy）也应触发迁移（--mode/per-provider 入口不能绕过 US4）: %s", data)
+	}
+}
+
+func TestRoutePrune_RejectsNonPositiveDuration(t *testing.T) {
+	setTempCfg(t)
+	if _, _, err := execRoot(t, "", "route", "prune", "--older-than", "-1h"); err == nil {
+		t.Error("负时长应被拒绝（会把 cutoff 推到未来、清掉活跃路由）")
+	}
+}
+
+func TestRouteList_ToleratesShortCorruptTID(t *testing.T) {
+	setTempCfg(t)
+	// 直写一条畸形 tid（Save 不校验，模拟手改/损坏）。
+	tbl := &routes.Table{Routes: []routes.Entry{{TID: "short", Provider: "glm"}}}
+	_ = routes.Save(tbl)
+	if _, _, err := execRoot(t, "", "route", "list"); err != nil {
+		t.Errorf("畸形 tid 不应 panic: %v", err)
+	}
+}

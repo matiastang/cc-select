@@ -313,3 +313,46 @@ func TestSync_ProxyModeRejected(t *testing.T) {
 		t.Error("Sync + ModeProxy 应报错引导使用 SyncProxy")
 	}
 }
+
+func TestSyncProxy_UpliftsLegacyEnvToProviders(t *testing.T) {
+	setTempRoot(t)
+	setTempClaudeHome(t)
+	realEnv := map[string]string{"ANTHROPIC_BASE_URL": "https://glm.api", "ANTHROPIC_AUTH_TOKEN": "sk-real"}
+	if _, err := Ensure("glm", realEnv); err != nil { // legacy：env 只在 profile（Mode A 形态）
+		t.Fatal(err)
+	}
+	writeProvidersJSON(t, `{"providers":{"glm":{"id":"glm"}}}`) // providers.json 无 env
+
+	if _, _, err := SyncProxy("glm", "http://127.0.0.1:48270"); err != nil {
+		t.Fatalf("SyncProxy: %v", err)
+	}
+	// 真值已上抬：providers.json 拿到完整 env（此后切回 Mode B 可恢复）。
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := cfg.Providers["glm"].Env
+	if got["ANTHROPIC_BASE_URL"] != "https://glm.api" || got["ANTHROPIC_AUTH_TOKEN"] != "sk-real" {
+		t.Errorf("SyncProxy 应先上抬 legacy env 到 providers.json（防往返丢失）: %+v", got)
+	}
+	// 二次 SyncProxy 不重复上抬（幂等）。
+	if _, _, err := SyncProxy("glm", "http://127.0.0.1:48270"); err != nil {
+		t.Fatal(err)
+	}
+	cfg2, _ := config.Load()
+	if cfg2.Providers["glm"].Env["ANTHROPIC_BASE_URL"] != "https://glm.api" {
+		t.Errorf("幂等上抬: %+v", cfg2.Providers["glm"].Env)
+	}
+}
+
+// writeProvidersJSON 写一份 providers.json 到 CC_SELECT_CONFIG 指向位置。
+func writeProvidersJSON(t *testing.T, json string) {
+	t.Helper()
+	p := os.Getenv("CC_SELECT_CONFIG")
+	if p == "" {
+		t.Fatal("先 setTempRoot")
+	}
+	if err := os.WriteFile(p, []byte(json), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}

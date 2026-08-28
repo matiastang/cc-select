@@ -444,7 +444,7 @@ func (h *apiHandler) createProvider(w http.ResponseWriter, r *http.Request) {
 		in.Name = in.ID
 	}
 	if !in.IsolationMode.Valid() {
-		writeError(w, http.StatusBadRequest, "isolationMode must be empty, settings-only or full")
+		writeError(w, http.StatusBadRequest, "isolationMode must be empty, settings-only, full or proxy")
 		return
 	}
 
@@ -519,7 +519,7 @@ func (h *apiHandler) updateProvider(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 	if !in.IsolationMode.Valid() {
-		writeError(w, http.StatusBadRequest, "isolationMode must be empty, settings-only or full")
+		writeError(w, http.StatusBadRequest, "isolationMode must be empty, settings-only, full or proxy")
 		return
 	}
 	if in.Name == "" {
@@ -776,7 +776,7 @@ func (h *apiHandler) handleRoutes(w http.ResponseWriter, r *http.Request) {
 			q = "168h"
 		}
 		d, err := time.ParseDuration(q)
-		if err != nil {
+		if err != nil || d <= 0 {
 			writeError(w, http.StatusBadRequest, "invalid olderThan: "+err.Error())
 			return
 		}

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/cc-select/cc-select/internal/app"
 	"github.com/cc-select/cc-select/internal/config"
@@ -55,9 +56,15 @@ func runUse(cmd *cobra.Command, args []string) error {
 	}
 
 	// 按模式（幂等）构建 profile：Mode B 重合并 settings + 自愈链接，Mode A 仅写 env。
-	// 官方 provider 的 Sync 为 no-op。env=nil 表示沿用现有 profile 的 env（缺失则报错）。
+	// 官方 provider 的 Sync 为 no-op。env 真值优先取 providers.json 的 Provider.Env
+	// （评审 #1：Mode P→B 往返后 profile 里只剩代理 BASE_URL，不能再作真值源）；
+	// providers.json 无 env 的 legacy 形态回退 Sync(nil) 沿用 profile。
 	// proxy+官方：Sync 对官方 no-op，发射用 PlanProxy 官方回退（清伪 token）。
-	if _, warnings, serr := profile.Sync(target.ID, nil, mode); serr != nil {
+	useEnv := target.Env
+	if len(useEnv) == 0 {
+		useEnv = nil
+	}
+	if _, warnings, serr := profile.Sync(target.ID, useEnv, mode); serr != nil {
 		return serr
 	} else {
 		for _, w := range warnings {
@@ -113,6 +120,23 @@ func runUseProxy(cmd *cobra.Command, target config.Provider) error {
 		}
 	}
 
+	// 迁移敏感值入 keychain（幂等）——--mode/per-provider 入口与全局 mode 入口
+	// 行为一致（评审 #6：四个启用入口都要执行）。
+	cfg, cerr := appLoadConfig()
+	if cerr != nil {
+		return cerr
+	}
+	n, failed := migrateSecretsFn(cfg)
+	if serr := config.Save(cfg); serr != nil {
+		return serr
+	}
+	if n > 0 || len(failed) > 0 {
+		fmt.Fprintf(cmd.ErrOrStderr(), i18n.T("cli.mode.migrated")+"\n", n)
+		for _, f := range failed {
+			fmt.Fprintf(cmd.ErrOrStderr(), i18n.T("cli.mode.migrateFailed")+"%s\n", f)
+		}
+	}
+
 	tid, err := routes.NewTID()
 	if err != nil {
 		return err
@@ -128,7 +152,7 @@ func runUseProxy(cmd *cobra.Command, target config.Provider) error {
 	}
 
 	changes := switcher.PlanProxy(target, tid)
-	changes = append(changes, shell.Change{Op: shell.OpExec, Value: "route switch " + target.ID})
+	changes = append(changes, shell.Change{Op: shell.OpExec, Value: execName() + " route switch " + target.ID})
 	out := emitter.Emit(changes)
 
 	fmt.Fprint(cmd.OutOrStdout(), out)
@@ -140,4 +164,13 @@ func runUseProxy(cmd *cobra.Command, target config.Provider) error {
 // 官方 provider 始终返回当前语言的翻译。
 func displayName(p config.Provider) string {
 	return p.DisplayName()
+}
+
+// execName 返回 eval 语句中引用自身可执行文件的安全字面量（单引号包裹，
+// 含空格路径安全；评审 #5：不能假设 cc-select 恒在 PATH 上）。
+func execName() string {
+	if p, err := os.Executable(); err == nil && p != "" {
+		return "'" + p + "'"
+	}
+	return "cc-select"
 }

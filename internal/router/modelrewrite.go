@@ -40,10 +40,16 @@ func ModelRewrite(next http.Handler) http.Handler {
 			return
 		}
 
-		body, err := io.ReadAll(r.Body)
+		// 体积上限（评审 #7）：超限的巨型 body 原样透传不改写（防内存放大）。
+		const maxRewriteBody = 32 << 20 // 32 MiB——远大于正常 Messages 请求
+		body, err := io.ReadAll(io.LimitReader(r.Body, maxRewriteBody+1))
 		_ = r.Body.Close()
 		if err != nil {
 			next.ServeHTTP(w, r)
+			return
+		}
+		if len(body) > maxRewriteBody {
+			passBody(w, r, next, body)
 			return
 		}
 

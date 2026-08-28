@@ -141,7 +141,7 @@ func TestZshEmit_SetRef(t *testing.T) {
 }
 
 func TestZshEmit_Exec(t *testing.T) {
-	got := ZshEmitter{}.Emit([]Change{{Op: OpExec, Value: "route switch glm"}})
+	got := ZshEmitter{}.Emit([]Change{{Op: OpExec, Value: "cc-select route switch glm"}})
 	want := "cc-select route switch glm >/dev/null 2>&1 || true\n"
 	if got != want {
 		t.Errorf("Emit Exec:\nwant %q\ngot  %q", want, got)

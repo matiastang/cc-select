@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/router"
@@ -118,7 +119,8 @@ func runRouterStop(cmd *cobra.Command) error {
 		return err
 	}
 	req.Header.Set("X-CC-Select-Stop", st.StopToken)
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{Timeout: 5 * time.Second} // 无响应 daemon 不得挂死命令（评审 #9）
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cli.router.stopFailed"), st.Addr, err)
 	}

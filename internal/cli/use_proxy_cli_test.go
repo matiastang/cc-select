@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -8,6 +9,7 @@ import (
 
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/routes"
+	"github.com/cc-select/cc-select/internal/secrets"
 )
 
 // stubEnsure 替换 ensureRouterFn，记录调用并返回预设结果。
@@ -42,7 +44,7 @@ func TestUse_ProxyMode_EmissionAndProfile(t *testing.T) {
 		"export ANTHROPIC_AUTH_TOKEN=\"$CC_SELECT_TID\"",
 		"export CLAUDE_CONFIG_DIR=",
 		"export CC_SELECT_ACTIVE='glm'",
-		"cc-select route switch glm >/dev/null 2>&1 || true",
+		"route switch glm >/dev/null 2>&1 || true",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("发射缺少 %q:\n%s", want, out)
@@ -107,3 +109,45 @@ var errRouterStub = &routerStubError{}
 type routerStubError struct{}
 
 func (*routerStubError) Error() string { return "router stub failure" }
+
+func TestUse_ProxyThenSettingsOnly_RestoresProviderEnv(t *testing.T) {
+	setTempCfg(t)
+	// legacy 形态：真值只在 profile（providers.json 无 env）。
+	writeProviders(t)
+	os.WriteFile(os.Getenv("CC_SELECT_CONFIG"),
+		[]byte(`{"providers":{"glm":{"id":"glm","name":"GLM"}}}`), 0o600)
+	if _, err := profile.Ensure("glm", map[string]string{"ANTHROPIC_BASE_URL": "https://glm.api", "ANTHROPIC_AUTH_TOKEN": "sk-real"}); err != nil {
+		t.Fatal(err)
+	}
+	stubEnsure(t, "127.0.0.1:48270", nil)
+	// 迁移与占位解析都走 FakeStore（严禁测试触碰真实 keychain）。
+	store := secrets.NewFake()
+	origMig := migrateSecretsFn
+	migrateSecretsFn = func(cfg *config.Config) (int, []string) { return secrets.MigrateAll(store, cfg) }
+	origGet := profile.SecretGetter
+	profile.SecretGetter = func(svc string) (string, error) { return store.Get(svc) }
+	t.Cleanup(func() {
+		migrateSecretsFn = origMig
+		profile.SecretGetter = origGet
+	})
+
+	// 进 proxy：profile env 被替换为代理 BASE_URL（真值上抬进 providers.json）。
+	if _, _, err := execRoot(t, "", "use", "glm", "--mode", "proxy", "--shell", "zsh"); err != nil {
+		t.Fatalf("use proxy: %v", err)
+	}
+	if env, _ := profile.ReadEnv("glm"); env["ANTHROPIC_BASE_URL"] != "http://127.0.0.1:48270" {
+		t.Fatalf("proxy profile 应指向代理: %+v", env)
+	}
+
+	// 切回 Mode B：profile env 应恢复为 provider 真值（评审 #1 往返污染修复）。
+	if _, _, err := execRoot(t, "", "use", "glm", "--mode", "settings-only", "--shell", "zsh"); err != nil {
+		t.Fatalf("use settings-only: %v", err)
+	}
+	env, err := profile.ReadEnv("glm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if env["ANTHROPIC_BASE_URL"] != "https://glm.api" || env["ANTHROPIC_AUTH_TOKEN"] != "sk-real" {
+		t.Errorf("切回 Mode B 应恢复 provider env，而非残留代理 BASE_URL: %+v", env)
+	}
+}

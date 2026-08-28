@@ -37,7 +37,7 @@ func (ZshEmitter) Emit(changes []Change) string {
 		case OpSetRef:
 			fmt.Fprintf(&b, "export %s=\"$%s\"\n", c.Name, c.Value)
 		case OpExec:
-			fmt.Fprintf(&b, "cc-select %s >/dev/null 2>&1 || true\n", c.Value)
+			fmt.Fprintf(&b, "%s >/dev/null 2>&1 || true\n", c.Value)
 		case OpUnset:
 			fmt.Fprintf(&b, "unset %s\n", c.Name)
 		}

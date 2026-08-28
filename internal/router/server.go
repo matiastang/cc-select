@@ -53,7 +53,12 @@ func (s *Server) Listen() (net.Listener, error) {
 		return nil, fmt.Errorf("router: 生成 stop token 失败: %w", err)
 	}
 	s.stopToken = hex.EncodeToString(tok)
-	s.httpSrv = &http.Server{Handler: s.handler()}
+	s.httpSrv = &http.Server{
+		Handler: s.handler(),
+		// 防 slow-loris 连接耗尽（本地回环面的纵深防御，评审 #8）。
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
 	if err := SaveState(&State{
 		Addr:      ln.Addr().String(),
 		PID:       os.Getpid(),

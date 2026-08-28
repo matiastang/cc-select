@@ -128,7 +128,7 @@ func runRouteList(cmd *cobra.Command) error {
 		return nil
 	}
 	for _, e := range entries {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s  %-12s %s\n", e.TID[:12], e.Provider, e.UpdatedAt.Local().Format("2006-01-02 15:04"))
+		fmt.Fprintf(cmd.OutOrStdout(), "%s  %-12s %s\n", shortTID(e.TID), e.Provider, e.UpdatedAt.Local().Format("2006-01-02 15:04"))
 	}
 	return nil
 }
@@ -147,7 +147,7 @@ func runRouteStatus(cmd *cobra.Command) error {
 	if e, ok := routes.Get(tid); ok && e.Provider != "" {
 		provider = e.Provider
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "tid=%s provider=%s router=%s(%s)\n", tid[:12], provider, routerState, addr)
+	fmt.Fprintf(cmd.OutOrStdout(), "tid=%s provider=%s router=%s(%s)\n", shortTID(tid), provider, routerState, addr)
 	return nil
 }
 
@@ -156,10 +156,21 @@ func runRoutePrune(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf(i18n.T("cli.route.badDuration"), routePruneOlderFlag)
 	}
+	if d <= 0 {
+		return fmt.Errorf(i18n.T("cli.route.badDuration"), routePruneOlderFlag)
+	}
 	n, err := routes.Prune(d)
 	if err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), i18n.T("cli.route.pruned")+"\n", n)
 	return nil
+}
+
+// shortTID 取 tid 前 12 位短码；对畸形（手改/损坏）条目安全不 panic（评审 #10）。
+func shortTID(tid string) string {
+	if len(tid) > 12 {
+		return tid[:12]
+	}
+	return tid
 }
