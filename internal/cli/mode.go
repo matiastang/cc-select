@@ -11,7 +11,7 @@ import (
 // modeCmd 查看或设置「全局隔离模式」（写入 ~/.cc-select/prefs.json）。
 // 机制与两种模式的区别见 docs/isolation-modes.md。
 var modeCmd = &cobra.Command{
-	Use:  "mode [settings-only|full]",
+	Use:  "mode [settings-only|full|proxy]",
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		pr, err := prefs.Load()
@@ -32,7 +32,7 @@ var modeCmd = &cobra.Command{
 		}
 		// 有参数 = 设置全局模式。
 		m := prefs.Mode(args[0])
-		if m != prefs.ModeSettingsOnly && m != prefs.ModeFull {
+		if !m.Valid() || m == "" {
 			return fmt.Errorf(i18n.T("cli.mode.invalid"), args[0])
 		}
 		pr.IsolationMode = m

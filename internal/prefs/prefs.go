@@ -28,6 +28,10 @@ const (
 	ModeSettingsOnly Mode = "settings-only"
 	// ModeFull（Mode A）：profile 目录整体隔离，只有 settings.json。
 	ModeFull Mode = "full"
+	// ModeProxy（Mode P，R9）：身份/路由分离——profile settings.json 的 env 仅含
+	// 恒定的 ANTHROPIC_BASE_URL（本地路由 daemon），动态伪 token 经 shell 注入，
+	// provider 路由由 daemon 侧路由表决定（会话内可热切）。见 specs/001。
+	ModeProxy Mode = "proxy"
 )
 
 // DefaultMode 是未做任何设置时的兜底模式。
@@ -54,7 +58,7 @@ func (p *Prefs) NormalizeLanguage() string {
 // Valid 判断一个模式值是否合法（空串合法，表示「未设置/继承」）。
 func (m Mode) Valid() bool {
 	switch m {
-	case "", ModeSettingsOnly, ModeFull:
+	case "", ModeSettingsOnly, ModeFull, ModeProxy:
 		return true
 	}
 	return false
