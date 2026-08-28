@@ -13,6 +13,7 @@ package profile
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -53,9 +54,31 @@ func Sync(id string, env map[string]string, mode prefs.Mode) (dir string, warnin
 	switch mode {
 	case prefs.ModeFull:
 		return syncFull(id, env)
+	case prefs.ModeProxy:
+		// Mode P 的 env 真值是「路由 daemon 地址」而非 provider env，Sync 拿不到它。
+		// 防误用：明确报错引导调用方走 SyncProxy（use 命令的 proxy 分支）。
+		return "", nil, errors.New(i18n.T("errors.profile.proxyNeedsSyncProxy"))
 	default: // ModeSettingsOnly
 		return syncSettingsOnly(id, env, &warnings)
 	}
+}
+
+// SyncProxy 按 Mode P（proxy）构造 profile（幂等自愈）。
+//
+// 与 Mode B 的唯一差别是 env 的真值：settings.json 的 env 整体替换为**仅含
+// 恒定的 ANTHROPIC_BASE_URL=routerBaseURL**（specs/001 研究 D5）——
+//   - 静态项（BASE_URL）进 settings.json，借整体替换语义屏蔽全局 env 污染；
+//   - 动态项（伪 token=CC_SELECT_TID）经 shell 注入，绝不落 profile；
+//   - provider 真实 env（含密钥）只存于 providers.json/keychain，由 daemon 使用。
+//
+// 其余行为（全局非 env 字段合并、共享链接自愈）与 Mode B 完全一致。
+// 官方 provider 返回 ("", nil, nil)（无 profile，Mode P 不适用官方，D2）。
+func SyncProxy(id string, routerBaseURL string) (dir string, warnings []string, err error) {
+	if id == config.OfficialProviderID {
+		return "", nil, nil
+	}
+	env := map[string]string{"ANTHROPIC_BASE_URL": routerBaseURL}
+	return syncSettingsOnly(id, env, &warnings)
 }
 
 // syncFull 写 {"env": env} 并清理其余条目（权威隔离）。

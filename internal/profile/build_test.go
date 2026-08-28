@@ -240,3 +240,76 @@ func TestSync_OfficialNoop(t *testing.T) {
 		t.Errorf("官方应返回空目录 got %q", dir)
 	}
 }
+
+func TestSyncProxy_BaseURLOnlyAndShares(t *testing.T) {
+	setTempRoot(t)
+	home := setTempClaudeHome(t)
+	os.MkdirAll(filepath.Join(home, "projects"), 0o700)
+	// 全局 settings 带遗留 env（含 token）——Mode P 必须整体替换屏蔽，不得泄漏进 profile。
+	os.WriteFile(filepath.Join(home, "settings.json"),
+		[]byte(`{"permissions":{"allow":["foo"]},"env":{"ANTHROPIC_BASE_URL":"https://old.example","ANTHROPIC_AUTH_TOKEN":"sk-leak"}}`), 0o600)
+
+	dir, _, err := SyncProxy("glm", "http://127.0.0.1:48270")
+	if err != nil {
+		t.Fatalf("SyncProxy: %v", err)
+	}
+	body := readProfileSettings(t, dir)
+	// env 仅含恒定的代理 BASE_URL。
+	if !strings.Contains(body, `"ANTHROPIC_BASE_URL": "http://127.0.0.1:48270"`) {
+		t.Errorf("env 应仅含代理 BASE_URL: %s", body)
+	}
+	if strings.Contains(body, "sk-leak") || strings.Contains(body, "old.example") {
+		t.Errorf("全局遗留 env（含 token）不得残留在 profile: %s", body)
+	}
+	if strings.Contains(body, "ANTHROPIC_AUTH_TOKEN") {
+		t.Errorf("Mode P profile 不得含 AUTH_TOKEN（伪 token 走 shell 注入）: %s", body)
+	}
+	// 全局非 env 字段保留（Mode B 合并语义复用）。
+	if !strings.Contains(body, "permissions") {
+		t.Errorf("permissions 应保留: %s", body)
+	}
+	// 共享链接仍生效（上下文延续的物质基础）。
+	if _, err := os.Lstat(filepath.Join(dir, "projects")); err != nil {
+		t.Errorf("projects 共享链接应建立: %v", err)
+	}
+}
+
+func TestSyncProxy_IdempotentAddrHeal(t *testing.T) {
+	setTempRoot(t)
+	setTempClaudeHome(t)
+	dir1, _, err := SyncProxy("glm", "http://127.0.0.1:1")
+	if err != nil {
+		t.Fatalf("首次 SyncProxy: %v", err)
+	}
+	dir2, _, err := SyncProxy("glm", "http://127.0.0.2:2")
+	if err != nil {
+		t.Fatalf("二次 SyncProxy: %v", err)
+	}
+	if dir1 != dir2 {
+		t.Errorf("幂等：目录应一致 %q vs %q", dir1, dir2)
+	}
+	body := readProfileSettings(t, dir2)
+	if !strings.Contains(body, "127.0.0.2:2") || strings.Contains(body, "127.0.0.1:1") {
+		t.Errorf("重复 SyncProxy 应自愈为最新 addr: %s", body)
+	}
+}
+
+func TestSyncProxy_OfficialNoop(t *testing.T) {
+	setTempRoot(t)
+	dir, _, err := SyncProxy(config.OfficialProviderID, "http://127.0.0.1:48270")
+	if err != nil {
+		t.Fatalf("官方应 no-op: %v", err)
+	}
+	if dir != "" {
+		t.Errorf("官方应返回空目录 got %q", dir)
+	}
+}
+
+func TestSync_ProxyModeRejected(t *testing.T) {
+	// ModeProxy 不能走 Sync（env 真值是路由地址而非 provider env）——防误用。
+	setTempRoot(t)
+	setTempClaudeHome(t)
+	if _, _, err := Sync("glm", map[string]string{"X": "1"}, prefs.ModeProxy); err == nil {
+		t.Error("Sync + ModeProxy 应报错引导使用 SyncProxy")
+	}
+}

@@ -168,7 +168,8 @@
       "replace": "替换 profile: %w",
       "removeDir": "删除 profile 目录: %w",
       "read": "读取 profile: %w",
-      "parse": "解析 profile: %w"
+      "parse": "解析 profile: %w",
+      "proxyNeedsSyncProxy": "Mode P（proxy）的 profile 必须经 SyncProxy 构造（需要路由地址）；Sync 收到了 mode=proxy"
     },
     "provider": {
       "emptyID": "provider id 不能为空",

@@ -168,7 +168,8 @@
       "replace": "replace profile: %w",
       "removeDir": "remove profile directory: %w",
       "read": "read profile: %w",
-      "parse": "parse profile: %w"
+      "parse": "parse profile: %w",
+      "proxyNeedsSyncProxy": "Mode P (proxy) profiles must be built via SyncProxy (router address required); Sync received mode=proxy"
     },
     "provider": {
       "emptyID": "provider id cannot be empty",
