@@ -53,9 +53,12 @@ fi
 export ANTHROPIC_AUTH_TOKEN="$CC_SELECT_TID"
 export CLAUDE_CONFIG_DIR='/Users/x/.cc-select/profiles/minimax'
 export CC_SELECT_ACTIVE='minimax'
+cc-select route switch minimax >/dev/null 2>&1 || true
 ```
 
-   PowerShell 等价（`if (-not $env:CC_SELECT_TID) { $env:CC_SELECT_TID = '...' }`）。注意：`ANTHROPIC_AUTH_TOKEN` 引用 `$CC_SELECT_TID` 而非字面值——TID 守卫先行保证求值顺序。
+   PowerShell 等价（`if (-not $env:CC_SELECT_TID) { $env:CC_SELECT_TID = '...' }`；同步语句渲染为 `cc-select route switch minimax *> $null`）。注意：
+   - `ANTHROPIC_AUTH_TOKEN` 引用 `$CC_SELECT_TID` 而非字面值——TID 守卫先行保证求值顺序；
+   - **第 5 条路由同步语句**（实现期修订）：二进制无法得知 shell 里**既有**的 TID（守卫只负责首建），故路由表由 eval 上下文里按 shell 真实 TID 静默执行的 `route switch` 完成——它是 use 路径路由写入的唯一真值来源；失败静默（`|| true`）不阻断 eval。
 4. **切换到官方 provider**：Mode P 不适用（D2）——官方目标时回退既有发射并提示。
 
 ## 4. `cc-select current`（Mode P 语义增量）

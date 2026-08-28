@@ -14,7 +14,7 @@ import (
 // writeProviders 写一份含 glm/minimax 的临时 providers.json。
 func writeProviders(t *testing.T) {
 	t.Helper()
-	data := `{"providers":{"glm":{"id":"glm","name":"GLM"},"minimax":{"id":"minimax","name":"MiniMax"}}}`
+	data := `{"providers":{"glm":{"id":"glm","name":"GLM"},"minimax":{"id":"minimax","name":"MiniMax"},"claude-official":{"id":"claude-official"}}}`
 	p := os.Getenv("CC_SELECT_CONFIG")
 	if p == "" {
 		t.Fatal("先 setTempCfg")

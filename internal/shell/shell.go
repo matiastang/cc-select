@@ -30,6 +30,10 @@ const (
 	// zsh: export NAME="$SRC" / PowerShell: $env:NAME = "$env:SRC"。
 	// 用于 Mode P 的 ANTHROPIC_AUTH_TOKEN="$CC_SELECT_TID"（specs/001 D5）。
 	OpSetRef
+	// OpExec 执行一条 cc-select 子命令（Value = 子命令参数串，如 "route switch glm"），
+	// 渲染为静默执行（失败不中断 eval）。用于 Mode P 的 use 发射：eval 上下文里
+	// 用 shell 的**真实** TID 同步路由表——二进制无法得知既有 TID（specs/001 D6）。
+	OpExec
 )
 
 // Change 是单个环境变量变更。

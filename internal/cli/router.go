@@ -84,6 +84,9 @@ func ensureRouter() (string, error) {
 	return deps.Ensure()
 }
 
+// ensureRouterFn 是 use（proxy 模式）的注入点：测试替换为桩，避免真拉 daemon。
+var ensureRouterFn = ensureRouter
+
 // serveForeground 前台运行 daemon（排障用）：auth → model 改写 → keychain 解析 → 转发。
 func serveForeground() error {
 	pipeline := router.ModelRewrite(router.NewForward(router.NewKeychainResolver(secrets.New())))

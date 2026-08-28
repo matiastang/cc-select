@@ -25,7 +25,8 @@
       "shellFlag": "Target shell syntax (zsh/bash/powershell); auto-detected by default",
       "modeFlag": "One-shot isolation mode (settings-only|full); applies only to this invocation and is not persisted",
       "switched": "→ Switched to %s (%s). New terminals will inherit this environment.",
-      "warningPrefix": "⚠ "
+      "warningPrefix": "⚠ ",
+      "ensureRouterFailed": "failed to ensure routing daemon: %v (try `cc-select router serve --foreground` to diagnose)"
     },
     "add": {
       "short": "Interactively add a provider",

@@ -64,7 +64,7 @@ description: "Task list: 会话内切换 provider（R9 / v0.0.6）"
 - [x] T013 [US1] 集成测试（`-tags integration`）：`internal/router/integration_test.go`——httptest 起 fake upstream（记录 model/Authorization/path）+ 真 daemon 随机端口 + 伪 claude 客户端（Bearer tid）：切换后**下一笔**走新 provider、在途请求按原 provider 完成、model 改写生效、401 指引（研究 D13）
 - [x] T014 [P] [US1] TDD：`route` 命令族——先在 `internal/cli/cli_test.go` 写失败用例（switch：tid 取 `CC_SELECT_TID` 或 `--tid`、provider 校验（v1 禁 `claude-official`）、输出 `<old> → <new>`、失败不落盘；list 短码展示；status 含 router 存活；prune `--older-than` 默认 168h），再实现 `internal/cli/route.go`（contracts/cli.md §1）
 - [x] T015 [US1] TDD：`router` 命令族——先写失败用例再实现 `internal/cli/router.go`（ensure 幂等 / serve `--foreground` / stop；detached spawn：Unix `setsid`、Windows `DETACHED_PROCESS|CREATE_NEW_PROCESS_GROUP`；serve 沿用状态文件 addr）（contracts/cli.md §2）
-- [ ] T016 [US1] TDD：`use` 集成 proxy 模式——先在 `internal/cli/cli_test.go` 写失败用例（mode 解析含 proxy → router ensure（失败即中止+恢复指引）→ `routes.Set` → `profile.Sync`(Mode P) → 发射；官方目标回退既有路径并提示），再改 `internal/cli/use.go`（contracts/cli.md §3，FR-011）
+- [x] T016 [US1] TDD：`use` 集成 proxy 模式——先在 `internal/cli/cli_test.go` 写失败用例（mode 解析含 proxy → router ensure（失败即中止+恢复指引）→ `routes.Set` → `profile.Sync`(Mode P) → 发射；官方目标回退既有路径并提示），再改 `internal/cli/use.go`（contracts/cli.md §3，FR-011）
 - [ ] T017 [US1] i18n 补全：`internal/i18n/`（en/zh）——T014/T015/T016 全部新增用户可见文案的 key 与译文（宪法 IV：i18n 约定）
 
 **Checkpoint**: quickstart.md §2 全流程手工通过（会话内热切 + 上下文延续 + 不重启）。

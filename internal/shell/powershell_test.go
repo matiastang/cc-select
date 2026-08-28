@@ -54,3 +54,11 @@ func TestPowerShellEmit_SetRef(t *testing.T) {
 		t.Errorf("PS Emit SetRef:\nwant %q\ngot  %q", want, got)
 	}
 }
+
+func TestPowerShellEmit_Exec(t *testing.T) {
+	got := PowerShellEmitter{}.Emit([]Change{{Op: OpExec, Value: "route switch glm"}})
+	want := "cc-select route switch glm *> $null\n"
+	if got != want {
+		t.Errorf("PS Emit Exec:\nwant %q\ngot  %q", want, got)
+	}
+}
