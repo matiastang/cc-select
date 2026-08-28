@@ -1,9 +1,11 @@
 package routes
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -174,4 +176,35 @@ func NewTIDOrFatal(t *testing.T) string {
 		t.Fatalf("NewTID: %v", err)
 	}
 	return tid
+}
+
+func TestSet_ConcurrentNoLostEntries(t *testing.T) {
+	setTempRoutes(t)
+	const n = 50
+	tids := make([]string, n)
+	for i := range tids {
+		tid, err := NewTID()
+		if err != nil {
+			t.Fatal(err)
+		}
+		tids[i] = tid
+	}
+	var wg sync.WaitGroup
+	for i, tid := range tids {
+		wg.Add(1)
+		go func(i int, tid string) {
+			defer wg.Done()
+			if err := Set(tid, fmt.Sprintf("p%d", i)); err != nil {
+				t.Errorf("并发 Set: %v", err)
+			}
+		}(i, tid)
+	}
+	wg.Wait()
+	entries, err := List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != n {
+		t.Errorf("并发写入丢失条目：want %d got %d（读-改-写竞态）", n, len(entries))
+	}
 }

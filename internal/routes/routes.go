@@ -131,26 +131,51 @@ func Get(tid string) (Entry, bool) {
 	return Entry{}, false
 }
 
+// withLock 串行化跨进程的读-改-写：对 routes.json 同目录的 .routes.lock
+// 加独占文件锁后执行 fn。两个终端并发 `ccs use` / route switch / web prune
+// 不再丢失条目（last-writer-wins 竞态的修复）。
+func withLock(fn func() error) error {
+	p, err := Path()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+		return fmt.Errorf("routes: 创建目录失败: %w", err)
+	}
+	f, err := os.OpenFile(filepath.Join(filepath.Dir(p), ".routes.lock"), os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return fmt.Errorf("routes: 打开锁文件失败: %w", err)
+	}
+	defer f.Close()
+	if err := lockFile(f); err != nil {
+		return fmt.Errorf("routes: 加锁失败: %w", err)
+	}
+	defer func() { _ = unlockFile(f) }()
+	return fn()
+}
+
 // Set 幂等地设置 tid 的路由（存在则覆盖 provider 并刷新 updatedAt）。
-// tid 格式非法即拒绝（防脏数据进表）。
+// tid 格式非法即拒绝（防脏数据进表）。文件锁保护读-改-写全程。
 func Set(tid, provider string) error {
 	if !ValidateTID(tid) {
 		return fmt.Errorf("routes: 非法终端身份 %q", tid)
 	}
-	tbl, err := Load()
-	if err != nil {
-		return err
-	}
-	now := time.Now().UTC()
-	for i, e := range tbl.Routes {
-		if e.TID == tid {
-			tbl.Routes[i].Provider = provider
-			tbl.Routes[i].UpdatedAt = now
-			return Save(tbl)
+	return withLock(func() error {
+		tbl, err := Load()
+		if err != nil {
+			return err
 		}
-	}
-	tbl.Routes = append(tbl.Routes, Entry{TID: tid, Provider: provider, UpdatedAt: now})
-	return Save(tbl)
+		now := time.Now().UTC()
+		for i, e := range tbl.Routes {
+			if e.TID == tid {
+				tbl.Routes[i].Provider = provider
+				tbl.Routes[i].UpdatedAt = now
+				return Save(tbl)
+			}
+		}
+		tbl.Routes = append(tbl.Routes, Entry{TID: tid, Provider: provider, UpdatedAt: now})
+		return Save(tbl)
+	})
 }
 
 // List 返回全部路由条目（无序保证）。
@@ -162,27 +187,30 @@ func List() ([]Entry, error) {
 	return tbl.Routes, nil
 }
 
-// Prune 删除 updatedAt 早于阈值的条目，返回删除数量。幂等。
+// Prune 删除 updatedAt 早于阈值的条目，返回删除数量。幂等。文件锁保护读-改-写。
 func Prune(olderThan time.Duration) (int, error) {
-	tbl, err := Load()
-	if err != nil {
-		return 0, err
-	}
-	cutoff := time.Now().UTC().Add(-olderThan)
-	kept := tbl.Routes[:0]
-	pruned := 0
-	for _, e := range tbl.Routes {
-		if e.UpdatedAt.Before(cutoff) {
-			pruned++
-			continue
+	var pruned int
+	err := withLock(func() error {
+		tbl, err := Load()
+		if err != nil {
+			return err
 		}
-		kept = append(kept, e)
-	}
-	if pruned == 0 {
-		return 0, nil
-	}
-	tbl.Routes = kept
-	return pruned, Save(tbl)
+		cutoff := time.Now().UTC().Add(-olderThan)
+		kept := tbl.Routes[:0]
+		for _, e := range tbl.Routes {
+			if e.UpdatedAt.Before(cutoff) {
+				pruned++
+				continue
+			}
+			kept = append(kept, e)
+		}
+		if pruned == 0 {
+			return nil
+		}
+		tbl.Routes = kept
+		return Save(tbl)
+	})
+	return pruned, err
 }
 
 // ValidateTID 判断 tid 是否为合法终端身份格式。

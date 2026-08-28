@@ -240,3 +240,69 @@ func TestEnsure_TimeoutWhenNeverHealthy(t *testing.T) {
 		t.Error("应尊重 Wait 预算，及时失败")
 	}
 }
+
+func TestResolveAddr_RejectsNonLoopback(t *testing.T) {
+	setTempRouter(t)
+	for _, bad := range []string{"0.0.0.0:48270", "192.168.1.5:48270", "example.com:80"} {
+		if err := SaveState(&State{Addr: bad}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ResolveAddr(); err == nil {
+			t.Errorf("非回环 addr %q 应被拒绝（仅 loopback 不变量）", bad)
+		}
+	}
+	// 回环家族合法。
+	for _, ok := range []string{"127.0.0.1:48270", "127.8.8.8:1", "[::1]:48270"} {
+		if err := SaveState(&State{Addr: ok}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ResolveAddr(); err != nil {
+			t.Errorf("回环 addr %q 应合法: %v", ok, err)
+		}
+	}
+}
+
+func TestEnsure_VersionMismatchStopsOldFirst(t *testing.T) {
+	setTempRouter(t)
+	// 旧版本 daemon 在跑：healthz ok 但 version=0.0.5。
+	oldVer := make(chan struct{}, 1)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.Header.Get("X-CC-Select-Stop") != "" {
+			// 旧 daemon 收到停止侧信道：校验 token 后退出（此处直接 200 并停服务）。
+			w.WriteHeader(http.StatusOK)
+			close(oldVer)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "version": "0.0.5"})
+	})
+	srv := &httptest.Server{Listener: mustListener(t), Config: &http.Server{Handler: mux}}
+	srv.Start()
+	t.Cleanup(srv.Close)
+	addr := srv.Listener.Addr().String()
+	_ = SaveState(&State{Addr: addr, Version: "0.0.5", StopToken: "tok-0.0.5"})
+
+	deps := EnsureDeps{
+		Spawn:       func(string) error { return nil }, // 不真起新进程：验证「先停旧的」即可
+		SelfVersion: "0.0.6",
+		Wait:        1 * time.Second,
+	}
+	// 期望：旧 daemon 被侧信道叫停（而非只 spawn 后超时）。
+	// Spawn 不起服务 → 最终超时报错属预期，但停止侧信道必须被调用过。
+	_, _ = deps.Ensure()
+	select {
+	case <-oldVer:
+		// 旧 daemon 收到停止请求 ✓
+	case <-time.After(2 * time.Second):
+		t.Fatal("版本不匹配时应先经停止侧信道叫停旧 daemon（否则固定端口被占，换新永不成功）")
+	}
+}
+
+func mustListener(t *testing.T) net.Listener {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ln
+}

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -109,14 +110,31 @@ func SaveState(st *State) error {
 
 // ResolveAddr 解析 daemon 应使用/探活的地址。优先级（研究 D7/D11）：
 // 状态文件 > CC_SELECT_PROXY_ADDR > DefaultAddr——已固化的 addr 不漂移。
+// 宪法不变量：仅回环——任何来源的非回环地址一律拒绝（防误配把凭证代理暴露到网络）。
 func ResolveAddr() (string, error) {
+	candidate := DefaultAddr
 	if st, err := LoadState(); err == nil && st != nil && st.Addr != "" {
-		return st.Addr, nil
+		candidate = st.Addr
+	} else if env := os.Getenv(ProxyAddrEnv); env != "" {
+		candidate = env
 	}
-	if env := os.Getenv(ProxyAddrEnv); env != "" {
-		return env, nil
+	if err := requireLoopback(candidate); err != nil {
+		return "", err
 	}
-	return DefaultAddr, nil
+	return candidate, nil
+}
+
+// requireLoopback 校验 addr 的主机部分是回环地址（127/8 或 ::1）。
+func requireLoopback(addr string) error {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return fmt.Errorf("router: 地址格式非法 %q: %w", addr, err)
+	}
+	ip := net.ParseIP(host)
+	if ip == nil || !ip.IsLoopback() {
+		return fmt.Errorf("router: 地址 %q 非回环——daemon 仅允许绑定 loopback", addr)
+	}
+	return nil
 }
 
 // HealthInfo 是 /healthz 的响应体。
@@ -166,8 +184,28 @@ func (d EnsureDeps) healthy(addr string) bool {
 	return d.SelfVersion == "" || h.Version == d.SelfVersion
 }
 
-// Ensure 确保 daemon 在位：健康则原样复用 addr；死亡/版本不匹配则 Spawn 拉起
-// 并在预算内轮询 healthz。返回可用 addr（任何路径下都与 ResolveAddr 一致，不漂移）。
+// stopStale 经停止侧信道叫停旧版本 daemon（升级换新的第一步——否则固定端口
+// 仍被旧进程占用，新进程 Listen 失败、自愈永不成功）。
+func stopStale(st *State) {
+	if st == nil || st.Addr == "" || st.StopToken == "" {
+		return
+	}
+	req, err := http.NewRequest(http.MethodPost, "http://"+st.Addr+"/healthz", nil)
+	if err != nil {
+		return
+	}
+	req.Header.Set(stopHeader, st.StopToken)
+	client := &http.Client{Timeout: probeTimeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+	resp.Body.Close()
+}
+
+// Ensure 确保 daemon 在位：健康且版本匹配则原样复用 addr；健康但版本不匹配
+// 则先经停止侧信道叫停旧进程再拉起；死亡直接拉起。均在预算内轮询 healthz。
+// 返回可用 addr（任何路径下都与 ResolveAddr 一致，不漂移）。
 func (d EnsureDeps) Ensure() (string, error) {
 	addr, err := ResolveAddr()
 	if err != nil {
@@ -175,6 +213,13 @@ func (d EnsureDeps) Ensure() (string, error) {
 	}
 	if d.healthy(addr) {
 		return addr, nil
+	}
+	// 健康但版本旧：先停旧的（端口是固定的，不停则新进程起不来）。
+	if h, perr := Probe(addr); perr == nil && h.Status == "ok" {
+		if st, serr := LoadState(); serr == nil {
+			stopStale(st)
+			time.Sleep(200 * time.Millisecond) // 给优雅退出留窗口
+		}
 	}
 	if d.Spawn == nil {
 		return "", errors.New("router: daemon 未运行且未提供拉起方式")
