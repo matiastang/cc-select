@@ -231,6 +231,9 @@ func (h *apiHandler) handleMode(w http.ResponseWriter, r *http.Request) {
 				writeError(w, http.StatusInternalServerError, serr.Error())
 				return
 			}
+			if failed == nil {
+				failed = []string{} // nil 切片会序列化成 null，契约要求空数组
+			}
 			writeJSON(w, http.StatusOK, map[string]any{
 				"isolationMode": string(in.IsolationMode),
 				"migrated":      n,
