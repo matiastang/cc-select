@@ -34,6 +34,8 @@ func (PowerShellEmitter) Emit(changes []Change) string {
 			fmt.Fprintf(&b, "$env:%s = %s\n", c.Name, pwshSingleQuote(c.Value))
 		case OpSetIfUnset:
 			fmt.Fprintf(&b, "if (-not $env:%s) { $env:%s = %s }\n", c.Name, c.Name, pwshSingleQuote(c.Value))
+		case OpSetRef:
+			fmt.Fprintf(&b, "$env:%s = \"$env:%s\"\n", c.Name, c.Value)
 		case OpUnset:
 			// -ErrorAction SilentlyContinue：变量不存在时不报错（幂等清理）。
 			fmt.Fprintf(&b, "Remove-Item Env:\\%s -ErrorAction SilentlyContinue\n", c.Name)

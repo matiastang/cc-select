@@ -130,3 +130,12 @@ func TestZshEmit_SetIfUnset_EscapesValue(t *testing.T) {
 		t.Errorf("守卫式导出应复用单引号转义: %q", got)
 	}
 }
+
+func TestZshEmit_SetRef(t *testing.T) {
+	// 引用式导出：值是另一个变量的名字，渲染为双引号展开（每 shell 方言自适配）。
+	got := ZshEmitter{}.Emit([]Change{{Op: OpSetRef, Name: "ANTHROPIC_AUTH_TOKEN", Value: "CC_SELECT_TID"}})
+	want := "export ANTHROPIC_AUTH_TOKEN=\"$CC_SELECT_TID\"\n"
+	if got != want {
+		t.Errorf("Emit SetRef:\nwant %q\ngot  %q", want, got)
+	}
+}

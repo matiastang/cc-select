@@ -46,3 +46,11 @@ func TestPowerShellEmit_SetIfUnset(t *testing.T) {
 		t.Errorf("PS Emit SetIfUnset:\nwant %q\ngot  %q", want, got)
 	}
 }
+
+func TestPowerShellEmit_SetRef(t *testing.T) {
+	got := PowerShellEmitter{}.Emit([]Change{{Op: OpSetRef, Name: "X", Value: "CC_SELECT_TID"}})
+	want := "$env:X = \"$env:CC_SELECT_TID\"\n"
+	if got != want {
+		t.Errorf("PS Emit SetRef:\nwant %q\ngot  %q", want, got)
+	}
+}
