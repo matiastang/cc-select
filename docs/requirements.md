@@ -92,6 +92,26 @@
 
 ---
 
+## 新增需求记录
+
+### 说明
+
+- 项目所有原始需求在 docs/requirements.md 文件中
+- 使用 SpecKit 分析需求，并生成 SpecKit 文件
+
+### 开发基本要求
+
+- 项目需要实现完整的测试，包括单元测试和集成测试。
+- 要实现 git commit 规范：commit message 校验（commitlint 或等效实现）+ git hooks 强制拦截。
+  - **已定（2026-08-28）**：hooks 管理器沿用项目现有 **lefthook**（功能覆盖 husky 场景，且适配 Go + 前端混合仓库），**不引入 husky**。commit-msg 校验已落地：**commitlint**（`@commitlint/config-conventional`）挂入 lefthook `commit-msg` hook，见 `commitlint.config.js` 与 `lefthook.yml`。
+- 项目需要实现 CI/CD，包括 GitHub Actions。先只做校验，不做自动部署，后面再考虑。
+- 项目如果使用了 TypeScript，那么需要使用 TypeScript 的类型系统来保证代码的类型安全。
+- 项目 main 分支的 push、 PR 需要跑 CI 测试
+- 需要先写测试，再写代码，测试驱动开发，开发完成后，测试通过，代码完成
+- 每个版本的需求完成后，都需要做完整的**循环 code review 并修复中等严重及以上问题，直到没有中等严重问题**
+- **重要** 每一个功能点一个 commit，不要把多个功能点放在一个 commit 中，这样不利于代码的维护和回滚
+- 项目需要提供 GitHub Issue 模板，规范 issue 提交（如 Bug 报告、功能建议）
+
 ## 变更记录
 
 | 日期 | 变更 | 来源 |
@@ -104,4 +124,6 @@
 | 2026-06-28 | **机制重构落地**：改用 `CLAUDE_CONFIG_DIR`（方向 2，已实测验证）。`ccs use X` 指向 `~/.cc-select/profiles/<id>/`，claude 读该目录 settings.json。token 明文落 profile（keychain 占位机制已预留待接入）；官方 provider = unset 回默认。详见 [架构 §3.0](./architecture.md#30-切换机制claude_config_dir关键)、[工程细节 §6](./engineering-decisions.md)。 |
 | 2026-06-29 | **文档与实现同步**：更新 CLAUDE.md、docs 状态概览与路线图；统一 docs 与代码中的环境变量名为 `ANTHROPIC_AUTH_TOKEN`；修正 CLI/Windows/验收用例中 `CLAUDE_CONFIG_DIR` 相关示例。 | 文档整理 |
 | 2026-07-05 | **文档重构**：保留 cc-switch 作为「其他方案分析」的对比与能力分析；补充 i18n（Q7）已定决策；梳理「问题→方案→架构→实施」叙事主线。 | 文档整理 |
+| 2026-08-28 | 新增「新增需求记录」段（说明 + 开发基本要求）；其中 git hooks 管理器决策：**沿用 lefthook、不引入 husky**，commitlint（或等效 commit-msg 校验）为待补项。 | 用户确认 |
+| 2026-08-28 | **流程纪律缺口补齐**：commitlint（conventional）挂入 lefthook commit-msg hook；TDD / 循环 code review / commit 粒度写入 SpecKit 宪法 v1.1.0 与 CLAUDE.md；Playwright e2e 纳入 CI。 | 开发补齐 |
 

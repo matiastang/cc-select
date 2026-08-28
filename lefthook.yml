@@ -18,3 +18,10 @@ pre-commit:
     frontend-format-check:
       glob: "internal/frontend/src/**/*.{ts,tsx}"
       run: make frontend-format-check
+
+# commit message 校验：Conventional Commits（commitlint.config.js）。
+# npx --no = 只用本地安装，不联网拉取；未 npm install 时快速失败。
+commit-msg:
+  commands:
+    commitlint:
+      run: npx --no -- commitlint --edit {1}

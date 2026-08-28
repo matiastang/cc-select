@@ -62,6 +62,27 @@
 
 ---
 
+## 与 Spec Kit（spec 驱动开发）的边界（重要）
+
+> 项目已接入 [Spec Kit](https://github.com/github/spec-kit)（specify-cli 锁定 v0.16.5，skills 模式）。
+> 由此引入第二套文档产物 `specs/`（仓库根目录），与本目录 `docs/` 的职责边界如下——**避免同一内容两处维护、互相漂移**。
+
+| 维度 | `docs/`（本目录） | `specs/`（Spec Kit） |
+|---|---|---|
+| 定位 | **项目级真值**：全局需求、架构、选型、验收基线 | **特性级工作区**：单次迭代的 spec / plan / tasks |
+| 生命周期 | 长期维护，沿「更新协作规范」演进 | 特性验收后冻结，留存为过程记录，**不再维护** |
+| 输入来源 | 用户诉求（唯一入口 `requirements.md`） | 从 docs/ 与宪法推导出的单特性规格 |
+
+协作规则：
+
+1. **用户新诉求仍先进 [requirements.md](./requirements.md)**，再决定是否为其发起一个 spec（`/speckit-specify`）。
+2. **SDD 全流程仅用于预计超过一天或跨模块的特性**（对应 [roadmap](./roadmap.md) 阶段 6–9 粒度）；小修小补直接走常规流程。
+3. **回流义务**：特性验收后，其结论（新行为、新决策、新验收点）按上方「更新协作规范」的影响链更新 docs/ 对应文档；specs/ 目录不承载长期真值。
+4. **宪法从属**：`.specify/memory/constitution.md` 由本目录提炼而来；两者冲突时**以 docs/ 为准**，并随即修订宪法。
+5. Spec Kit 工具链（uv + Python 3.11）仅在初始化/升级脚手架时需要；阅读 `specs/` 与日常 SDD 流程不需要。
+
+---
+
 ## 当前状态速览
 
 - **项目阶段**：MVP 实现已完成，进入迭代完善期（见 [roadmap.md](./roadmap.md)）。

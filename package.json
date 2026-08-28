@@ -6,6 +6,8 @@
     "prepare": "lefthook install && cd internal/frontend && npm install"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.5.3",
+    "@commitlint/config-conventional": "^20.5.3",
     "lefthook": "^1.10.10"
   }
 }
