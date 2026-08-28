@@ -37,10 +37,10 @@ description: "Task list: 会话内切换 provider（R9 / v0.0.6）"
 
 **Purpose**: 三个共享基石：模式枚举、路由表存储、守卫式发射。US1/US3/US4 都依赖。
 
-- [ ] T002 [P] TDD：`prefs.ModeProxy`（`"proxy"`）——先在 `internal/prefs/prefs_test.go` 写失败用例（`Valid()` 接受 proxy、`ResolveMode` 三级解析兼容、`DefaultMode` 仍为 settings-only），再改 `internal/prefs/prefs.go`、`internal/prefs/resolve.go`；同步扩展 `internal/cli/mode.go` 值域校验与帮助文案（研究 D4）
-- [ ] T003 [P] TDD：`internal/routes` 路由表包——先写 `internal/routes/routes_test.go` 失败用例（Load/Save/List/Set/Switch/Prune、schema `{"version":1,"routes":[...]}`、原子写 0600、tid 主键 `^ccs-[0-9a-f]{32}$`、updatedAt RFC3339 刷新），再实现 `internal/routes/routes.go`（纯存储，不依赖 config 包；provider 存在性校验留在 CLI/Web 层，见 data-model §2）
+- [x] T002 [P] TDD：`prefs.ModeProxy`（`"proxy"`）——先在 `internal/prefs/prefs_test.go` 写失败用例（`Valid()` 接受 proxy、`ResolveMode` 三级解析兼容、`DefaultMode` 仍为 settings-only），再改 `internal/prefs/prefs.go`、`internal/prefs/resolve.go`；同步扩展 `internal/cli/mode.go` 值域校验与帮助文案（研究 D4）
+- [x] T003 [P] TDD：`internal/routes` 路由表包——先写 `internal/routes/routes_test.go` 失败用例（Load/Save/List/Set/Switch/Prune、schema `{"version":1,"routes":[...]}`、原子写 0600、tid 主键 `^ccs-[0-9a-f]{32}$`、updatedAt RFC3339 刷新），再实现 `internal/routes/routes.go`（纯存储，不依赖 config 包；provider 存在性校验留在 CLI/Web 层，见 data-model §2）
 - [ ] T004 [P] TDD：`shell.Change` 增 `OpSetIfUnset`——先在 `internal/shell/shell_test.go`、`internal/shell/powershell_test.go` 写失败用例（zsh/bash 渲染 `if [ -z "${VAR:-}" ]; then export VAR='v'; fi`；PowerShell 渲染 `if (-not $env:VAR) { $env:VAR = 'v' }`），再改 `internal/shell/shell.go`、`internal/shell/zsh.go`、`internal/shell/powershell.go`
-- [ ] T005 [P] TDD：TID 生成——先在 `internal/routes/routes_test.go` 补失败用例（`NewTID()` 前缀 `ccs-`+32 hex、唯一性），再实现于 `internal/routes/routes.go`（crypto/rand，研究 D6）
+- [x] T005 [P] TDD：TID 生成——先在 `internal/routes/routes_test.go` 补失败用例（`NewTID()` 前缀 `ccs-`+32 hex、唯一性），再实现于 `internal/routes/routes.go`（crypto/rand，研究 D6）
 
 **Checkpoint**: 基石就绪，US1/US3/US4 可并行开工。
 
