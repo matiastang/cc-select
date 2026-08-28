@@ -6,6 +6,7 @@ import { ShellIntegrationBanner } from "./ShellIntegrationBanner";
 import { Header } from "./components/Header";
 import { GlobalModeCard } from "./components/GlobalModeCard";
 import { RoutesPanel } from "./components/RoutesPanel";
+import { KeychainCard } from "./components/KeychainCard";
 import { ProviderList } from "./components/ProviderList";
 import { JsonForm } from "./components/JsonForm";
 import { Provider, IsolationMode } from "./types";
@@ -25,7 +26,6 @@ export default function App() {
   const [editing, setEditing] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string>("");
-  const [migratedNotice, setMigratedNotice] = useState<string>("");
 
   const refresh = async () => {
     try {
@@ -77,13 +77,6 @@ export default function App() {
         await loadGlobalMode(); // rollback to server value
       } else {
         setError("");
-        // 启用 proxy 会触发敏感值迁移（响应附 migrated/failed，契约 web-api.md §1）。
-        if (mode === "proxy") {
-          const j = (await r.json().catch(() => ({}))) as { migrated?: number; failed?: string[] };
-          setMigratedNotice(t("routes.migrated", { n: j.migrated ?? 0 }));
-          if (j.failed && j.failed.length > 0) setError(j.failed.join("; "));
-          refresh(); // env 值已换占位，列表需刷新
-        }
       }
     } catch (e) {
       setError(String(e));
@@ -119,13 +112,9 @@ export default function App() {
 
       <GlobalModeCard mode={globalMode} loading={globalModeLoading} onChange={saveGlobalMode} />
 
-      {migratedNotice && (
-        <div className="notice" data-testid="mode-migrated-notice">
-          {migratedNotice}
-        </div>
-      )}
-
       <RoutesPanel />
+
+      <KeychainCard />
 
       <ProviderList
         providers={Object.values(providers)}

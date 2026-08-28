@@ -22,20 +22,29 @@ func MigrateAll(store SecretStore, cfg *config.Config) (migrated int, failed []s
 		if p.Env == nil {
 			continue
 		}
-		for _, v := range sensitiveVars {
-			val, ok := p.Env[v]
-			if !ok || val == "" || config.IsKeychainPlaceholder(val) {
-				continue
-			}
-			svc := ServiceFor(id, v)
-			if err := store.Set(svc, val); err != nil {
-				failed = append(failed, fmt.Sprintf("%s:%s: %v", id, v, err))
-				continue
-			}
-			p.Env[v] = config.KeychainPlaceholderPrefix + svc
-			migrated++
-		}
+		n, f := MigrateEnv(store, id, p.Env)
+		migrated += n
+		failed = append(failed, f...)
 		cfg.Providers[id] = p // range 得到副本，写回
+	}
+	return migrated, failed
+}
+
+// MigrateEnv 迁移单个 provider env 的敏感值（就地修改；保存路径在钥匙串开关
+// 开启时调用）。单条失败保持明文不中断，失败明细点名条目。
+func MigrateEnv(store SecretStore, providerID string, env map[string]string) (migrated int, failed []string) {
+	for _, v := range sensitiveVars {
+		val, ok := env[v]
+		if !ok || val == "" || config.IsKeychainPlaceholder(val) {
+			continue
+		}
+		svc := ServiceFor(providerID, v)
+		if err := store.Set(svc, val); err != nil {
+			failed = append(failed, fmt.Sprintf("%s:%s: %v", providerID, v, err))
+			continue
+		}
+		env[v] = config.KeychainPlaceholderPrefix + svc
+		migrated++
 	}
 	return migrated, failed
 }

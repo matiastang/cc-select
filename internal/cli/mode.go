@@ -41,23 +41,6 @@ var modeCmd = &cobra.Command{
 		if err := prefs.Save(pr); err != nil {
 			return err
 		}
-		// 启用 Mode P 时迁移敏感值入 keychain（US4/研究 D8）；离开不回迁。
-		if m == prefs.ModeProxy {
-			cfg, cerr := appLoadConfig()
-			if cerr != nil {
-				return cerr
-			}
-			n, failed := migrateSecretsFn(cfg)
-			if serr := config.Save(cfg); serr != nil {
-				return serr
-			}
-			fmt.Fprintf(cmd.ErrOrStderr(), i18n.T("cli.mode.migrated")+"\n", n)
-			if len(failed) > 0 {
-				for _, f := range failed {
-					fmt.Fprintf(cmd.ErrOrStderr(), i18n.T("cli.mode.migrateFailed")+"%s\n", f)
-				}
-			}
-		}
 		fmt.Fprintln(cmd.OutOrStdout(), i18n.T("cli.mode.set", m))
 		return nil
 	},

@@ -120,23 +120,6 @@ func runUseProxy(cmd *cobra.Command, target config.Provider) error {
 		}
 	}
 
-	// 迁移敏感值入 keychain（幂等）——--mode/per-provider 入口与全局 mode 入口
-	// 行为一致（评审 #6：四个启用入口都要执行）。
-	cfg, cerr := appLoadConfig()
-	if cerr != nil {
-		return cerr
-	}
-	n, failed := migrateSecretsFn(cfg)
-	if serr := config.Save(cfg); serr != nil {
-		return serr
-	}
-	if n > 0 || len(failed) > 0 {
-		fmt.Fprintf(cmd.ErrOrStderr(), i18n.T("cli.mode.migrated")+"\n", n)
-		for _, f := range failed {
-			fmt.Fprintf(cmd.ErrOrStderr(), i18n.T("cli.mode.migrateFailed")+"%s\n", f)
-		}
-	}
-
 	tid, err := routes.NewTID()
 	if err != nil {
 		return err

@@ -73,9 +73,14 @@ type apiHandler struct{}
 
 func newAPIHandler() *apiHandler { return &apiHandler{} }
 
-// migrateSecretsFn 是 Mode P 启用迁移的注入点：生产用系统 keychain，测试换 FakeStore。
+// migrateSecretsFn 是存量批量迁移的注入点：生产用系统 keychain，测试换 FakeStore。
 var migrateSecretsFn = func(cfg *config.Config) (int, []string) {
 	return secrets.MigrateAll(secrets.New(), cfg)
+}
+
+// migrateSecretsEnvFn 是保存路径单 env 迁移的注入点（钥匙串开关开启时生效）。
+var migrateSecretsEnvFn = func(providerID string, env map[string]string) (int, []string) {
+	return secrets.MigrateEnv(secrets.New(), providerID, env)
 }
 
 func (h *apiHandler) routes() *http.ServeMux {
@@ -92,6 +97,7 @@ func (h *apiHandler) routes() *http.ServeMux {
 	mux.HandleFunc("/api/v1/update", h.handleUpdateRun)
 	mux.HandleFunc("/api/v1/routes", h.handleRoutes)
 	mux.HandleFunc("/api/v1/router/ensure", h.handleRouterEnsure)
+	mux.HandleFunc("/api/v1/keychain", h.handleKeychain)
 	return mux
 }
 
@@ -224,29 +230,8 @@ func (h *apiHandler) handleMode(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		// 启用 Mode P 触发敏感值迁移（US4/研究 D8；契约 web-api.md §1）；
-		// 迁移结果随响应返回（失败明细不中断设置）。
-		if in.IsolationMode == prefs.ModeProxy {
-			cfg, cerr := config.Load()
-			if cerr != nil {
-				writeError(w, http.StatusInternalServerError, cerr.Error())
-				return
-			}
-			n, failed := migrateSecretsFn(cfg)
-			if serr := config.Save(cfg); serr != nil {
-				writeError(w, http.StatusInternalServerError, serr.Error())
-				return
-			}
-			if failed == nil {
-				failed = []string{} // nil 切片会序列化成 null，契约要求空数组
-			}
-			writeJSON(w, http.StatusOK, map[string]any{
-				"isolationMode": string(in.IsolationMode),
-				"migrated":      n,
-				"failed":        failed,
-			})
-			return
-		}
+		// 产品决策（2026-08-29）：keychain 迁移默认关闭，不再随 proxy 启用自动触发；
+		// 显式开关见 /api/v1/keychain（GUI「保存到钥匙串」设置项）。
 		writeJSON(w, http.StatusOK, map[string]any{"isolationMode": string(in.IsolationMode)})
 	default:
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -657,6 +642,13 @@ func applySettings(id string, data []byte, mode prefs.Mode) (map[string]string, 
 			env[k] = s
 		}
 	}
+	// 钥匙串开关显式开启（默认关）时，保存路径把敏感值占位化（产品决策 2026-08-29）。
+	if pr, perr := prefs.Load(); perr == nil && pr.KeychainEnabled {
+		if _, failed := migrateSecretsEnvFn(id, env); len(failed) > 0 {
+			// 单条失败保持明文并继续（不阻断保存），明细随日志语义由前端态展示。
+			_ = failed
+		}
+	}
 	// env 真值 → providers.json（与 CLI add/edit 的 writeProvider 行为对齐）。
 	if err := saveProviderEnv(id, env); err != nil {
 		return nil, err
@@ -890,4 +882,58 @@ func restoreEnvFromTruth(raw []byte, truth map[string]string) []byte {
 		return raw
 	}
 	return b
+}
+
+// handleKeychain 是钥匙串开关（产品决策 2026-08-29：默认关闭，显式开启才迁移）。
+//   - GET → {"enabled": bool}
+//   - PUT {"enabled": true} → 存偏好 + 存量明文一次性迁移，响应附 {migrated, failed}
+//   - PUT {"enabled": false} → 仅存偏好（已占位化的条目不自动回迁，重新保存明文即恢复）
+func (h *apiHandler) handleKeychain(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		pr, err := prefs.Load()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"enabled": pr.KeychainEnabled})
+	case http.MethodPut:
+		var in struct {
+			Enabled bool `json:"enabled"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+			return
+		}
+		pr, err := prefs.Load()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		pr.KeychainEnabled = in.Enabled
+		if err := prefs.Save(pr); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if !in.Enabled {
+			writeJSON(w, http.StatusOK, map[string]any{"enabled": false})
+			return
+		}
+		cfg, cerr := config.Load()
+		if cerr != nil {
+			writeError(w, http.StatusInternalServerError, cerr.Error())
+			return
+		}
+		n, failed := migrateSecretsFn(cfg)
+		if serr := config.Save(cfg); serr != nil {
+			writeError(w, http.StatusInternalServerError, serr.Error())
+			return
+		}
+		if failed == nil {
+			failed = []string{}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"enabled": true, "migrated": n, "failed": failed})
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
 }

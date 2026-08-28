@@ -84,5 +84,11 @@
     "updatedAt": "更新时间",
     "ensureFailed": "路由服务启动失败",
     "migrated": "已启用代理模式：{{n}} 条敏感值迁入 keychain。"
+  },
+  "keychain": {
+    "title": "安全：将密钥保存到系统钥匙串",
+    "hint": "默认关闭：你设置的值保持原样保存（明文，文件权限 0600）。开启后 API key 会存入系统钥匙串，配置文件中将显示 $keychain 占位符而非真实值。",
+    "enable": "把 API key 保存到系统钥匙串（macOS 钥匙串 / Windows 凭据管理器 / Linux Secret Service）",
+    "migrated": "已开启：{{n}} 条存量密钥迁入钥匙串。"
   }
 }

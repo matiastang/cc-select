@@ -84,5 +84,11 @@
     "updatedAt": "Updated",
     "ensureFailed": "failed to ensure router",
     "migrated": "Enabled proxy mode: {{n}} secret(s) migrated to keychain."
+  },
+  "keychain": {
+    "title": "Security: store keys in the system keychain",
+    "hint": "Off by default: the values you enter stay exactly as you set them (plaintext, file permission 0600). Turn this on to move API keys into the OS keychain — files will then show $keychain placeholders instead of real values.",
+    "enable": "Save API keys to the system keychain (macOS Keychain / Windows Credential Manager / Linux Secret Service)",
+    "migrated": "Enabled: {{n}} existing secret(s) migrated to the keychain."
   }
 }

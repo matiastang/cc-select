@@ -6,6 +6,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+
+	"github.com/cc-select/cc-select/internal/prefs"
+
+	"github.com/cc-select/cc-select/internal/secrets"
+
+	"github.com/cc-select/cc-select/internal/config"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,10 +19,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cc-select/cc-select/internal/config"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/routes"
-	"github.com/cc-select/cc-select/internal/secrets"
 )
 
 // newTestServer 用临时配置建一个 API-only 测试服务，预置一个 glm provider（含明文 token 的 profile）。
@@ -876,19 +880,13 @@ func TestUpdateEndpoints_MethodNotAllowed(t *testing.T) {
 	}
 }
 
-func TestModeEndpoint_PutProxyMigrates(t *testing.T) {
+func TestModeEndpoint_PutProxyDoesNotAutoMigrate(t *testing.T) {
 	srv, _ := newTestServer(t)
 	defer srv.Close()
 	defer os.Unsetenv("CC_SELECT_CONFIG")
 	// 明文 provider 供迁移。
 	os.WriteFile(os.Getenv("CC_SELECT_CONFIG"),
 		[]byte(`{"providers":{"glm":{"id":"glm","env":{"ANTHROPIC_AUTH_TOKEN":"sk-plain"}}}}`), 0o600)
-	orig := migrateSecretsFn
-	migrateSecretsFn = func(cfg *config.Config) (int, []string) {
-		return secrets.MigrateAll(secrets.NewFake(), cfg)
-	}
-	defer func() { migrateSecretsFn = orig }()
-
 	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/mode",
 		strings.NewReader(`{"isolationMode":"proxy"}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -905,16 +903,13 @@ func TestModeEndpoint_PutProxyMigrates(t *testing.T) {
 	if out["isolationMode"] != "proxy" {
 		t.Errorf("应回显 proxy: %v", out)
 	}
-	if out["migrated"] != float64(1) {
-		t.Errorf("应报告迁移 1 条: %v", out["migrated"])
+	// keychain 默认关闭：不得自动迁移（响应不再有 migrated 字段）。
+	if _, has := out["migrated"]; has {
+		t.Errorf("不应附带迁移结果: %v", out)
 	}
-	if failed, ok := out["failed"].([]any); !ok || len(failed) != 0 {
-		t.Errorf("failed 应为空数组: %v", out["failed"])
-	}
-	// 落盘为占位。
 	data, _ := os.ReadFile(os.Getenv("CC_SELECT_CONFIG"))
-	if !strings.Contains(string(data), "$keychain:cc-select:glm:ANTHROPIC_AUTH_TOKEN") {
-		t.Errorf("providers.json 应为占位: %s", data)
+	if !strings.Contains(string(data), "sk-plain") {
+		t.Errorf("用户明文必须保持原样: %s", data)
 	}
 }
 
@@ -1147,5 +1142,105 @@ func TestUpdateProvider_GlobalProxyModeSucceeds(t *testing.T) {
 	env, _ := profile.ReadEnv("glm")
 	if env["ANTHROPIC_BASE_URL"] != "http://127.0.0.1:48270" {
 		t.Errorf("proxy 模式下 profile 应指向 daemon: %+v", env)
+	}
+}
+
+// ---- 钥匙串开关（默认关闭，显式开启才迁移） ----
+
+func TestKeychain_DefaultOffAndExplicitEnable(t *testing.T) {
+	srv, cfgPath := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	// 默认关闭。
+	resp, _ := http.Get(srv.URL + "/api/v1/keychain")
+	var out map[string]any
+	json.NewDecoder(resp.Body).Decode(&out)
+	resp.Body.Close()
+	if out["enabled"] != false {
+		t.Fatalf("默认应关闭: %v", out)
+	}
+
+	// 存量明文。
+	os.WriteFile(cfgPath, []byte(`{"providers":{"glm":{"id":"glm","env":{"ANTHROPIC_AUTH_TOKEN":"sk-plain"}}}}`), 0o600)
+	orig := migrateSecretsFn
+	migrateSecretsFn = func(cfg *config.Config) (int, []string) {
+		return secrets.MigrateAll(secrets.NewFake(), cfg)
+	}
+	defer func() { migrateSecretsFn = orig }()
+
+	// 显式开启 → 存量迁移。
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/keychain", strings.NewReader(`{"enabled":true}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp2, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out2 map[string]any
+	json.NewDecoder(resp2.Body).Decode(&out2)
+	resp2.Body.Close()
+	if out2["enabled"] != true || out2["migrated"] != float64(1) {
+		t.Fatalf("开启应迁移存量: %v", out2)
+	}
+	data, _ := os.ReadFile(cfgPath)
+	if !strings.Contains(string(data), "$keychain:cc-select:glm:ANTHROPIC_AUTH_TOKEN") {
+		t.Errorf("开启后存量应占位化: %s", data)
+	}
+
+	// 关闭 → 偏好落盘，不回迁。
+	req2, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/keychain", strings.NewReader(`{"enabled":false}`))
+	req2.Header.Set("Content-Type", "application/json")
+	resp3, _ := http.DefaultClient.Do(req2)
+	resp3.Body.Close()
+	pr, _ := prefs.Load()
+	if pr.KeychainEnabled {
+		t.Error("关闭后偏好应为 false")
+	}
+}
+
+func TestSave_WithKeychainEnabledPlaceholders(t *testing.T) {
+	srv, cfgPath := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	os.WriteFile(filepath.Join(filepath.Dir(cfgPath), "prefs.json"), []byte(`{"keychainEnabled":true}`), 0o600)
+	origEnv := migrateSecretsEnvFn
+	migrateSecretsEnvFn = func(id string, env map[string]string) (int, []string) {
+		return secrets.MigrateEnv(secrets.NewFake(), id, env)
+	}
+	defer func() { migrateSecretsEnvFn = origEnv }()
+
+	body := `{"name":"glm","settings":{"env":{"ANTHROPIC_BASE_URL":"https://glm","ANTHROPIC_AUTH_TOKEN":"sk-new"}}}`
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/providers/glm", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("保存 want 200 got %d", resp.StatusCode)
+	}
+	data, _ := os.ReadFile(cfgPath)
+	if !strings.Contains(string(data), "$keychain:cc-select:glm:ANTHROPIC_AUTH_TOKEN") || strings.Contains(string(data), "sk-new") {
+		t.Errorf("开关开启时保存应占位化: %s", data)
+	}
+}
+
+func TestSave_KeychainDisabledKeepsPlaintext(t *testing.T) {
+	srv, cfgPath := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	body := `{"name":"glm","settings":{"env":{"ANTHROPIC_BASE_URL":"https://glm","ANTHROPIC_AUTH_TOKEN":"sk-keep"}}}`
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/providers/glm", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	data, _ := os.ReadFile(cfgPath)
+	if !strings.Contains(string(data), "sk-keep") {
+		t.Errorf("默认关闭时明文必须原样保留: %s", data)
 	}
 }

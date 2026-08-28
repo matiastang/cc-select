@@ -204,61 +204,44 @@ func TestCurrent_NoRouteFallsBackToActive(t *testing.T) {
 	}
 }
 
-func TestMode_SetProxyMigratesSecrets(t *testing.T) {
+func TestMode_SetProxyDoesNotAutoMigrate(t *testing.T) {
+	// 产品决策（2026-08-29）：keychain 迁移默认关闭——启用 proxy 模式不得
+	// 擅自把用户设置的明文 key 改成占位符。GUI 显式开启钥匙串开关后才迁移。
 	setTempCfg(t)
-	// 明文 token 的 provider。
 	os.WriteFile(os.Getenv("CC_SELECT_CONFIG"),
 		[]byte(`{"providers":{"glm":{"id":"glm","env":{"ANTHROPIC_AUTH_TOKEN":"sk-plain","ANTHROPIC_MODEL":"glm-5.1"}}}}`), 0o600)
 	var stubCalls int
 	orig := migrateSecretsFn
 	migrateSecretsFn = func(cfg *config.Config) (int, []string) {
 		stubCalls++
-		return secrets.MigrateAll(secrets.NewFake(), cfg) // 测试用 Fake keychain
+		return secrets.MigrateAll(secrets.NewFake(), cfg)
 	}
 	t.Cleanup(func() { migrateSecretsFn = orig })
 
 	if _, _, err := execRoot(t, "", "mode", "proxy"); err != nil {
 		t.Fatalf("mode proxy: %v", err)
 	}
-	if stubCalls != 1 {
-		t.Fatalf("应触发一次迁移，got %d", stubCalls)
+	if stubCalls != 0 {
+		t.Fatalf("不应自动迁移（默认关闭），got %d 次", stubCalls)
 	}
-	// providers.json 落盘为占位；非敏感值保留。
 	data, _ := os.ReadFile(os.Getenv("CC_SELECT_CONFIG"))
-	s := string(data)
-	if !strings.Contains(s, "$keychain:cc-select:glm:ANTHROPIC_AUTH_TOKEN") {
-		t.Errorf("落盘应为占位: %s", s)
-	}
-	if !strings.Contains(s, "glm-5.1") || strings.Contains(s, "sk-plain") {
-		t.Errorf("非敏感值保留/明文不得残留: %s", s)
-	}
-
-	// 离开 proxy 不回迁、不再触发迁移。
-	if _, _, err := execRoot(t, "", "mode", "settings-only"); err != nil {
-		t.Fatalf("mode settings-only: %v", err)
-	}
-	if stubCalls != 1 {
-		t.Errorf("离开 proxy 不应触发迁移: %d", stubCalls)
+	if !strings.Contains(string(data), "sk-plain") {
+		t.Errorf("用户设置的明文必须保持原样: %s", data)
 	}
 }
 
-func TestUse_ProxyModeMigratesSecrets(t *testing.T) {
+func TestUse_ProxyModeDoesNotAutoMigrate(t *testing.T) {
 	setTempCfg(t)
 	os.WriteFile(os.Getenv("CC_SELECT_CONFIG"),
 		[]byte(`{"providers":{"glm":{"id":"glm","env":{"ANTHROPIC_AUTH_TOKEN":"sk-plain"}}}}`), 0o600)
 	stubEnsure(t, "127.0.0.1:48270", nil)
-	orig := migrateSecretsFn
-	migrateSecretsFn = func(cfg *config.Config) (int, []string) {
-		return secrets.MigrateAll(secrets.NewFake(), cfg)
-	}
-	t.Cleanup(func() { migrateSecretsFn = orig })
 
 	if _, _, err := execRoot(t, "", "use", "glm", "--mode", "proxy", "--shell", "zsh"); err != nil {
 		t.Fatalf("use --mode proxy: %v", err)
 	}
 	data, _ := os.ReadFile(os.Getenv("CC_SELECT_CONFIG"))
-	if !strings.Contains(string(data), "$keychain:cc-select:glm:ANTHROPIC_AUTH_TOKEN") {
-		t.Errorf("use（proxy）也应触发迁移（--mode/per-provider 入口不能绕过 US4）: %s", data)
+	if !strings.Contains(string(data), "sk-plain") {
+		t.Errorf("use（proxy）不得擅自改写用户明文（keychain 默认关闭）: %s", data)
 	}
 }
 

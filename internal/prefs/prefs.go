@@ -43,6 +43,10 @@ type Prefs struct {
 	IsolationMode Mode `json:"isolationMode,omitempty"`
 	// Language 是用户显示语言；空串表示「未设置」，Resolve 时回退系统检测或 DefaultLocale。
 	Language string `json:"language,omitempty"`
+	// KeychainEnabled：是否把敏感值保存到系统钥匙串（默认 false——用户显式开启，
+	// 产品决策 2026-08-29：不擅自改写用户设置的明文）。开启后：存量迁移 + 后续
+	// 保存路径自动占位化。
+	KeychainEnabled bool `json:"keychainEnabled,omitempty"`
 }
 
 // NormalizeLanguage validates and normalizes the stored language preference.

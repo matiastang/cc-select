@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/presets"
 	"github.com/cc-select/cc-select/internal/router"
+	"github.com/cc-select/cc-select/internal/secrets"
 	"github.com/spf13/cobra"
 )
 
@@ -332,6 +334,12 @@ func upsertProvider(a *app.App, id string, fl addFlags, providerMode prefs.Mode)
 func writeProvider(a *app.App, id, name string, env map[string]string, providerMode prefs.Mode, presetID, apiFormat, authField string) error {
 	// 实际生效模式 = per-provider 覆盖（若有）> 全局 > 默认。
 	resolved := prefs.ResolveMode("", providerMode, a.Prefs.IsolationMode)
+	// 钥匙串开关显式开启（默认关）时，保存路径把敏感值占位化（产品决策 2026-08-29）。
+	if a.Prefs != nil && a.Prefs.KeychainEnabled {
+		if _, failed := migrateEnvFn(id, env); len(failed) > 0 {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", i18n.T("cli.mode.migrateFailed"), strings.Join(failed, "; "))
+		}
+	}
 	if _, _, err := router.SyncProfile(id, env, resolved); err != nil {
 		return fmt.Errorf(i18n.T("cli.add.profileWriteFailed"), err)
 	}
@@ -348,4 +356,9 @@ func writeProvider(a *app.App, id, name string, env map[string]string, providerM
 		AuthField:     authField,
 	}
 	return nil
+}
+
+// migrateEnvFn 是单 env 迁移注入点：生产用系统 keychain，测试换 FakeStore。
+var migrateEnvFn = func(providerID string, env map[string]string) (int, []string) {
+	return secrets.MigrateEnv(secrets.New(), providerID, env)
 }
