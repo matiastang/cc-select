@@ -101,7 +101,7 @@ description: "Task list: 会话内切换 provider（R9 / v0.0.6）"
 **Independent Test**: quickstart.md §5（grep 核对占位符与 profile 无密钥）。
 
 - [x] T021 [US4] TDD：密钥迁移——先写失败用例（设 mode=proxy 时：敏感值 `ANTHROPIC_AUTH_TOKEN`/`ANTHROPIC_API_KEY` 写 keychain service `cc-select:<id>:<var>` + `providers.json` 原值换 `$keychain:` 占位；幂等（已是占位跳过）；失败返回明细不中断；离开 proxy **不**回迁），实现于 `internal/secrets/migrate.go` + `internal/secrets/migrate_test.go`，调用点接 `internal/cli/mode.go`（研究 D8）
-- [ ] T022 [US4] TDD：Web 模式端点——先在 `internal/web/api_test.go` 写失败用例（PUT `/api/v1/mode` 值域含 proxy 且触发迁移、响应 `{mode,migrated,failed}`；GET 回显），再改 `internal/web/api.go`（contracts/web-api.md §1）
+- [x] T022 [US4] TDD：Web 模式端点——先在 `internal/web/api_test.go` 写失败用例（PUT `/api/v1/mode` 值域含 proxy 且触发迁移、响应 `{mode,migrated,failed}`；GET 回显），再改 `internal/web/api.go`（contracts/web-api.md §1）
 
 **Checkpoint**: 未启用 Mode P 时全链路行为零变化（SC-005）。
 

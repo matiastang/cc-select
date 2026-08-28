@@ -15,6 +15,7 @@ import (
 	"github.com/cc-select/cc-select/internal/presets"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/rcinteg"
+	"github.com/cc-select/cc-select/internal/secrets"
 	"github.com/cc-select/cc-select/internal/updater"
 )
 
@@ -67,6 +68,11 @@ type presetDetailDTO struct {
 type apiHandler struct{}
 
 func newAPIHandler() *apiHandler { return &apiHandler{} }
+
+// migrateSecretsFn 是 Mode P 启用迁移的注入点：生产用系统 keychain，测试换 FakeStore。
+var migrateSecretsFn = func(cfg *config.Config) (int, []string) {
+	return secrets.MigrateAll(secrets.New(), cfg)
+}
 
 func (h *apiHandler) routes() *http.ServeMux {
 	mux := http.NewServeMux()
@@ -198,8 +204,8 @@ func (h *apiHandler) handleMode(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 			return
 		}
-		if in.IsolationMode != prefs.ModeSettingsOnly && in.IsolationMode != prefs.ModeFull {
-			writeError(w, http.StatusBadRequest, "isolationMode must be settings-only or full")
+		if !in.IsolationMode.Valid() || in.IsolationMode == "" {
+			writeError(w, http.StatusBadRequest, "isolationMode must be settings-only, full or proxy")
 			return
 		}
 		pr, err := prefs.Load()
@@ -210,6 +216,26 @@ func (h *apiHandler) handleMode(w http.ResponseWriter, r *http.Request) {
 		pr.IsolationMode = in.IsolationMode
 		if err := prefs.Save(pr); err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		// 启用 Mode P 触发敏感值迁移（US4/研究 D8；契约 web-api.md §1）；
+		// 迁移结果随响应返回（失败明细不中断设置）。
+		if in.IsolationMode == prefs.ModeProxy {
+			cfg, cerr := config.Load()
+			if cerr != nil {
+				writeError(w, http.StatusInternalServerError, cerr.Error())
+				return
+			}
+			n, failed := migrateSecretsFn(cfg)
+			if serr := config.Save(cfg); serr != nil {
+				writeError(w, http.StatusInternalServerError, serr.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{
+				"isolationMode": string(in.IsolationMode),
+				"migrated":      n,
+				"failed":        failed,
+			})
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"isolationMode": string(in.IsolationMode)})

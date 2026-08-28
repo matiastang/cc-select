@@ -12,7 +12,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cc-select/cc-select/internal/config"
 	"github.com/cc-select/cc-select/internal/profile"
+	"github.com/cc-select/cc-select/internal/secrets"
 )
 
 // newTestServer 用临时配置建一个 API-only 测试服务，预置一个 glm provider（含明文 token 的 profile）。
@@ -867,5 +869,47 @@ func TestUpdateEndpoints_MethodNotAllowed(t *testing.T) {
 	resp2.Body.Close()
 	if resp2.StatusCode != http.StatusMethodNotAllowed {
 		t.Errorf("GET /update want 405 got %d", resp2.StatusCode)
+	}
+}
+
+func TestModeEndpoint_PutProxyMigrates(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	// 明文 provider 供迁移。
+	os.WriteFile(os.Getenv("CC_SELECT_CONFIG"),
+		[]byte(`{"providers":{"glm":{"id":"glm","env":{"ANTHROPIC_AUTH_TOKEN":"sk-plain"}}}}`), 0o600)
+	orig := migrateSecretsFn
+	migrateSecretsFn = func(cfg *config.Config) (int, []string) {
+		return secrets.MigrateAll(secrets.NewFake(), cfg)
+	}
+	defer func() { migrateSecretsFn = orig }()
+
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/mode",
+		strings.NewReader(`{"isolationMode":"proxy"}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("PUT proxy want 200 got %d", resp.StatusCode)
+	}
+	var out map[string]any
+	json.NewDecoder(resp.Body).Decode(&out)
+	resp.Body.Close()
+	if out["isolationMode"] != "proxy" {
+		t.Errorf("应回显 proxy: %v", out)
+	}
+	if out["migrated"] != float64(1) {
+		t.Errorf("应报告迁移 1 条: %v", out["migrated"])
+	}
+	if failed, ok := out["failed"].([]any); !ok || len(failed) != 0 {
+		t.Errorf("failed 应为空数组: %v", out["failed"])
+	}
+	// 落盘为占位。
+	data, _ := os.ReadFile(os.Getenv("CC_SELECT_CONFIG"))
+	if !strings.Contains(string(data), "$keychain:cc-select:glm:ANTHROPIC_AUTH_TOKEN") {
+		t.Errorf("providers.json 应为占位: %s", data)
 	}
 }
