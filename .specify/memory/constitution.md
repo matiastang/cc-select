@@ -1,4 +1,15 @@
 <!--
+Sync Impact Report (v1.2.0, 2026-08-28)
+- Version change: 1.1.0 → 1.2.0 (MINOR: Principle II gains an opt-in proxy-mode carve-out)
+- Modified principles: II. CLAUDE_CONFIG_DIR 隔离机制 —— 新增 Mode P（proxy）条款；既有 Mode A/B 语义一字未动。
+- Added: Principle II 之 Mode P 条款（env 仅承载恒定身份；路由经本地 daemon 路由表；
+  current 在 TID 存在时以路由表为 per-terminal 真值）。
+- Source: docs/requirements.md v0.0.6 / R9（用户确认的 P1 方向性决策）+
+  specs/001-in-session-provider-switch（plan 宪法 Check 论证 + Complexity Tracking）。
+- Follow-up TODOs: none。
+-->
+
+<!--
 Sync Impact Report (v1.1.0, 2026-08-28)
 - Version change: 1.0.0 → 1.1.0 (MINOR: new principle added + materially expanded workflow guidance)
 - Modified principles: none renamed or removed.
@@ -39,6 +50,11 @@ Sync Impact Report (v1.0.0, 2026-08-28)
 - 官方 Claude provider 的语义是 `unset CLAUDE_CONFIG_DIR`（回默认 `~/.claude`），即「空 provider」，MUST NOT 写入任何 env。
 - `cc-select current` MUST 读 shell 环境变量 `$CC_SELECT_ACTIVE`，MUST NOT 读磁盘配置——磁盘配置是全局共享的模板，读它会误报当前 shell 的激活状态（engineering-decisions §3）。
 - 隔离粒度维持双模式（Mode A 全隔离 / Mode B 仅 settings.json 隔离，默认 B）；`use` 每次幂等重建 profile（自愈语义）MUST 保留。
+- **Mode P（proxy，opt-in 第三模式，v1.2.0 新增，需求 R9）**：在「身份/路由分离」框架下豁免上述首条的字面约束——
+  - claude env 只承载**恒定身份**：`ANTHROPIC_BASE_URL`=本地路由 daemon（经 profile settings.json 注入，仍借 CLAUDE_CONFIG_DIR 生效）、`ANTHROPIC_AUTH_TOKEN`=$CC_SELECT_TID 伪 token（shell 守卫式注入，每 shell 一次）；
+  - provider 路由真值是 daemon 侧的**每请求路由表**（`~/.cc-select/routes.json`，tid → provider）；切换 MUST 经改路由表（`route switch`），MUST NOT 经 env 变更——本条与原则 I 同源（env 冻结 + 子进程不可改父 env）；
+  - `current` 在 `$CC_SELECT_TID` 存在且路由表有条目时，MUST 以路由表为 per-terminal 真值（它不是全局模板，恰是原则 II 本意所保护的对象）；
+  - 官方 provider 不参与 Mode P（v1）；Mode P 下 profile settings.json MUST NOT 含任何密钥（真值收敛 keychain，向原则 VI 的升级路径对齐）。
 
 ### III. 跨平台三 OS 不可遗漏
 
@@ -102,4 +118,4 @@ Sync Impact Report (v1.0.0, 2026-08-28)
 - 合规审查：PR review 与 `/speckit-analyze` 检查宪法符合性；引入复杂度或偏离选型 MUST 在 PR 描述中给出理由。
 - 运行期开发指引：见仓库根 CLAUDE.md；文档治理规则：见 docs/README.md。
 
-**Version**: 1.1.0 | **Ratified**: 2026-08-28 | **Last Amended**: 2026-08-28
+**Version**: 1.2.0 | **Ratified**: 2026-08-28 | **Last Amended**: 2026-08-28
