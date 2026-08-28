@@ -132,6 +132,27 @@
       "installed": "✓ 已更新 %s → %s。重启 cc-select 使其生效。",
       "restartHint": "关闭本进程（Ctrl+C）并重新启动 cc-select 以使用新版本。",
       "dryRunOk": "✓ Dry run：%s 已下载并校验（未安装）。"
+    },
+    "route": {
+      "cli.route.badDuration": "非法 --older-than 时长 %q",
+      "cli.route.badTID": "非法终端身份 %q",
+      "cli.route.list.long": "列出所有终端路由（tid 短码、provider、最后更新时间）。",
+      "cli.route.list.short": "列出全部终端路由",
+      "cli.route.listEmpty": "暂无路由条目",
+      "cli.route.long": "管理 Mode P 路由表：切换当前终端的 provider，无需重启运行中的 Claude Code 会话。在会话内的 Bash 工具执行 route switch 即可热切。",
+      "cli.route.noTID": "缺少终端身份：请先在本 shell 执行 `ccs use <provider>`（proxy 模式），或显式传 --tid",
+      "cli.route.official": "官方 provider 不参与会话内热切（v1），请沿用现有模式",
+      "cli.route.olderThanFlag": "清理阈值，如 168h",
+      "cli.route.prune.long": "删除超过 --older-than（默认 168h）未更新的路由条目。",
+      "cli.route.prune.short": "清理过期路由条目",
+      "cli.route.pruned": "已清理 %d 条",
+      "cli.route.short": "管理终端级 provider 路由（proxy 模式）",
+      "cli.route.status.long": "显示当前终端路由到的 provider，以及路由 daemon 是否存活。",
+      "cli.route.status.short": "显示本终端路由与路由服务存活状态",
+      "cli.route.switch.long": "切换服务本终端请求的 provider。下一笔模型请求即生效；在途请求按原 provider 完成。",
+      "cli.route.switch.short": "热切当前终端的 provider",
+      "cli.route.tidFlag": "终端身份（默认取 $CC_SELECT_TID）",
+      "cli.route.unknownProvider": "未知 provider %q，可用 `ccs list` 查看已配置项"
     }
   },
   "errors": {

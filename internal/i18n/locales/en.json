@@ -132,6 +132,27 @@
       "installed": "✓ Updated %s → %s. Restart cc-select to apply.",
       "restartHint": "Close this process (Ctrl+C) and start cc-select again to use the new version.",
       "dryRunOk": "✓ Dry run: %s downloaded and verified (not installed)."
+    },
+    "route": {
+      "cli.route.badDuration": "invalid --older-than duration %q",
+      "cli.route.badTID": "invalid terminal id %q",
+      "cli.route.list.long": "List every terminal route (short TID, provider, last updated).",
+      "cli.route.list.short": "List all terminal routes",
+      "cli.route.listEmpty": "no routes yet",
+      "cli.route.long": "Manage the Mode P route table: switch the provider for this terminal without restarting a running Claude Code session. Run `route switch` inside the session's Bash tool to hot-switch.",
+      "cli.route.noTID": "no terminal identity: run `ccs use <provider>` (proxy mode) in this shell first, or pass --tid explicitly",
+      "cli.route.official": "the official provider does not participate in hot-switching (v1); use existing modes instead",
+      "cli.route.olderThanFlag": "prune threshold, e.g. 168h",
+      "cli.route.prune.long": "Remove route entries not updated within --older-than (default 168h).",
+      "cli.route.prune.short": "Remove stale route entries",
+      "cli.route.pruned": "pruned %d entries",
+      "cli.route.short": "Manage per-terminal provider routes (proxy mode)",
+      "cli.route.status.long": "Show the current provider routed for this terminal and whether the router daemon is alive.",
+      "cli.route.status.short": "Show this terminal's route and router liveness",
+      "cli.route.switch.long": "Switch the provider serving this terminal's requests. Takes effect on the next model request; in-flight requests complete on the old provider.",
+      "cli.route.switch.short": "Hot-switch this terminal's provider",
+      "cli.route.tidFlag": "terminal id (defaults to $CC_SELECT_TID)",
+      "cli.route.unknownProvider": "unknown provider %q; run `ccs list` to see configured providers"
     }
   },
   "errors": {
