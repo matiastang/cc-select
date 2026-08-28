@@ -165,6 +165,18 @@ A child process cannot modify its parent shell's environment. `cc-select` theref
 
 Use `cc-select mode` to view/set the global default, or `cc-select edit <id> --mode ...` / `ccs use <id> --mode ...` for per-provider or one-time overrides. See [docs/isolation-modes.md](docs/isolation-modes.md) for details.
 
+## Hit a rate limit? Switch and continue
+
+When the provider in an active Claude Code session runs dry (e.g. a GLM 5-hour window), you can switch to another provider and **continue the same conversation** — in the default Mode B, session history is shared across providers:
+
+```bash
+# inside the running session: Ctrl+D (or /exit) to leave — history is already saved
+ccs use minimax        # switch this terminal to another provider
+claude --continue      # resume the most recent session with full context
+```
+
+This is the documented quota-rescue workflow. Note: it relies on Mode B's shared history; in Mode A (`full`) each provider keeps its own isolated history, so cross-provider resume does not apply there.
+
 ## Security note
 
 API keys are currently stored **in plaintext** inside `~/.cc-select/profiles/<id>/settings.json` (file permissions `0600`, directory `0700`). This is the same risk level as `~/.claude/settings.json`. A keychain-backed storage upgrade is planned; the placeholder mechanism and `internal/secrets` package are already in place.

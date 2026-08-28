@@ -55,6 +55,16 @@
 └── …（~/.claude 下除 settings.json 外的每个条目，以及白名单预创建的条目）
 ```
 
+### 2.1 Mode B 的直接收益：跨 provider 续会话（限额救急）
+
+`projects/`（对话历史）共享意味着：**当前 provider 限额用尽时，换一家可以接着聊**——
+
+```
+（会话内 Ctrl+D / /exit 退出）→ ccs use <另一家> → claude --continue
+```
+
+三步即恢复完整上下文，是受验收保护的标准工作流（[acceptance-tests AC15](./acceptance-tests.md)、需求 R9-P0）。Mode A 下历史随 provider 隔离，此流程不适用（by design）。
+
 ---
 
 ## 3. 模式存储与切换（全局默认 + per-provider 覆盖）

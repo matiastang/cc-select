@@ -165,6 +165,18 @@ cc-select 是**未签名的开源**二进制。在 Windows 上：
 
 使用 `cc-select mode` 查看/设置全局默认；用 `cc-select edit <id> --mode ...` 或 `ccs use <id> --mode ...` 做 per-provider 覆盖或一次性覆盖。详见 [docs/isolation-modes.md](../isolation-modes.md)。
 
+## 限额用完了？切换服务商接着干
+
+当前会话的 provider 用量耗尽（如 GLM 的 5 小时窗口到了）时，可以切换到另一家并**继续同一段对话**——默认 Mode B 下，会话历史跨 provider 共享：
+
+```bash
+# 在运行中的会话里：Ctrl+D（或 /exit）退出——历史已自动保存
+ccs use minimax        # 当前终端切换到另一家
+claude --continue      # 带完整上下文继续最近一次会话
+```
+
+这就是文档化的「限额救急」工作流。注意：它依赖 Mode B 的历史共享；Mode A（`full`）下每个 provider 的历史各自隔离，跨 provider 续会话不适用。
+
 ## 安全说明
 
 API key 目前以**明文**存储在 `~/.cc-select/profiles/<id>/settings.json` 中（文件权限 `0600`，目录权限 `0700`）。风险等级与 `~/.claude/settings.json` 相同。后续计划接入系统 Keychain；keychain 占位机制与 `internal/secrets` 包已实现，待接入 CLI/Web 写入路径。

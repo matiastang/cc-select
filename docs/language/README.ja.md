@@ -165,6 +165,18 @@ cc-select は**未署名のオープンソース**バイナリです。Windows �
 
 グローバル既定値は `cc-select mode` で確認・設定できます。per-provider 上書きや一度きりの上書きには `cc-select edit <id> --mode ...` または `ccs use <id> --mode ...` を使ってください。詳細は [docs/isolation-modes.md](../isolation-modes.md) を参照。
 
+## レート制限に達したら？切り替えて続行
+
+実行中の Claude Code セッションのプロバイダーが使えなくなった（例：GLM の 5 時間ウィンドウ消費済み）場合、別のプロバイダーに切り替えて**同じ会話を続行**できます。デフォルトの Mode B ではセッション履歴がプロバイダー間で共有されます：
+
+```bash
+# 実行中のセッション内で：Ctrl+D（または /exit）で終了——履歴は自動保存済み
+ccs use minimax        # このターミナルを別のプロバイダーへ切り替え
+claude --continue      # 完全なコンテキストで直近のセッションを再開
+```
+
+これがドキュメント化された「クォータ救済」ワークフローです。注意：Mode B の履歴共有に依存します。Mode A（`full`）ではプロバイダーごとに履歴が分離されるため、プロバイダー横断の再開は適用されません。
+
 ## セキュリティに関する注意
 
 API キーは現在、`~/.cc-select/profiles/<id>/settings.json` に**平文**で保存されています（ファイル権限 `0600`、ディレクトリ権限 `0700`）。リスクレベルは `~/.claude/settings.json` と同じです。今後、システム Keychain への対応を予定しています。keychain プレースホルダー機構と `internal/secrets` パッケージはすでに実装済みで、CLI/Web の書き込みパスに接続する予定です。
