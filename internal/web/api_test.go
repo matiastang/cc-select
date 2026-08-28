@@ -1056,3 +1056,32 @@ func errorsNew(msg string) error { return &stubError{msg} }
 type stubError struct{ msg string }
 
 func (e *stubError) Error() string { return e.msg }
+
+// Mode P 派生产物保护：use(proxy) 后 profile env 仅含代理 BASE_URL，真值在
+// providers.json。编辑页回填必须用真值，否则一次保存即真值丢失。
+func TestGetProvider_ProxyArtifactShowsRealEnv(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	// providers.json 真值（上抬后的形态）。
+	os.WriteFile(os.Getenv("CC_SELECT_CONFIG"), []byte(`{"providers":{"glm":{"id":"glm","env":{"ANTHROPIC_BASE_URL":"https://glm.api","ANTHROPIC_AUTH_TOKEN":"sk-real","ANTHROPIC_MODEL":"glm-5.3"}}}}`), 0o600)
+	// profile = use(proxy) 的派生产物（env 仅代理地址，非 env 字段来自全局合并）。
+	profile.EnsureRaw("glm", []byte(`{"permissions":{"allow":["foo"]},"env":{"ANTHROPIC_BASE_URL":"http://127.0.0.1:48270"}}`))
+
+	resp, err := http.Get(srv.URL + "/api/v1/providers/glm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out struct {
+		Settings map[string]any `json:"settings"`
+	}
+	json.NewDecoder(resp.Body).Decode(&out)
+	env, _ := out.Settings["env"].(map[string]any)
+	if env == nil || env["ANTHROPIC_BASE_URL"] != "https://glm.api" || env["ANTHROPIC_AUTH_TOKEN"] != "sk-real" {
+		t.Errorf("编辑页应回填 providers.json 真值而非代理派生产物: %+v", env)
+	}
+	if _, has := out.Settings["permissions"]; !has {
+		t.Errorf("非 env 字段应保留: %+v", out.Settings)
+	}
+}

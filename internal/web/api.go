@@ -705,6 +705,12 @@ func toDetailDTO(p config.Provider, id string) providerDetailDTO {
 	if len(raw) == 0 {
 		raw = []byte("{}")
 	}
+	// Mode P 派生产物保护（specs/001 实测发现）：use(proxy) 会把 profile env 覆写为
+	// 仅含代理 BASE_URL，真值在 providers.json（上抬后）。编辑页若以派生产物回填，
+	// 用户一次保存就会把真值覆盖丢失——此处把 env 部分替换回真值（非 env 字段保留）。
+	if addr, aerr := router.ResolveAddr(); aerr == nil && len(p.Env) > 0 {
+		raw = restoreEnvFromTruth(raw, p.Env, "http://"+addr)
+	}
 	return providerDetailDTO{
 		ID:            id,
 		Name:          p.DisplayName(),
@@ -804,4 +810,31 @@ func (h *apiHandler) handleRouterEnsure(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"running": true, "addr": addr})
+}
+
+// restoreEnvFromTruth 在 raw（profile settings.json 原文）是「仅含代理 BASE_URL 的
+// 派生产物」时，把 env 键替换为 truth（providers.json 真值），其余字段原样保留。
+// 非 派生产物 形态则原样返回（Mode A 原文编辑语义不受影响）。
+func restoreEnvFromTruth(raw []byte, truth map[string]string, proxyBase string) []byte {
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return raw
+	}
+	envAny, ok := m["env"].(map[string]any)
+	if !ok || len(envAny) != 1 {
+		return raw
+	}
+	if v, isStr := envAny["ANTHROPIC_BASE_URL"].(string); !isStr || v != proxyBase {
+		return raw
+	}
+	envOut := make(map[string]any, len(truth))
+	for k, v := range truth {
+		envOut[k] = v
+	}
+	m["env"] = envOut
+	b, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return raw
+	}
+	return b
 }
