@@ -164,7 +164,7 @@ A child process cannot modify its parent shell's environment. `cc-select` theref
 - **Mode A — `full`**: the entire profile directory is isolated.
 - **Mode P — `proxy`** (v0.0.6, opt-in): in-session hot-switching via a local routing daemon — run `cc-select route switch <provider>` inside a running Claude Code session when the current provider hits its quota. See [docs/isolation-modes.md §10](docs/isolation-modes.md).
 
-Since v0.0.7 (requires Claude Code ≥ 2.1.242): `/model` shows the active provider's real models — derived from its configured `ANTHROPIC_MODEL` / `ANTHROPIC_DEFAULT_*_MODEL`, with the built-in Anthropic catalog hidden — in every isolation mode at session start. In Mode P the list also follows `route switch` in-session without a restart, and picker selections are routed faithfully. Known limitation: the "current model" marker is a startup-time Claude Code field, so after a hot-switch it lags until you pick from `/model` or restart the session.
+Since v0.0.7 (requires Claude Code ≥ 2.1.242): `/model` shows the active provider's real models — derived from its configured `ANTHROPIC_MODEL` / `ANTHROPIC_DEFAULT_*_MODEL`, with the built-in Anthropic catalog hidden — in every isolation mode at session start. In Mode P the list also follows `route switch` in-session without a restart, and picker selections are routed faithfully. On older Claude Code versions, `use` prints a one-line upgrade hint (the injection is harmless there but has no effect). Known limitation: the "current model" marker is a startup-time Claude Code field, so after a hot-switch it lags until you pick from `/model` or restart the session.
 
 Use `cc-select mode` to view/set the global default, or `cc-select edit <id> --mode ...` / `ccs use <id> --mode ...` for per-provider or one-time overrides. See [docs/isolation-modes.md](docs/isolation-modes.md) for details.
 
@@ -184,7 +184,7 @@ This is the documented quota-rescue workflow. Note: it relies on Mode B's shared
 
 ## Security note
 
-API keys are currently stored **in plaintext** inside `~/.cc-select/profiles/<id>/settings.json` (file permissions `0600`, directory `0700`). This is the same risk level as `~/.claude/settings.json`. A keychain-backed storage upgrade is planned; the placeholder mechanism and `internal/secrets` package are already in place.
+API keys are currently stored **in plaintext** inside `~/.cc-select/profiles/<id>/settings.json` (file permissions `0600`, directory `0700`). This is the same risk level as `~/.claude/settings.json`. Exception: in Mode P a profile file holds only the local proxy address — real tokens live in `providers.json` and are used by the routing daemon (keychain placeholders supported). A keychain-backed storage upgrade is planned; the placeholder mechanism and `internal/secrets` package are already in place.
 
 ## Build
 

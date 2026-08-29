@@ -164,7 +164,7 @@ cc-select は**未署名のオープンソース**バイナリです。Windows �
 - **Mode A — `full`**: profile ディレクトリ全体を完全に分離します。
 - **Mode P — `proxy`**（v0.0.6、オプトイン）: ローカルルーティング daemon によるセッション内ホットスイッチ——現在のプロバイダーがレート制限に達したら、実行中の Claude Code セッション内で `cc-select route switch <provider>` を実行するだけです。詳細は [docs/isolation-modes.md §10](../isolation-modes.md)。
 
-v0.0.7 から（Claude Code ≥ 2.1.242 が必要）：新規セッションの `/model` にはアクティブなプロバイダーの実モデルが表示されます——設定済みの `ANTHROPIC_MODEL` / `ANTHROPIC_DEFAULT_*_MODEL` から派生し、内蔵の Anthropic カタログは非表示——すべての分離モードでセッション開始時に有効です。Mode P ではリストが `route switch` にセッション内で追従し（再起動不要）、ピッカーでの選択はルーターがそのまま適用されます。既知の制限：「現在のモデル」マーカーは Claude Code の起動時フィールドのため、ホットスイッチ後は `/model` で選択するかセッションを再起動するまで表示が遅れます。
+v0.0.7 から（Claude Code ≥ 2.1.242 が必要）：新規セッションの `/model` にはアクティブなプロバイダーの実モデルが表示されます——設定済みの `ANTHROPIC_MODEL` / `ANTHROPIC_DEFAULT_*_MODEL` から派生し、内蔵の Anthropic カタログは非表示——すべての分離モードでセッション開始時に有効です。Mode P ではリストが `route switch` にセッション内で追従し（再起動不要）、ピッカーでの選択はルーターがそのまま適用されます。古い Claude Code では `use` が一行の更新ヒントを表示します（注入は無害ですが効果はありません）。既知の制限：「現在のモデル」マーカーは Claude Code の起動時フィールドのため、ホットスイッチ後は `/model` で選択するかセッションを再起動するまで表示が遅れます。
 
 グローバル既定は `cc-select mode` で確認・設定できます。per-provider 上書きや一度きりの上書きには `cc-select edit <id> --mode ...` または `ccs use <id> --mode ...` を使ってください。詳細は [docs/isolation-modes.md](../isolation-modes.md) を参照。
 
@@ -184,7 +184,7 @@ claude --continue      # 完全なコンテキストで直近のセッション�
 
 ## セキュリティに関する注意
 
-API キーは現在、`~/.cc-select/profiles/<id>/settings.json` に**平文**で保存されています（ファイル権限 `0600`、ディレクトリ権限 `0700`）。リスクレベルは `~/.claude/settings.json` と同じです。今後、システム Keychain への対応を予定しています。keychain プレースホルダー機構と `internal/secrets` パッケージはすでに実装済みで、CLI/Web の書き込みパスに接続する予定です。
+API キーは現在、`~/.cc-select/profiles/<id>/settings.json` に**平文**で保存されています（ファイル権限 `0600`、ディレクトリ権限 `0700`）。リスクレベルは `~/.claude/settings.json` と同じです。例外：Mode P では profile ファイルにはローカルプロキシアドレスのみが入り——実トークンは `providers.json` にあり、ルーティング daemon が使用します（keychain プレースホルダー対応）。今後、システム Keychain への対応を予定しています。keychain プレースホルダー機構と `internal/secrets` パッケージはすでに実装済みで、CLI/Web の書き込みパスに接続する予定です。
 
 ## ビルド
 

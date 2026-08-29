@@ -164,7 +164,7 @@ cc-select 是**未签名的开源**二进制。在 Windows 上：
 - **Mode A — `full`**：整个 profile 目录完全隔离。
 - **Mode P — `proxy`**（v0.0.6，可选启用）：本地路由 daemon 实现会话内热切——当前 provider 限额时，在运行中的 Claude Code 会话里执行 `cc-select route switch <provider>` 即可。详见 [docs/isolation-modes.md §10](../isolation-modes.md)。
 
-v0.0.7 起（需 Claude Code ≥ 2.1.242）：新会话的 `/model` 显示当前 provider 的真实模型——由其所配 `ANTHROPIC_MODEL` / `ANTHROPIC_DEFAULT_*_MODEL` 派生、隐藏内置 Anthropic 目录——三种隔离模式统一生效。Mode P 下列表还随 `route switch` 在会话内刷新、无需重启，选择器中的选择会被代理如实执行。已知限制：「当前模型」标记是 Claude Code 启动期字段，热切后会有滞后，直至在 `/model` 中选择或重启会话。
+v0.0.7 起（需 Claude Code ≥ 2.1.242）：新会话的 `/model` 显示当前 provider 的真实模型——由其所配 `ANTHROPIC_MODEL` / `ANTHROPIC_DEFAULT_*_MODEL` 派生、隐藏内置 Anthropic 目录——三种隔离模式统一生效。Mode P 下列表还随 `route switch` 在会话内刷新、无需重启，选择器中的选择会被代理如实执行。旧版 Claude Code 上 `use` 会给一行升级提示（注入无害但无效果）。已知限制：「当前模型」标记是 Claude Code 启动期字段，热切后会有滞后，直至在 `/model` 中选择或重启会话。
 
 使用 `cc-select mode` 查看/设置全局默认；用 `cc-select edit <id> --mode ...` 或 `ccs use <id> --mode ...` 做 per-provider 覆盖或一次性覆盖。详见 [docs/isolation-modes.md](../isolation-modes.md)。
 
@@ -184,7 +184,7 @@ claude --continue      # 带完整上下文继续最近一次会话
 
 ## 安全说明
 
-API key 目前以**明文**存储在 `~/.cc-select/profiles/<id>/settings.json` 中（文件权限 `0600`，目录权限 `0700`）。风险等级与 `~/.claude/settings.json` 相同。后续计划接入系统 Keychain；keychain 占位机制与 `internal/secrets` 包已实现，待接入 CLI/Web 写入路径。
+API key 目前以**明文**存储在 `~/.cc-select/profiles/<id>/settings.json` 中（文件权限 `0600`，目录权限 `0700`）。风险等级与 `~/.claude/settings.json` 相同。例外：Mode P 下 profile 文件只存本地代理地址——真实 token 在 `providers.json` 中，由路由 daemon 使用（支持 keychain 占位）。后续计划接入系统 Keychain；keychain 占位机制与 `internal/secrets` 包已实现，待接入 CLI/Web 写入路径。
 
 ## 构建
 
