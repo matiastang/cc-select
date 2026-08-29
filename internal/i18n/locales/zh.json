@@ -25,6 +25,7 @@
       "shellFlag": "目标 shell 语法（zsh/bash/powershell），默认自动检测",
       "modeFlag": "一次性隔离模式（settings-only|full），仅本次、不落盘",
       "switched": "→ 已切换到 %s（%s）。新终端将继承此环境。",
+      "pickerUpgradeWarning": "提示：Claude Code 版本低于 2.1.242 时不支持 /model 自定义模型列表（modelPicker），建议升级以启用「真实模型显示与切换」。",
       "warningPrefix": "⚠ ",
       "ensureRouterFailed": "路由 daemon 未就绪：%v（可 `cc-select router serve --foreground` 排查）"
     },
@@ -293,6 +294,8 @@
     "cleanup": "清理 %s",
     "parseGlobalSettings": "解析全局 settings.json: %w",
     "serializeMergedSettings": "序列化合并 settings: %w",
+    "parseMergedSettings": "解析合并 settings.json: %w",
+    "modelPlanUnavailable": "无法派生模型计划（providers.json 无该 provider env），已跳过 modelPicker 注入",
     "createJunction": "创建 junction %s: %s",
     "createSymlink": "创建符号链接 %s（需开发者模式/管理员）"
   }

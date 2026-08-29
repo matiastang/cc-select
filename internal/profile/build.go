@@ -65,7 +65,9 @@ func Sync(id string, env map[string]string, mode prefs.Mode) (dir string, warnin
 		// 防误用：明确报错引导调用方走 SyncProxy（use 命令的 proxy 分支）。
 		return "", nil, errors.New(i18n.T("errors.profile.proxyNeedsSyncProxy"))
 	default: // ModeSettingsOnly
-		return syncSettingsOnly(id, env, &warnings)
+		// Mode B：env 即 provider env，据其派生模型计划（research D2）；
+		// withModel=false——ANTHROPIC_MODEL env 优先级高于 model 设置，无需注入。
+		return syncSettingsOnly(id, env, &warnings, config.ModelPlanFromEnv(env), false)
 	}
 }
 
@@ -88,7 +90,18 @@ func SyncProxy(id string, routerBaseURL string) (dir string, warnings []string, 
 	// 先抄进 providers.json——否则切回 Mode A/B 时真值永久丢失（往返污染）。
 	upliftLegacyEnv(id, routerBaseURL)
 	env := map[string]string{"ANTHROPIC_BASE_URL": routerBaseURL}
-	return syncSettingsOnly(id, env, &warnings)
+	// 模型计划的真值源是 providers.json 的 provider env（profile env 只有代理
+	// BASE_URL，绝不可据其派生——research D2）；load 失败 → 空 plan → 跳过注入（告警）。
+	plan := config.ModelPlan{}
+	if cfg, lerr := config.Load(); lerr == nil {
+		if p, ok := cfg.Providers[id]; ok {
+			plan = config.ModelPlanFromEnv(p.Env)
+		}
+	}
+	if len(plan.Entries) == 0 {
+		warnings = append(warnings, i18n.T("profile.modelPlanUnavailable"))
+	}
+	return syncSettingsOnly(id, env, &warnings, plan, true)
 }
 
 // upliftLegacyEnv 把仅存在于 profile settings.json 的 provider env 上抬进
@@ -121,6 +134,11 @@ func syncFull(id string, env map[string]string) (string, []string, error) {
 	if err != nil {
 		return "", nil, fmt.Errorf(i18n.T("profile.serializeEnv"), err)
 	}
+	// Mode A 同样注入选择器（FR-008）；withModel=false（Mode A/B 由 env 保证当前模型）。
+	data, ierr := injectModelPicker(data, config.ModelPlanFromEnv(env), false)
+	if ierr != nil {
+		return "", nil, ierr
+	}
 	dir, err := EnsureRaw(id, data) // 创建目录 + 原子写 settings.json
 	if err != nil {
 		return "", nil, err
@@ -132,7 +150,11 @@ func syncFull(id string, env map[string]string) (string, []string, error) {
 }
 
 // syncSettingsOnly 写合并后的 settings.json + 链接共享 ~/.claude 其余条目。
-func syncSettingsOnly(id string, env map[string]string, warnings *[]string) (string, []string, error) {
+// syncSettingsOnly 写 mergeSettings(全局 settings.json, env) 并经 injectModelPicker
+// 收尾注入（002 model-picker-sync）。plan/withModel 由调用方按模式给出：
+// Mode B 据 env 派生、withModel=false；Mode P（SyncProxy）据 providers.json 真值派生、
+// withModel=true（注入 model=<主模型>，research D8）。空 plan → 零注入（INV-5）。
+func syncSettingsOnly(id string, env map[string]string, warnings *[]string, plan config.ModelPlan, withModel bool) (string, []string, error) {
 	home, err := ClaudeHome()
 	if err != nil {
 		return "", nil, fmt.Errorf(i18n.T("profile.locateClaudeHome"), err)
@@ -144,6 +166,12 @@ func syncSettingsOnly(id string, env map[string]string, warnings *[]string) (str
 		// 全局 settings 不可解析 → 降级为仅 env（不阻断）。
 		merged, _ = json.MarshalIndent(map[string]any{"env": env}, "", "  ")
 		*warnings = append(*warnings, i18n.T("profile.mergeGlobalSettingsFailed")+merr.Error())
+	}
+
+	merged, ierr := injectModelPicker(merged, plan, withModel)
+	if ierr != nil {
+		// 注入失败不阻断 profile 构建（显示是增强，路由不依赖它）。
+		*warnings = append(*warnings, ierr.Error())
 	}
 
 	dir, err := EnsureRaw(id, merged) // 创建目录 + 原子写合并后的 settings.json

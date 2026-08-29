@@ -25,6 +25,7 @@
       "shellFlag": "Target shell syntax (zsh/bash/powershell); auto-detected by default",
       "modeFlag": "One-shot isolation mode (settings-only|full); applies only to this invocation and is not persisted",
       "switched": "→ Switched to %s (%s). New terminals will inherit this environment.",
+      "pickerUpgradeWarning": "Note: Claude Code below 2.1.242 does not support the /model custom model list (modelPicker). Upgrade to enable real model display and switching.",
       "warningPrefix": "⚠ ",
       "ensureRouterFailed": "failed to ensure routing daemon: %v (try `cc-select router serve --foreground` to diagnose)"
     },
@@ -293,6 +294,8 @@
     "cleanup": "clean up %s",
     "parseGlobalSettings": "parse global settings.json: %w",
     "serializeMergedSettings": "serialize merged settings: %w",
+    "parseMergedSettings": "parse merged settings.json: %w",
+    "modelPlanUnavailable": "model plan unavailable (no provider env in providers.json); modelPicker injection skipped",
     "createJunction": "create junction %s: %s",
     "createSymlink": "create symbolic link %s (requires Developer Mode / admin)"
   }
