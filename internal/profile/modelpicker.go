@@ -52,23 +52,7 @@ func injectModelPicker(data []byte, plan config.ModelPlan, withModel bool) ([]by
 	if withModel && plan.Main != "" {
 		m["model"] = plan.Main
 	}
-
-	// availableModels 白名单追加（幂等）：白名单外的行会被 CC Dropped（research D5）。
-	if am, ok := m["availableModels"].([]any); ok {
-		seen := map[string]bool{}
-		for _, v := range am {
-			if s, ok := v.(string); ok {
-				seen[s] = true
-			}
-		}
-		for _, e := range plan.Entries {
-			if !seen[e.ID] {
-				am = append(am, e.ID)
-				seen[e.ID] = true
-			}
-		}
-		m["availableModels"] = am
-	}
+	appendAvailableModels(m, plan)
 
 	out, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {

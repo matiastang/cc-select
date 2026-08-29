@@ -296,6 +296,10 @@
     "serializeMergedSettings": "serialize merged settings: %w",
     "parseMergedSettings": "parse merged settings.json: %w",
     "modelPlanUnavailable": "model plan unavailable (no provider env in providers.json); modelPicker injection skipped",
+    "refreshRead": "read settings.json failed: %w",
+    "refreshParse": "parse settings.json failed: %w",
+    "refreshSerialize": "serialize settings.json failed: %w",
+    "refreshFailed": "switch succeeded, but picker refresh failed (/model list may be stale): %s",
     "createJunction": "create junction %s: %s",
     "createSymlink": "create symbolic link %s (requires Developer Mode / admin)"
   }

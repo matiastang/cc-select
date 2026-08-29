@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -280,5 +281,97 @@ func TestEdit_GlobalProxyModeSucceeds(t *testing.T) {
 	env, _ := profile.ReadEnv("glm")
 	if env["ANTHROPIC_BASE_URL"] != "http://127.0.0.1:48270" {
 		t.Errorf("profile 应为代理派生产物: %+v", env)
+	}
+}
+
+// T013：热切刷新选择器（specs/002 US3 / research D3）——route switch 成功后经继承的
+// $CLAUDE_CONFIG_DIR 定位「发射 profile」的 settings.json 并刷新为新 provider 清单。
+
+func writeProvidersWithModels(t *testing.T) {
+	t.Helper()
+	data := `{"providers":{
+		"glm":{"id":"glm","env":{"ANTHROPIC_MODEL":"glm-5.3[1m]","ANTHROPIC_DEFAULT_HAIKU_MODEL":"glm-5.3-Flash"}},
+		"minimax":{"id":"minimax","env":{"ANTHROPIC_MODEL":"mm-m2.7"}},
+		"bare":{"id":"bare"}}}`
+	if err := os.WriteFile(os.Getenv("CC_SELECT_CONFIG"), []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRouteSwitch_RefreshesLaunchProfileSettings(t *testing.T) {
+	setTempCfg(t)
+	writeProvidersWithModels(t)
+	tid, _ := routes.NewTID()
+	if err := routes.Set(tid, "glm"); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(config.TerminalIDVar, tid)
+
+	// 发射 profile（模拟热切前 glm 的注入态）。
+	dir := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", dir)
+	settings := filepath.Join(dir, "settings.json")
+	os.WriteFile(settings, []byte(`{"env":{"ANTHROPIC_BASE_URL":"http://127.0.0.1:48270"},"model":"glm-5.3[1m]",
+		"permissions":{"allow":["foo"]},"modelPicker":{"replaceBuiltInOptions":true,"options":[{"model":"glm-5.3[1m]"}]}}`), 0o600)
+
+	if _, _, err := execRoot(t, "", "route", "switch", "minimax"); err != nil {
+		t.Fatalf("switch: %v", err)
+	}
+
+	m := map[string]any{}
+	b, _ := os.ReadFile(settings)
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatalf("刷新后应为合法 JSON: %v", err)
+	}
+	// modelPicker/model 变为新 provider；env/permissions 保留。
+	mp, _ := m["modelPicker"].(map[string]any)
+	opts, _ := mp["options"].([]any)
+	if len(opts) != 1 || opts[0].(map[string]any)["model"] != "mm-m2.7" {
+		t.Fatalf("modelPicker 应为 minimax 清单: %v", mp)
+	}
+	if m["model"] != "mm-m2.7" {
+		t.Fatalf("model 应为 mm-m2.7: %v", m["model"])
+	}
+	if _, ok := m["permissions"].(map[string]any); !ok {
+		t.Fatalf("permissions 应保留: %v", m)
+	}
+	env, _ := m["env"].(map[string]any)
+	if env["ANTHROPIC_BASE_URL"] != "http://127.0.0.1:48270" {
+		t.Fatalf("env 不得被触碰: %v", env)
+	}
+}
+
+func TestRouteSwitch_NoConfigDirSkipsRefresh(t *testing.T) {
+	setTempCfg(t)
+	writeProvidersWithModels(t)
+	tid, _ := routes.NewTID()
+	t.Setenv(config.TerminalIDVar, tid)
+	t.Setenv("CLAUDE_CONFIG_DIR", "") // 显式清空
+
+	if _, _, err := execRoot(t, "", "route", "switch", "glm"); err != nil {
+		t.Fatalf("无 CLAUDE_CONFIG_DIR 时切换仍应成功: %v", err)
+	}
+}
+
+func TestRouteSwitch_CorruptSettingsSwitchSucceedsWithWarning(t *testing.T) {
+	setTempCfg(t)
+	writeProvidersWithModels(t)
+	tid, _ := routes.NewTID()
+	t.Setenv(config.TerminalIDVar, tid)
+
+	dir := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", dir)
+	os.WriteFile(filepath.Join(dir, "settings.json"), []byte(`{broken`), 0o600)
+
+	_, stderr, err := execRoot(t, "", "route", "switch", "minimax")
+	if err != nil {
+		t.Fatalf("settings 损坏时路由切换仍应成功: %v", err)
+	}
+	if !strings.Contains(stderr, "modelPicker") && !strings.Contains(stderr, "settings") {
+		t.Errorf("应输出刷新失败告警: %q", stderr)
+	}
+	e, _ := routes.Get(tid)
+	if e.Provider != "minimax" {
+		t.Fatalf("路由表真值不受刷新失败影响: %+v", e)
 	}
 }

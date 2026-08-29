@@ -8,10 +8,13 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/cc-select/cc-select/internal/config"
 	"github.com/cc-select/cc-select/internal/i18n"
+	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/router"
 	"github.com/cc-select/cc-select/internal/routes"
 	"github.com/spf13/cobra"
@@ -115,7 +118,31 @@ func runRouteSwitch(cmd *cobra.Command, target string) error {
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "%s → %s\n", old, target)
+
+	// 热切刷新选择器（002 US3 / research D3）：经继承的 $CLAUDE_CONFIG_DIR 定位
+	// 「发射 profile」的 settings.json（热切后它仍指向发射目录，而非新 provider
+	// 的 profile），把 /model 列表刷新为新 provider 的模型清单。best-effort：
+	// 失败仅告警——路由表已是真值，选择器显示是增强。
+	refreshPickerAfterSwitch(cmd, cfg.Providers[target])
 	return nil
+}
+
+// refreshPickerAfterSwitch 用目标 provider 的模型计划刷新当前终端的
+// settings.json（modelPicker + model）。$CLAUDE_CONFIG_DIR 未设置（非 CC
+// 会话上下文）时静默跳过。
+func refreshPickerAfterSwitch(cmd *cobra.Command, target config.Provider) {
+	dir := os.Getenv("CLAUDE_CONFIG_DIR")
+	if dir == "" {
+		return
+	}
+	settingsPath := filepath.Join(dir, "settings.json")
+	if _, err := os.Stat(settingsPath); err != nil {
+		return // 无 settings.json 的目录不是 profile，不造文件。
+	}
+	plan := config.ModelPlanFromEnv(target.Env)
+	if err := profile.RefreshPicker(settingsPath, plan); err != nil {
+		fmt.Fprintln(cmd.ErrOrStderr(), i18n.T("profile.refreshFailed", err.Error()))
+	}
 }
 
 func runRouteList(cmd *cobra.Command) error {
