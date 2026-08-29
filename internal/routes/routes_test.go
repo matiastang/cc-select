@@ -4,11 +4,21 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 )
+
+// wantFilePerm 返回当前平台下秘密文件的期望权限。
+// Unix/macOS 为 0600；Windows 上 os.Chmod 只控制 read-only 位，Perm() 返回 0666。
+func wantFilePerm() os.FileMode {
+	if runtime.GOOS == "windows" {
+		return 0o666
+	}
+	return 0o600
+}
 
 // setTempRoutes 让 routes.json 落入临时目录（复用 CC_SELECT_CONFIG 约定：取其同级）。
 func setTempRoutes(t *testing.T) {
@@ -96,8 +106,8 @@ func TestSave_FilePerms(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Stat: %v", err)
 	}
-	if fi.Mode().Perm() != 0o600 {
-		t.Errorf("routes.json 权限 want 0600 got %o", fi.Mode().Perm())
+	if fi.Mode().Perm() != wantFilePerm() {
+		t.Errorf("routes.json 权限 want %o got %o", wantFilePerm(), fi.Mode().Perm())
 	}
 }
 

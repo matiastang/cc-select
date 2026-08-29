@@ -7,10 +7,20 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
 )
+
+// wantFilePerm 返回当前平台下秘密文件的期望权限。
+// Unix/macOS 为 0600；Windows 上 os.Chmod 只控制 read-only 位，Perm() 返回 0666。
+func wantFilePerm() os.FileMode {
+	if runtime.GOOS == "windows" {
+		return 0o666
+	}
+	return 0o600
+}
 
 // netListen 在指定 addr 预占一个 TCP 监听（测试模拟 daemon 复活同 addr）。
 func netListen(addr string) (net.Listener, error) { return net.Listen("tcp", addr) }
@@ -39,8 +49,8 @@ func TestState_SaveLoadRoundTrip(t *testing.T) {
 	}
 	p, _ := StatePath()
 	fi, _ := os.Stat(p)
-	if fi.Mode().Perm() != 0o600 {
-		t.Errorf("router.json 权限 want 0600 got %o", fi.Mode().Perm())
+	if fi.Mode().Perm() != wantFilePerm() {
+		t.Errorf("router.json 权限 want %o got %o", wantFilePerm(), fi.Mode().Perm())
 	}
 }
 
