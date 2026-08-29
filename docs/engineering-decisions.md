@@ -149,8 +149,10 @@ R9（会话内热切 provider）面对的两条硬约束与解法：
 
 | 约束 | 事实来源 | 解法 |
 |---|---|---|
-| claude env 会话启动即冻结 | 官方文档 + anthropics/claude-code#62656（env 不热重载） | env 只装**恒定身份**（BASE_URL=本地 daemon、AUTH_TOKEN=TID 伪 token），provider 信息一个都不进 env |
+| claude env 在会话启动时冻结 | 官方文档 + anthropics/claude-code#62656（**2026-08-29 复核修正**：现行官方文档确认 settings 文件含 env 类变更**大多热重载**，不热重载的仅 `model`/`effortLevel`/`outputStyle` 三个键；本表原「env 不热重载」表述按当时版本记录，见下方修正说明） | env 只装**恒定身份**（BASE_URL=本地 daemon、AUTH_TOKEN=TID 伪 token），provider 信息一个都不进 env |
 | 子进程改不了父进程环境 | Unix 语义（= 本项目立项约束） | 切换 = 改路由表**文件**（`route switch`），daemon 每请求重读——不碰任何进程的 env |
+
+> **§8 事实修正（2026-08-29，002 research D9）**：立项时的「env 会话内冻结」前提已被现行官方文档部分推翻——settings 文件（含 `env` 值变更）在运行中会话即时生效，仅 `model`/`effortLevel`/`outputStyle` 为启动期键。Mode P 架构**不受影响、仍然成立**：其依据不依赖 env 冻结这一条——「子进程不可改父 env」（宪法 I 同源的 Unix 事实）与「路由表 = 每请求真值」两条独立支柱不变；且 settings 热重载反而解锁了新能力（002 利用 modelPicker 热重载实现热切后 /model 列表跟随刷新）。历史表述保留以维持决策链可追溯。
 
 关键工程细节（详见 specs/001 research.md D1–D13）：
 
