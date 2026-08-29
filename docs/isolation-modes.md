@@ -432,3 +432,14 @@ cc-select route switch minimax
 - 崩溃窗口内的在途请求由 claude 自身重试语义处理；恢复后无需重开会话。
 - TID 随 shell 消亡，孤儿路由条目用 `cc-select route prune` 清理。
 - 宪法原则 II 已修订（v1.2.0）纳入本模式豁免条款。
+
+### 10.5 模型显示与切换（v0.0.7 / R10 新增）
+
+Mode P 下 Claude Code 的 `/model` 默认只显示内置 Anthropic 目录（含误导性定价），且代理曾把 `/model` 选择无感覆写为主模型（v0.0.6 的 L3 简化）。v0.0.7 起：
+
+- **启动即见真实模型**：`use` 构建 profile 时注入 `modelPicker`（模型清单由 provider env 的 `ANTHROPIC_MODEL` + 三个 `ANTHROPIC_DEFAULT_*_MODEL` 去重派生，`replaceBuiltInOptions` 隐藏内置目录）。Mode A/B/P 三模式统一注入；Mode P 额外注入 `model=<主模型>`，使 ✔/横幅/请求体三者一致。需 **Claude Code ≥ 2.1.242**（旧版注入无害但无效果，`use` 提示升级）。
+- **热切跟随刷新**：`route switch` 成功后经继承的 `$CLAUDE_CONFIG_DIR` 定位**发射 profile** 的 settings.json（写新 provider 的目录运行中会话不可见），字段级合并 + 原子写刷新 `modelPicker`/`model`；`modelPicker` 热重载已实验实证（2026-08-29），不重启会话即见新列表。刷新失败仅告警，路由表真值不受影响。
+- **选择生效**：代理改写升级为映射化规则——清单内 id 原样透传（`/model` 选择 100% 生效），`opus`/`sonnet`/`haiku` 目录形态按槽位映射，未知 id 回落主模型（v1 兼容），未配 `ANTHROPIC_MODEL` 全路径透传。注入与改写共用同一 `ModelPlan` 派生，「能选的」永远等于「能生效的」。
+- **已知限制**：`model` 是 CC 启动期键（不热重载）——热切后本会话「当前模型」标记保持旧值，直至用户在 `/model` 选择或重启（列表刷新不受影响）。
+
+→ 详见 [specs/002](../specs/002-model-picker-sync/)（spec / contracts / research D1–D9）与 [acceptance-tests AC17](./acceptance-tests.md#ac17-claude-code-内查看并切换真实模型r10model-picker-sync)。

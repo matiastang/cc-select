@@ -162,7 +162,7 @@ cc-select 是**未签名的开源**二进制。在 Windows 上：
 
 - **Mode B — `settings-only`（默认）**：每个 provider 仅隔离 `settings.json`；历史、插件、commands 等通过链接共享回 `~/.claude`。
 - **Mode A — `full`**：整个 profile 目录完全隔离。
-- **Mode P — `proxy`**（v0.0.6，可选启用）：本地路由 daemon 实现会话内热切——当前 provider 限额时，在运行中的 Claude Code 会话里执行 `cc-select route switch <provider>` 即可。详见 [docs/isolation-modes.md §10](../isolation-modes.md)。
+- **Mode P — `proxy`**（v0.0.6，可选启用）：本地路由 daemon 实现会话内热切——当前 provider 限额时，在运行中的 Claude Code 会话里执行 `cc-select route switch <provider>` 即可。详见 [docs/isolation-modes.md §10](../isolation-modes.md)。v0.0.7 起 `/model` 显示当前路由 provider 的真实模型（列表随热切刷新、无需重启会话；需 Claude Code ≥ 2.1.242），选择器中的选择会被代理如实执行。
 
 使用 `cc-select mode` 查看/设置全局默认；用 `cc-select edit <id> --mode ...` 或 `ccs use <id> --mode ...` 做 per-provider 覆盖或一次性覆盖。详见 [docs/isolation-modes.md](../isolation-modes.md)。
 
