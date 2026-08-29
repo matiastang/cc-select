@@ -25,6 +25,7 @@
 | AC14 自更新 | [distribution §3](./distribution.md#3-自更新已实现) | 阶段 5 |
 | AC15 跨 provider 续会话 | R9（P0 降级工作流）/ [isolation-modes §2.1](./isolation-modes.md#21-mode-b-的直接收益跨-provider-续会话限额救急) | v0.0.6 |
 | AC16 会话内热切（Mode P） | R9（P1）/ [isolation-modes §10](./isolation-modes.md#10-mode-p代理路由模式v006--r9-新增) | v0.0.6 |
+| AC17 真实模型显示与切换 | R10 / [specs/002](../specs/002-model-picker-sync/)（modelPicker 注入 / 映射化改写 / 热切刷新） | v0.0.7 |
 
 ---
 
@@ -310,3 +311,24 @@
 | 9. Web GUI | 模式选择器含「代理路由」；「活跃路由」面板显示 daemon 状态与路由表，ensure/prune 可用 |
 
 **判定**：会话内切换下一笔生效、上下文零丢失、终端间零串扰、失败原子、daemon 自愈不重开会话、Mode P 下无明文密钥落盘。
+
+## AC17. Claude Code 内查看并切换真实模型（R10：model-picker-sync）
+
+> 需求见 [requirements.md v0.0.7 / R10](./requirements.md)；机制与契约见 [specs/002](../specs/002-model-picker-sync/)（`contracts/profile-settings.md`、`contracts/proxy-model-routing.md`）。
+> 前置：**Claude Code ≥ 2.1.242**（`modelPicker` 起支持；旧版注入无害但无效果，`use` 会提示升级）。
+
+**前提**：glm 配 `ANTHROPIC_MODEL=glm-5.3[1m]` + `ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-5.3-Flash`；minimax 配 `ANTHROPIC_MODEL=mm-m2.7`；Mode P 已启用。
+
+| 步骤 | 预期 |
+|---|---|
+| 1. `ccs use glm` 后 `claude`，会话内 `/model` | 列表仅含 `glm-5.3[1m]` 与 `glm-5.3-Flash`（去重、无内置目录行、无误导定价）；当前模型 ✔ 正确；横幅显示真实模型 id（自动化：TestInjectModelPicker_*、TestSyncProxy_InjectsPickerFromProviderEnv） |
+| 2. `/model` 选 `glm-5.3-Flash`（`s` 键）后发一句话 | 服务商侧调用记录显示该请求模型为 `glm-5.3-Flash`——选择不被改写回主模型（自动化：TestModelRewrite_MappingContract R1；SC-003） |
+| 3. 让 Claude 生成会话标题等后台小任务 | 请求仍按槽位映射到 Haiku 槽模型（v1 语义不回归；自动化：MappingContract R4） |
+| 4. 会话内 `cc-select route switch minimax`，再 `/model` | **不重启会话**，列表变为 `mm-m2.7`；选择后 MiniMax 侧可验证（自动化：TestRouteSwitch_RefreshesLaunchProfileSettings；SC-002） |
+| 5. 热切后另一终端（deepseek）持续对话 | 其路由与 `/model` 显示零影响（SC-004；沿用 AC16 步骤 5 的零串扰语义） |
+| 6. `/model` 确认选模型（CC 写 `model` 字段）后立刻 `route switch`，再 `! jq 'keys' $CLAUDE_CONFIG_DIR/settings.json` | `model`/`modelPicker`/`env`/`permissions` 全在，JSON 合法（SC-005；自动化：TestRefreshPicker_*） |
+| 7. settings.json 改坏后 `route switch` | 切换成功（路由表真值）+ stderr 告警，显示保持旧样（自动化：TestRouteSwitch_CorruptSettingsSwitchSucceedsWithWarning） |
+| 8. `ccs use official`（官方 provider） | 无任何注入，`/model` 与现状一致（INV-5；自动化：TestInjectModelPicker_EmptyPlanNoInjection） |
+
+**判定**：启动即见真实模型（Mode A/B/P 均注入）；热切后选择器不重启跟随刷新；`/model` 选择 100% 生效（代理清单内透传）；终端隔离零串扰；并发写入零字段丢失；刷新失败不阻断路由。
+**已知限制**（非缺陷）：`model` 字段是 CC 启动期键、不热重载——热切后本会话「当前模型」标记保持旧值直至用户在 `/model` 选择或重启（列表刷新不受影响）。
