@@ -299,6 +299,7 @@
     "refreshRead": "读取 settings.json 失败: %w",
     "refreshParse": "解析 settings.json 失败: %w",
     "refreshSerialize": "序列化 settings.json 失败: %w",
+    "refreshConflict": "settings.json 被并发修改，重试 %d 轮后仍冲突，已放弃本次选择器刷新（未写入）: %s",
     "refreshFailed": "切换成功，但选择器刷新失败（/model 列表可能未更新）: %s",
     "createJunction": "创建 junction %s: %s",
     "createSymlink": "创建符号链接 %s（需开发者模式/管理员）"

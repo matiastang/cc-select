@@ -299,6 +299,7 @@
     "refreshRead": "read settings.json failed: %w",
     "refreshParse": "parse settings.json failed: %w",
     "refreshSerialize": "serialize settings.json failed: %w",
+    "refreshConflict": "settings.json changed concurrently; gave up refreshing the picker after %d retries (nothing written): %s",
     "refreshFailed": "switch succeeded, but picker refresh failed (/model list may be stale): %s",
     "createJunction": "create junction %s: %s",
     "createSymlink": "create symbolic link %s (requires Developer Mode / admin)"

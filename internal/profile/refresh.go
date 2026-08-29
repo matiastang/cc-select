@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -27,14 +28,45 @@ import (
 
 // RefreshPicker 把 settingsPath 的 modelPicker/model 刷新为 plan 的状态。
 // settingsPath 通常 = $CLAUDE_CONFIG_DIR/settings.json。
+//
+// 并发安全（SC-005）：CC 自身也是本文件的写者（/model 选择、permissions 等
+// 落盘，research D6）。采用读-改-写 + 写前字节比对：基线在窗口内被并发修改
+// 则整轮重读重合并（至多 refreshMaxAttempts 轮），耗尽仍冲突则返回错误且
+// **不写**——绝不落过期快照（0 字段丢失 / 0 覆盖丢失）。
 func RefreshPicker(settingsPath string, plan config.ModelPlan) error {
 	data, err := os.ReadFile(settingsPath)
 	if err != nil {
 		return fmt.Errorf(i18n.T("profile.refreshRead"), err)
 	}
+	for attempt := 1; ; attempt++ {
+		stale, err := refreshAttempt(settingsPath, data, plan)
+		if err != nil {
+			return err
+		}
+		if !stale {
+			return nil
+		}
+		if attempt >= refreshMaxAttempts {
+			return fmt.Errorf(i18n.T("profile.refreshConflict"), refreshMaxAttempts, settingsPath)
+		}
+		data, err = os.ReadFile(settingsPath)
+		if err != nil {
+			return fmt.Errorf(i18n.T("profile.refreshRead"), err)
+		}
+	}
+}
+
+const refreshMaxAttempts = 3
+
+// refreshBeforeWriteHook 是并发写者模拟点（SC-005 测试注入），生产恒为 nil。
+var refreshBeforeWriteHook func()
+
+// refreshAttempt 以 data 为基线做字段级合并并原子写回；返回 stale=true 表示
+// 写前检测到基线已被并发修改（本轮未写）。
+func refreshAttempt(settingsPath string, data []byte, plan config.ModelPlan) (bool, error) {
 	m := map[string]any{}
 	if err := json.Unmarshal(data, &m); err != nil {
-		return fmt.Errorf(i18n.T("profile.refreshParse"), err)
+		return false, fmt.Errorf(i18n.T("profile.refreshParse"), err)
 	}
 
 	if len(plan.Entries) == 0 {
@@ -54,9 +86,19 @@ func RefreshPicker(settingsPath string, plan config.ModelPlan) error {
 
 	out, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
-		return fmt.Errorf(i18n.T("profile.refreshSerialize"), err)
+		return false, fmt.Errorf(i18n.T("profile.refreshSerialize"), err)
 	}
-	return writeFileAtomic(settingsPath, out)
+	if refreshBeforeWriteHook != nil {
+		refreshBeforeWriteHook()
+	}
+	cur, err := os.ReadFile(settingsPath)
+	if err != nil {
+		return false, fmt.Errorf(i18n.T("profile.refreshRead"), err)
+	}
+	if !bytes.Equal(cur, data) {
+		return true, nil
+	}
+	return false, writeFileAtomic(settingsPath, out)
 }
 
 // appendAvailableModels 把 plan 中尚未在白名单的 id 追加进 availableModels

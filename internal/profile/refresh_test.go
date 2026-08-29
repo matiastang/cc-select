@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/cc-select/cc-select/internal/config"
@@ -125,6 +127,63 @@ func TestRefreshPicker_AppendsAvailableModels(t *testing.T) {
 	}
 	if strings.Join(got, ",") != "sonnet,mm-m2.7" {
 		t.Fatalf("availableModels = %v", got)
+	}
+}
+
+// T020 评审 finding 2（SC-005）：CC 自身也是 settings.json 的并发写者（/model
+// 选择、permissions 等落盘，research D6）。读-改-写窗口内文件被改必须重读重合并，
+// 绝不写过期快照——否则用户恰在 route switch 窗口内确认的 /model 选择被静默回滚。
+func TestRefreshPicker_ConcurrentCCWritePreserved(t *testing.T) {
+	p := refreshFixture(t, `{"permissions":{"allow":["old"]},"env":{}}`)
+	plan := config.ModelPlanFromEnv(map[string]string{"ANTHROPIC_MODEL": "mm-m2.7"})
+
+	var once sync.Once
+	refreshBeforeWriteHook = func() {
+		once.Do(func() {
+			// 模拟 CC 在刷新窗口内落盘自己的选择。
+			os.WriteFile(p, []byte(`{"permissions":{"allow":["new-from-cc"]},"effortLevel":"high","env":{}}`), 0o600)
+		})
+	}
+	defer func() { refreshBeforeWriteHook = nil }()
+
+	if err := RefreshPicker(p, plan); err != nil {
+		t.Fatalf("RefreshPicker: %v", err)
+	}
+	m := readJSON(t, p)
+	if _, ok := m["effortLevel"].(string); !ok {
+		t.Fatalf("并发写入的 effortLevel 不得丢失: %v", m)
+	}
+	perms, _ := m["permissions"].(map[string]any)
+	allow, _ := perms["allow"].([]any)
+	if len(allow) != 1 || allow[0] != "new-from-cc" {
+		t.Fatalf("并发写入的 permissions 不得被过期快照覆盖: %v", perms)
+	}
+	if m["model"] != "mm-m2.7" || len(pickerOptions(t, m)) != 1 {
+		t.Fatalf("刷新本身仍应生效: %v", m)
+	}
+}
+
+// T020 评审 finding 2：冲突持续存在（重试耗尽）→ 返回错误且**不写**过期快照，
+// 文件保留并发写者的最新内容（0 字段丢失的另一面：0 覆盖丢失）。
+func TestRefreshPicker_ConflictExhaustionReturnsErrorNoClobber(t *testing.T) {
+	p := refreshFixture(t, `{"env":{}}`)
+	plan := fullPlan()
+	n := 0
+	refreshBeforeWriteHook = func() {
+		n++
+		os.WriteFile(p, []byte(`{"ccWrite":`+strconv.Itoa(n)+`,"env":{}}`), 0o600)
+	}
+	defer func() { refreshBeforeWriteHook = nil }()
+
+	if err := RefreshPicker(p, plan); err == nil {
+		t.Fatal("持续冲突应返回错误（不写过期快照）")
+	}
+	m := readJSON(t, p)
+	if m["ccWrite"] != float64(3) {
+		t.Fatalf("文件应保留并发写者的最新内容: %v", m)
+	}
+	if _, exists := m["modelPicker"]; exists {
+		t.Fatalf("不得用过期快照覆盖并发写者: %v", m["modelPicker"])
 	}
 }
 
