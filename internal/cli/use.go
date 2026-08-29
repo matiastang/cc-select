@@ -96,8 +96,13 @@ func runUse(cmd *cobra.Command, args []string) error {
 	// 语句走 stdout（供 eval），提示走 stderr（不污染 eval）。
 	fmt.Fprint(cmd.OutOrStdout(), out)
 	fmt.Fprintln(cmd.ErrOrStderr(), i18n.T("cli.use.switched", target.ID, displayName(target)))
-	if warn := warnIfPickerUnsupported(); warn != "" {
-		fmt.Fprintln(cmd.ErrOrStderr(), warn)
+	// 版本探测是子进程调用（最坏 3s 超时）：仅在确实会注入选择器
+	// （plan 非空）时触发——无模型变量的 provider 不该让 use 热路径白付
+	// 一次探测，升级提示对它们也是误导（评审 finding 3）。
+	if len(config.ModelPlanFromEnv(providerEnvOrProfile(target)).Entries) > 0 {
+		if warn := warnIfPickerUnsupported(); warn != "" {
+			fmt.Fprintln(cmd.ErrOrStderr(), warn)
+		}
 	}
 	return nil
 }

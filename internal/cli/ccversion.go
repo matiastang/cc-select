@@ -46,7 +46,8 @@ func supportsModelPicker(versionOut string) bool {
 
 // warnIfPickerUnsupported 在 use 成功后调用：版本可探测且低于门槛时返回提示文案，
 // 否则返回空串。探测失败（无 claude/超时）返回空串（静默）。
-func warnIfPickerUnsupported() string {
+// 函数变量而非纯函数：测试可替换为探针，验证 use 侧的触发门控。
+var warnIfPickerUnsupported = func() string {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "claude", "--version").Output()
