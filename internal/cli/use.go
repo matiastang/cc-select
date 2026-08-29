@@ -96,6 +96,9 @@ func runUse(cmd *cobra.Command, args []string) error {
 	// 语句走 stdout（供 eval），提示走 stderr（不污染 eval）。
 	fmt.Fprint(cmd.OutOrStdout(), out)
 	fmt.Fprintln(cmd.ErrOrStderr(), i18n.T("cli.use.switched", target.ID, displayName(target)))
+	if warn := warnIfPickerUnsupported(); warn != "" {
+		fmt.Fprintln(cmd.ErrOrStderr(), warn)
+	}
 	return nil
 }
 
