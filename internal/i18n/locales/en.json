@@ -25,7 +25,9 @@
       "shellFlag": "Target shell syntax (zsh/bash/powershell); auto-detected by default",
       "modeFlag": "One-shot isolation mode (settings-only|full); applies only to this invocation and is not persisted",
       "switched": "→ Switched to %s (%s). New terminals will inherit this environment.",
-      "warningPrefix": "⚠ "
+      "pickerUpgradeWarning": "Note: Claude Code below 2.1.242 does not support the /model custom model list (modelPicker). Upgrade to enable real model display and switching.",
+      "warningPrefix": "⚠ ",
+      "ensureRouterFailed": "failed to ensure routing daemon: %v (try `cc-select router serve --foreground` to diagnose)"
     },
     "add": {
       "short": "Interactively add a provider",
@@ -86,7 +88,9 @@
       "current": "Global isolation mode: %s",
       "defaultHint": "(not explicitly set; using default %s)",
       "invalid": "invalid mode %q (options: settings-only | full)",
-      "set": "✓ Global isolation mode set to %s"
+      "set": "✓ Global isolation mode set to %s",
+      "migrated": "migrated %d secret(s) to keychain",
+      "migrateFailed": "migration failure: "
     },
     "init": {
       "short": "Output the ccs shell function (append to your shell startup script)",
@@ -132,6 +136,56 @@
       "installed": "✓ Updated %s → %s. Restart cc-select to apply.",
       "restartHint": "Close this process (Ctrl+C) and start cc-select again to use the new version.",
       "dryRunOk": "✓ Dry run: %s downloaded and verified (not installed)."
+    },
+    "route": {
+      "badDuration": "invalid --older-than duration %q",
+      "badTID": "invalid terminal id %q",
+      "list": {
+        "long": "List every terminal route (short TID, provider, last updated).",
+        "short": "List all terminal routes"
+      },
+      "listEmpty": "no routes yet",
+      "long": "Manage the Mode P route table: switch the provider for this terminal without restarting a running Claude Code session. Run `route switch` inside the session's Bash tool to hot-switch.",
+      "noTID": "no terminal identity: run `ccs use <provider>` (proxy mode) in this shell first, or pass --tid explicitly",
+      "official": "the official provider does not participate in hot-switching (v1); use existing modes instead",
+      "olderThanFlag": "prune threshold, e.g. 168h",
+      "prune": {
+        "long": "Remove route entries not updated within --older-than (default 168h).",
+        "short": "Remove stale route entries"
+      },
+      "pruned": "pruned %d entries",
+      "short": "Manage per-terminal provider routes (proxy mode)",
+      "status": {
+        "long": "Show the current provider routed for this terminal and whether the router daemon is alive.",
+        "short": "Show this terminal's route and router liveness"
+      },
+      "switch": {
+        "long": "Switch the provider serving this terminal's requests. Takes effect on the next model request; in-flight requests complete on the old provider.",
+        "short": "Hot-switch this terminal's provider"
+      },
+      "tidFlag": "terminal id (defaults to $CC_SELECT_TID)",
+      "unknownProvider": "unknown provider %q; run `ccs list` to see configured providers"
+    },
+    "router": {
+      "ensure": {
+        "long": "Start the routing daemon if it is not healthy (or is an old version); reuse it otherwise. Idempotent.",
+        "short": "Ensure the router daemon is running"
+      },
+      "foregroundFlag": "run in the foreground (debugging)",
+      "long": "Manage the Mode P router daemon: ensure (idempotent start), serve (run; --foreground for debugging), stop (graceful).",
+      "notRunning": "router is not running",
+      "running": "router running at %s",
+      "serve": {
+        "long": "Run the routing daemon. By default it is started detached and waited for health; pass --foreground to run in the current terminal for debugging.",
+        "short": "Run the routing daemon"
+      },
+      "short": "Manage the local routing daemon (proxy mode)",
+      "stop": {
+        "long": "Gracefully stop the routing daemon via its stop side-channel. Idempotent: stopping when not running succeeds.",
+        "short": "Stop the router daemon"
+      },
+      "stopFailed": "failed to stop router at %s: %v (try `cc-select router serve --foreground` to diagnose)",
+      "stopped": "router stopped (%s)"
     }
   },
   "errors": {
@@ -168,7 +222,8 @@
       "replace": "replace profile: %w",
       "removeDir": "remove profile directory: %w",
       "read": "read profile: %w",
-      "parse": "parse profile: %w"
+      "parse": "parse profile: %w",
+      "proxyNeedsSyncProxy": "Mode P (proxy) profiles must be built via SyncProxy (router address required); Sync received mode=proxy"
     },
     "provider": {
       "emptyID": "provider id cannot be empty",
@@ -239,6 +294,13 @@
     "cleanup": "clean up %s",
     "parseGlobalSettings": "parse global settings.json: %w",
     "serializeMergedSettings": "serialize merged settings: %w",
+    "parseMergedSettings": "parse merged settings.json: %w",
+    "modelPlanUnavailable": "model plan unavailable (no provider env in providers.json); modelPicker injection skipped",
+    "refreshRead": "read settings.json failed: %w",
+    "refreshParse": "parse settings.json failed: %w",
+    "refreshSerialize": "serialize settings.json failed: %w",
+    "refreshConflict": "settings.json changed concurrently; gave up refreshing the picker after %d retries (nothing written): %s",
+    "refreshFailed": "switch succeeded, but picker refresh failed (/model list may be stale): %s",
     "createJunction": "create junction %s: %s",
     "createSymlink": "create symbolic link %s (requires Developer Mode / admin)"
   }

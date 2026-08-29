@@ -22,6 +22,18 @@ type Op int
 const (
 	OpSet   Op = iota // export NAME=VALUE
 	OpUnset           // unset NAME
+	// OpSetIfUnset 仅在该变量当前为空时导出（守卫式）：每 shell 只生效一次，
+	// 用于终端身份 CC_SELECT_TID 的生成（specs/001 研究 D6）——多次 use 不换身份。
+	OpSetIfUnset
+	// OpSetRef 引用式导出：NAME = 同 shell 里另一个变量的当前值（双引号展开）。
+	// Value 是**源变量名**（非字面量），由各方言渲染成自己的引用形式——
+	// zsh: export NAME="$SRC" / PowerShell: $env:NAME = "$env:SRC"。
+	// 用于 Mode P 的 ANTHROPIC_AUTH_TOKEN="$CC_SELECT_TID"（specs/001 D5）。
+	OpSetRef
+	// OpExec 执行一条 cc-select 子命令（Value = 子命令参数串，如 "route switch glm"），
+	// 渲染为静默执行（失败不中断 eval）。用于 Mode P 的 use 发射：eval 上下文里
+	// 用 shell 的**真实** TID 同步路由表——二进制无法得知既有 TID（specs/001 D6）。
+	OpExec
 )
 
 // Change 是单个环境变量变更。

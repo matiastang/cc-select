@@ -25,7 +25,9 @@
       "shellFlag": "目标 shell 语法（zsh/bash/powershell），默认自动检测",
       "modeFlag": "一次性隔离模式（settings-only|full），仅本次、不落盘",
       "switched": "→ 已切换到 %s（%s）。新终端将继承此环境。",
-      "warningPrefix": "⚠ "
+      "pickerUpgradeWarning": "提示：Claude Code 版本低于 2.1.242 时不支持 /model 自定义模型列表（modelPicker），建议升级以启用「真实模型显示与切换」。",
+      "warningPrefix": "⚠ ",
+      "ensureRouterFailed": "路由 daemon 未就绪：%v（可 `cc-select router serve --foreground` 排查）"
     },
     "add": {
       "short": "交互式添加一个 provider",
@@ -86,7 +88,9 @@
       "current": "全局隔离模式: %s",
       "defaultHint": "（未显式设置，使用默认 %s）",
       "invalid": "无效模式 %q（可选：settings-only | full）",
-      "set": "✓ 全局隔离模式设为 %s"
+      "set": "✓ 全局隔离模式设为 %s",
+      "migrated": "已将 %d 条敏感值迁入 keychain",
+      "migrateFailed": "迁移失败："
     },
     "init": {
       "short": "输出 ccs shell 函数（追加到 shell 启动脚本）",
@@ -132,6 +136,56 @@
       "installed": "✓ 已更新 %s → %s。重启 cc-select 使其生效。",
       "restartHint": "关闭本进程（Ctrl+C）并重新启动 cc-select 以使用新版本。",
       "dryRunOk": "✓ Dry run：%s 已下载并校验（未安装）。"
+    },
+    "route": {
+      "badDuration": "非法 --older-than 时长 %q",
+      "badTID": "非法终端身份 %q",
+      "list": {
+        "long": "列出所有终端路由（tid 短码、provider、最后更新时间）。",
+        "short": "列出全部终端路由"
+      },
+      "listEmpty": "暂无路由条目",
+      "long": "管理 Mode P 路由表：切换当前终端的 provider，无需重启运行中的 Claude Code 会话。在会话内的 Bash 工具执行 route switch 即可热切。",
+      "noTID": "缺少终端身份：请先在本 shell 执行 `ccs use <provider>`（proxy 模式），或显式传 --tid",
+      "official": "官方 provider 不参与会话内热切（v1），请沿用现有模式",
+      "olderThanFlag": "清理阈值，如 168h",
+      "prune": {
+        "long": "删除超过 --older-than（默认 168h）未更新的路由条目。",
+        "short": "清理过期路由条目"
+      },
+      "pruned": "已清理 %d 条",
+      "short": "管理终端级 provider 路由（proxy 模式）",
+      "status": {
+        "long": "显示当前终端路由到的 provider，以及路由 daemon 是否存活。",
+        "short": "显示本终端路由与路由服务存活状态"
+      },
+      "switch": {
+        "long": "切换服务本终端请求的 provider。下一笔模型请求即生效；在途请求按原 provider 完成。",
+        "short": "热切当前终端的 provider"
+      },
+      "tidFlag": "终端身份（默认取 $CC_SELECT_TID）",
+      "unknownProvider": "未知 provider %q，可用 `ccs list` 查看已配置项"
+    },
+    "router": {
+      "ensure": {
+        "long": "路由 daemon 不健康（或为旧版本）时拉起，否则复用。幂等。",
+        "short": "确保路由 daemon 在运行"
+      },
+      "foregroundFlag": "前台运行（排障）",
+      "long": "管理 Mode P 路由 daemon：ensure（幂等拉起）、serve（运行；--foreground 前台排障）、stop（优雅停止）。",
+      "notRunning": "路由 daemon 未在运行",
+      "running": "路由 daemon 运行于 %s",
+      "serve": {
+        "long": "运行路由 daemon。默认分离拉起并等待就绪；--foreground 在当前终端前台运行，便于排障。",
+        "short": "运行路由 daemon"
+      },
+      "short": "管理本地路由 daemon（proxy 模式）",
+      "stop": {
+        "long": "经停止侧信道优雅停止路由 daemon。幂等：未运行时停止同样成功。",
+        "short": "停止路由 daemon"
+      },
+      "stopFailed": "停止 %s 的路由 daemon 失败：%v（可 `cc-select router serve --foreground` 排查）",
+      "stopped": "路由 daemon 已停止（%s）"
     }
   },
   "errors": {
@@ -168,7 +222,8 @@
       "replace": "替换 profile: %w",
       "removeDir": "删除 profile 目录: %w",
       "read": "读取 profile: %w",
-      "parse": "解析 profile: %w"
+      "parse": "解析 profile: %w",
+      "proxyNeedsSyncProxy": "Mode P（proxy）的 profile 必须经 SyncProxy 构造（需要路由地址）；Sync 收到了 mode=proxy"
     },
     "provider": {
       "emptyID": "provider id 不能为空",
@@ -239,6 +294,13 @@
     "cleanup": "清理 %s",
     "parseGlobalSettings": "解析全局 settings.json: %w",
     "serializeMergedSettings": "序列化合并 settings: %w",
+    "parseMergedSettings": "解析合并 settings.json: %w",
+    "modelPlanUnavailable": "无法派生模型计划（providers.json 无该 provider env），已跳过 modelPicker 注入",
+    "refreshRead": "读取 settings.json 失败: %w",
+    "refreshParse": "解析 settings.json 失败: %w",
+    "refreshSerialize": "序列化 settings.json 失败: %w",
+    "refreshConflict": "settings.json 被并发修改，重试 %d 轮后仍冲突，已放弃本次选择器刷新（未写入）: %s",
+    "refreshFailed": "切换成功，但选择器刷新失败（/model 列表可能未更新）: %s",
     "createJunction": "创建 junction %s: %s",
     "createSymlink": "创建符号链接 %s（需开发者模式/管理员）"
   }

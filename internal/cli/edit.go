@@ -28,8 +28,12 @@ var editCmd = &cobra.Command{
 			return fmt.Errorf(i18n.T("cli.edit.missing"), id)
 		}
 
-		// 旧 env 从 profile settings.json 读真值（providers.json 不再存 env）。
-		oldEnv, _ := profile.ReadEnv(id)
+		// 旧 env：providers.json 真值优先（Mode P 时代 profile 是派生产物），
+		// 空（legacy 形态）回退 profile settings.json——与 daemon/GUI 的取值策略一致。
+		oldEnv := old.Env
+		if len(oldEnv) == 0 {
+			oldEnv, _ = profile.ReadEnv(id)
+		}
 
 		// flag 未显式覆盖的字段保留旧值；apiKey 留空 = 保持旧 token。
 		fl := prefilledFrom(oldEnv, old, editFl)

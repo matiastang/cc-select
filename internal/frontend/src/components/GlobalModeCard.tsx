@@ -30,6 +30,7 @@ export function GlobalModeCard({ mode, loading, onChange }: GlobalModeCardProps)
           >
             <option value="settings-only">{t("mode.settingsOnly")}</option>
             <option value="full">{t("mode.full")}</option>
+            <option value="proxy">{t("mode.proxy")}</option>
           </Select>
         </FormField>
       )}

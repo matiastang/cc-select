@@ -55,6 +55,16 @@
 └── …（~/.claude 下除 settings.json 外的每个条目，以及白名单预创建的条目）
 ```
 
+### 2.1 Mode B 的直接收益：跨 provider 续会话（限额救急）
+
+`projects/`（对话历史）共享意味着：**当前 provider 限额用尽时，换一家可以接着聊**——
+
+```
+（会话内 Ctrl+D / /exit 退出）→ ccs use <另一家> → claude --continue
+```
+
+三步即恢复完整上下文，是受验收保护的标准工作流（[acceptance-tests AC15](./acceptance-tests.md)、需求 R9-P0）。Mode A 下历史随 provider 隔离，此流程不适用（by design）。
+
 ---
 
 ## 3. 模式存储与切换（全局默认 + per-provider 覆盖）
@@ -373,3 +383,63 @@ ResolveMode(oneOff, provider, global):
 | 4 | **不做迁移**；Mode B 构造权威化（空真实条目清掉重建，非空警告+跳过） |
 | 5 | profile settings.json 的 env **整体替换**为 provider env（非深合并） |
 | 6 | `use` **每次重建** profile（幂等，自愈） |
+
+---
+
+## 10. Mode P：代理路由模式（v0.0.6 / R9 新增）
+
+> 需求：[requirements.md R9](./requirements.md)（会话内切换 provider）；设计过程：specs/001-in-session-provider-switch/（spec/plan/research/contracts）。
+
+### 10.1 动机
+
+Mode A/B 的切换都发生在 claude **启动前**（改 env/profile）。R9 要求：provider 限额时**在运行中的 Claude Code 会话内**切换、不重启、上下文延续、不影响其他终端。两条物理约束决定了必须换轨：
+
+- claude 的 env 在会话启动时冻结（官方确认 env 类不热重载）；
+- 子进程（Bash/MCP）改不了父进程环境（= 本项目宪法 I 的立身约束）。
+
+### 10.2 机制：身份/路由分离
+
+```
+恒定项（env，冻结无所谓）             可变项（daemon 侧，随时改）
+├─ ANTHROPIC_BASE_URL = 127.0.0.1:48270   ├─ ~/.cc-select/routes.json
+│   （经 profile settings.json 注入，      │   tid → provider，每请求重读
+│    借 Mode B 整体替换屏蔽全局污染）      │
+└─ ANTHROPIC_AUTH_TOKEN = $CC_SELECT_TID   └─ 真 token 只存 daemon 内存
+    （shell 守卫式注入，每 shell 一次；       （keychain 解析+缓存）
+     伪 token 即终端身份）
+```
+
+- **会话内切换** = `cc-select route switch <provider>`（普通命令，改路由表文件，不碰任何进程 env——可在 Claude Code 的 Bash 工具里直接执行），下一笔模型请求生效；在途请求按原 provider 完成。
+- **终端隔离** = 每 shell 一个 TID，路由表按 TID 分流（SC-003 自动化：双终端交叉切 10 轮零串扰）。
+- **model 改写**：切换后 claude 仍发旧 model id，daemon 按 provider 的 `ANTHROPIC_MODEL` 改写请求体（v1 已知简化：统一映射主模型）。
+- **daemon 生命周期**：按需拉起（`use`/`route`/GUI ensure 自动；崩溃自愈后无需重启会话）；状态文件 `router.json` 恒定 addr（换端口=运行中会话全体失联）。
+- **密钥**：启用 Mode P 时明文 token 迁 keychain（`$keychain:` 占位），profile settings.json 不含任何密钥。
+
+### 10.3 使用
+
+```bash
+cc-select mode proxy          # 启用（触发密钥迁移）；离开 = mode settings-only，不回迁
+ccs use glm                   # 正常 use（多出发射 TID 守卫 + 路由同步语句）
+claude                        # 正常进入会话
+# —— GLM 限额爆了，在会话内（Bash 工具或 ! 前缀）：
+cc-select route switch minimax
+# —— 下一句继续任务，MiniMax 接管，上下文完整
+```
+
+### 10.4 边界
+
+- **官方 provider 不参与**（v1）：`use claude-official` 回退既有语义并清伪 token。
+- 崩溃窗口内的在途请求由 claude 自身重试语义处理；恢复后无需重开会话。
+- TID 随 shell 消亡，孤儿路由条目用 `cc-select route prune` 清理。
+- 宪法原则 II 已修订（v1.2.0）纳入本模式豁免条款。
+
+### 10.5 模型显示与切换（v0.0.7 / R10 新增）
+
+Mode P 下 Claude Code 的 `/model` 默认只显示内置 Anthropic 目录（含误导性定价），且代理曾把 `/model` 选择无感覆写为主模型（v0.0.6 的 L3 简化）。v0.0.7 起：
+
+- **启动即见真实模型**：`use` 构建 profile 时注入 `modelPicker`（模型清单由 provider env 的 `ANTHROPIC_MODEL` + 三个 `ANTHROPIC_DEFAULT_*_MODEL` 去重派生，`replaceBuiltInOptions` 隐藏内置目录）。Mode A/B/P 三模式统一注入；Mode P 额外注入 `model=<主模型>`，使 ✔/横幅/请求体三者一致。需 **Claude Code ≥ 2.1.242**（旧版注入无害但无效果，`use` 提示升级）。
+- **热切跟随刷新**：`route switch` 成功后经继承的 `$CLAUDE_CONFIG_DIR` 定位**发射 profile** 的 settings.json（写新 provider 的目录运行中会话不可见），字段级合并 + 原子写刷新 `modelPicker`/`model`；`modelPicker` 热重载已实验实证（2026-08-29），不重启会话即见新列表。刷新失败仅告警，路由表真值不受影响。
+- **选择生效**：代理改写升级为映射化规则——清单内 id 原样透传（`/model` 选择 100% 生效），`opus`/`sonnet`/`haiku` 目录形态按槽位映射，未知 id 回落主模型（v1 兼容），未配 `ANTHROPIC_MODEL` 全路径透传。注入与改写共用同一 `ModelPlan` 派生，「能选的」永远等于「能生效的」。
+- **已知限制**：`model` 是 CC 启动期键（不热重载）——热切后本会话「当前模型」标记保持旧值，直至用户在 `/model` 选择或重启（列表刷新不受影响）。
+
+→ 详见 [specs/002](../specs/002-model-picker-sync/)（spec / contracts / research D1–D9）与 [acceptance-tests AC17](./acceptance-tests.md#ac17-claude-code-内查看并切换真实模型r10model-picker-sync)。

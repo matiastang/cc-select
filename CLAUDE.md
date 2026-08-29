@@ -106,3 +106,16 @@ This is the same `eval "$(tool ...)"` pattern used by `nvm`, `pyenv`, and `diren
 - Run `make check` before committing. Pre-commit hooks run automatically on `git commit` and block if any static check fails.
 - Update `docs/acceptance-tests.md` when behavior changes.
 - Preserve the eval/wrapper split — do not try to modify the parent shell environment from the binary.
+- Test-first (TDD): write the failing test before the implementation (red → green → refactor). Bug fixes start with a failing reproducing test. Never merge implementation with tests deferred to a later commit.
+- One feature point per commit — split mixed changes into separate commits. Messages follow Conventional Commits (`feat(scope): ...`); commit-msg is linted by commitlint via lefthook.
+- After completing a feature/version, run a review loop (static checks + code review) and fix every medium-or-higher severity finding until none remain.
+
+## Spec-driven development (Spec Kit)
+
+This repo is initialized with [Spec Kit](https://github.com/github/spec-kit) (specify-cli pinned to **v0.16.5**, skills mode in `.claude/skills/`, slash commands `/speckit-*`).
+
+- Use the full SDD flow (`/speckit-specify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement`, optionally `/speckit-clarify` / `/speckit-analyze`) only for features expected to take **more than one day or cross modules** (roadmap phases 6–9 granularity). Small fixes go through the normal workflow directly.
+- Boundary: `docs/` is the project-level source of truth; `specs/` is the per-feature workspace. After a spec is accepted, flow conclusions back into `docs/` per the update rules in `docs/README.md` — never maintain long-term truth in `specs/`.
+- New user requirements always enter via `docs/requirements.md` first; then decide whether to spin up a spec.
+- The project constitution lives at `.specify/memory/constitution.md`, distilled from CLAUDE.md + `docs/`. On conflict, `docs/` wins; amend the constitution accordingly.
+- Requires `uv` + Python 3.11 only to re-init/upgrade the spec-kit scaffolding (`specify self upgrade`) — not to read `specs/` or run the SDD flow.

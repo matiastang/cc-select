@@ -111,3 +111,39 @@ func TestInitSnippets_AreASCIIOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestZshEmit_SetIfUnset(t *testing.T) {
+	got := ZshEmitter{}.Emit([]Change{
+		{Op: OpSetIfUnset, Name: "CC_SELECT_TID", Value: "ccs-3f9c"},
+		{Op: OpSet, Name: "CC_SELECT_ACTIVE", Value: "glm"},
+	})
+	want := "if [ -z \"${CC_SELECT_TID:-}\" ]; then\n  export CC_SELECT_TID='ccs-3f9c'\nfi\nexport CC_SELECT_ACTIVE='glm'\n"
+	if got != want {
+		t.Errorf("Emit SetIfUnset:\nwant %q\ngot  %q", want, got)
+	}
+}
+
+func TestZshEmit_SetIfUnset_EscapesValue(t *testing.T) {
+	// 守卫式导出的值同样要走单引号安全转义。
+	got := ZshEmitter{}.Emit([]Change{{Op: OpSetIfUnset, Name: "T", Value: "a'b"}})
+	if !strings.Contains(got, "export T='a'\\''b'") {
+		t.Errorf("守卫式导出应复用单引号转义: %q", got)
+	}
+}
+
+func TestZshEmit_SetRef(t *testing.T) {
+	// 引用式导出：值是另一个变量的名字，渲染为双引号展开（每 shell 方言自适配）。
+	got := ZshEmitter{}.Emit([]Change{{Op: OpSetRef, Name: "ANTHROPIC_AUTH_TOKEN", Value: "CC_SELECT_TID"}})
+	want := "export ANTHROPIC_AUTH_TOKEN=\"$CC_SELECT_TID\"\n"
+	if got != want {
+		t.Errorf("Emit SetRef:\nwant %q\ngot  %q", want, got)
+	}
+}
+
+func TestZshEmit_Exec(t *testing.T) {
+	got := ZshEmitter{}.Emit([]Change{{Op: OpExec, Value: "cc-select route switch glm"}})
+	want := "cc-select route switch glm >/dev/null 2>&1 || true\n"
+	if got != want {
+		t.Errorf("Emit Exec:\nwant %q\ngot  %q", want, got)
+	}
+}

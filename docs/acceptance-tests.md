@@ -23,6 +23,9 @@
 | AC12 多语言（i18n） | CLI/GUI 语言偏好 | 阶段 4 |
 | AC13 Preset 快速配置 | Preset 供应商模板 | 阶段 2 |
 | AC14 自更新 | [distribution §3](./distribution.md#3-自更新已实现) | 阶段 5 |
+| AC15 跨 provider 续会话 | R9（P0 降级工作流）/ [isolation-modes §2.1](./isolation-modes.md#21-mode-b-的直接收益跨-provider-续会话限额救急) | v0.0.6 |
+| AC16 会话内热切（Mode P） | R9（P1）/ [isolation-modes §10](./isolation-modes.md#10-mode-p代理路由模式v006--r9-新增) | v0.0.6 |
+| AC17 真实模型显示与切换 | R10 / [specs/002](../specs/002-model-picker-sync/)（modelPicker 注入 / 映射化改写 / 热切刷新） | v0.0.7 |
 
 ---
 
@@ -266,3 +269,66 @@
 | 6. brew/scoop 安装的 GUI 点击更新 | 显示对应的 `brew upgrade` / `scoop update` 指引卡片 |
 
 **判定**：更新链路「检查→下载→校验→替换」端到端可用；所有拒绝场景给出可操作的指引而非报错；任何失败（网络/校验/并发）都不破坏现有二进制；GUI 更新后明确提示需重启。
+
+---
+
+## AC15. 跨 provider 续会话（R9 P0：限额救急降级工作流）
+
+> 需求见 [requirements.md v0.0.6 / R9](./requirements.md)；依赖 Mode B 的 `projects/`（对话历史）共享，见 [isolation-modes §2.1](./isolation-modes.md#21-mode-b-的直接收益跨-provider-续会话限额救急)。
+
+**前提**：Mode B（默认）下已配置 glm、minimax 两个 provider；终端 A 已用 glm 进行过一段对话。
+
+| 步骤 | 预期 |
+|---|---|
+| 1. 在 glm 会话中让 Claude 记住一个暗号（如「这个项目的暗号是 pineapple」） | 正常记住 |
+| 2. 退出会话（Ctrl+D 或 `/exit`），执行 `ccs use minimax` | 本终端切换到 minimax |
+| 3. 执行 `claude --continue` 并问「暗号是什么？」 | **答出 pineapple**——历史跨 provider 延续，任务不从头开始 |
+| 4. 继续对话 | 后续模型请求由 minimax 服务 |
+| 5. `ccs current` | 显示 minimax |
+| 6. 在 Mode A（full）下重复步骤 1–3 | **不适用**：历史随 provider 隔离，`--continue` 看不到 glm 的会话（设计使然，文档已标注） |
+
+**判定**：「退出 → `ccs use <另一家>` → `claude --continue`」三步是受验收保护的标准工作流（R9-P0）；上下文零丢失；仅 Mode B 承诺，Mode A 显式不适用。
+
+
+---
+
+## AC16. 会话内热切（R9 P1：Mode P）
+
+> 机制见 [isolation-modes §10](./isolation-modes.md#10-mode-p代理路由模式v006--r9-新增)；自动化覆盖：`go test -tags integration ./internal/router/...`（切换时序/在途完成/零串扰）。
+
+**前提**：已配置两个第三方 provider（glm、minimax）；`cc-select mode proxy` 已启用（密钥已迁 keychain）。
+
+| 步骤 | 预期 |
+|---|---|
+| 1. `ccs use glm` 后 `claude` 正常对话 | 走 GLM；`echo $CC_SELECT_TID` 形如 `ccs-<32hex>`；`cc-select route status` 显示 `provider=glm router=ok` |
+| 2. 会话内执行 `cc-select route switch minimax` | 输出 `glm → minimax`，<1s；**会话未重启** |
+| 3. 继续对话并引用切换前内容 | 由 MiniMax 服务且上下文完整（AC15 暗号法可复用验证） |
+| 4. `cc-select current` | 显示 `minimax`（路由表真值，与切换一致） |
+| 5. 另一终端（用 deepseek）持续对话，终端 A 反复 `route switch` ≥10 次 | 终端 B 始终 deepseek，零串扰（自动化：TestIntegration_CrossSwitchZeroCrosstalk） |
+| 6. `cc-select router stop` 后继续对话 | 连接失败提示；执行任一 `cc-select` 命令（如 `route status`）自愈后**无需重开会话**继续 |
+| 7. `route switch <未配置>` / `route switch claude-official` | 明确报错；当前会话不受影响（原子性，无中间态） |
+| 8. 启用后 grep `~/.cc-select/providers.json` 与 `profiles/*/settings.json` | 前者为 `$keychain:` 占位，后者无任何真实密钥（US4） |
+| 9. Web GUI | 模式选择器含「代理路由」；「活跃路由」面板显示 daemon 状态与路由表，ensure/prune 可用 |
+
+**判定**：会话内切换下一笔生效、上下文零丢失、终端间零串扰、失败原子、daemon 自愈不重开会话、Mode P 下无明文密钥落盘。
+
+## AC17. Claude Code 内查看并切换真实模型（R10：model-picker-sync）
+
+> 需求见 [requirements.md v0.0.7 / R10](./requirements.md)；机制与契约见 [specs/002](../specs/002-model-picker-sync/)（`contracts/profile-settings.md`、`contracts/proxy-model-routing.md`）。
+> 前置：**Claude Code ≥ 2.1.242**（`modelPicker` 起支持；旧版注入无害但无效果，`use` 会提示升级）。
+
+**前提**：glm 配 `ANTHROPIC_MODEL=glm-5.3[1m]` + `ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-5.3-Flash`；minimax 配 `ANTHROPIC_MODEL=mm-m2.7`；Mode P 已启用。
+
+| 步骤 | 预期 |
+|---|---|
+| 1. `ccs use glm` 后 `claude`，会话内 `/model` | 列表仅含 `glm-5.3[1m]` 与 `glm-5.3-Flash`（去重、无内置目录行、无误导定价）；当前模型 ✔ 正确；横幅显示真实模型 id（自动化：TestInjectModelPicker_*、TestSyncProxy_InjectsPickerFromProviderEnv） |
+| 2. `/model` 选 `glm-5.3-Flash`（`s` 键）后发一句话 | 服务商侧调用记录显示该请求模型为 `glm-5.3-Flash`——选择不被改写回主模型（自动化：TestModelRewrite_MappingContract R1；SC-003） |
+| 3. 让 Claude 生成会话标题等后台小任务 | 请求仍按槽位映射到 Haiku 槽模型（v1 语义不回归；自动化：MappingContract R4） |
+| 4. 会话内 `cc-select route switch minimax`，再 `/model` | **不重启会话**，列表变为 `mm-m2.7`；选择后 MiniMax 侧可验证（自动化：TestRouteSwitch_RefreshesLaunchProfileSettings；SC-002） |
+| 5. 热切后另一终端（deepseek）持续对话 | 其路由与 `/model` 显示零影响（SC-004；沿用 AC16 步骤 5 的零串扰语义） |
+| 6. `/model` 确认选模型（CC 写 `model` 字段）后立刻 `route switch`，再 `! jq 'keys' $CLAUDE_CONFIG_DIR/settings.json` | `model`/`modelPicker`/`env`/`permissions` 全在，JSON 合法（SC-005；自动化：TestRefreshPicker_*） |
+| 7. settings.json 改坏后 `route switch` | 切换成功（路由表真值）+ stderr 告警，显示保持旧样（自动化：TestRouteSwitch_CorruptSettingsSwitchSucceedsWithWarning） |
+| 8. `ccs use official`（官方 provider） | 无任何注入，`/model` 与现状一致（INV-5；自动化：TestInjectModelPicker_EmptyPlanNoInjection） |
+
+**判定**：启动即见真实模型（Mode A/B/P 均注入）；热切后选择器不重启跟随刷新；`/model` 选择 100% 生效（代理清单内透传）；终端隔离零串扰；并发写入零字段丢失；刷新失败不阻断路由。
+**已知限制**（非缺陷）：`model` 字段是 CC 启动期键、不热重载——热切后本会话「当前模型」标记保持旧值直至用户在 `/model` 选择或重启（列表刷新不受影响）。

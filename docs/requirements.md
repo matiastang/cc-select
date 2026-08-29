@@ -92,6 +92,109 @@
 
 ---
 
+## 新增需求记录
+
+### 说明
+
+- 项目所有原始需求在 docs/requirements.md 文件中
+- 使用 SpecKit 分析需求，并生成 SpecKit 文件
+
+### 开发基本要求
+
+- 项目需要实现完整的测试，包括单元测试和集成测试。
+- 要实现 git commit 规范：commit message 校验（commitlint 或等效实现）+ git hooks 强制拦截。
+  - **已定（2026-08-28）**：hooks 管理器沿用项目现有 **lefthook**（功能覆盖 husky 场景，且适配 Go + 前端混合仓库），**不引入 husky**。commit-msg 校验已落地：**commitlint**（`@commitlint/config-conventional`）挂入 lefthook `commit-msg` hook，见 `commitlint.config.js` 与 `lefthook.yml`。
+- 项目需要实现 CI/CD，包括 GitHub Actions。先只做校验，不做自动部署，后面再考虑。
+- 项目如果使用了 TypeScript，那么需要使用 TypeScript 的类型系统来保证代码的类型安全。
+- 项目 main 分支的 push、 PR 需要跑 CI 测试
+- 需要先写测试，再写代码，测试驱动开发，开发完成后，测试通过，代码完成
+- 每个版本的需求完成后，都需要做完整的**循环 code review 并修复中等严重及以上问题，直到没有中等严重问题**
+- **重要** 每一个功能点一个 commit，不要把多个功能点放在一个 commit 中，这样不利于代码的维护和回滚
+- 项目需要提供 GitHub Issue 模板，规范 issue 提交（如 Bug 报告、功能建议）
+
+### v0.0.6
+
+#### R9. Claude Code 会话内切换 provider（热切换，不丢上下文）
+
+> 用户原话：开始进入的时候是 GLM，结果 GLM 5 小时窗口用量到了，我想切换到其他服务商（比如 MiniMax）来继续任务。
+
+**场景**：某终端已进入 Claude Code 会话（provider A），A 到达用量限额或不可用时，需切换到 provider B 继续当前任务。
+
+**验收性要求**：
+
+- **上下文延续**：切换后，原会话的对话历史与任务进度可继续，不从头开始。
+- **会话内触发**：切换在 Claude Code 会话内即可完成，不要求退出重启会话（「退出 → 重进」仅作为降级手段）。
+- **不破坏 R1（shell 级隔离）**：切换只影响当前终端，其他终端正在使用的 provider 不受影响。
+
+**分级交付**：
+
+- **P0（基线，补强现状）**：将「退出 → `ccs use B` → `claude --continue`」的跨 provider 续会话确立为受验收的标准工作流（依赖 Mode B 的 projects/ 共享；需补验收用例与文档说明；Mode A 下不适用，需注明）。
+- **P1（完整目标）**：引入**本地路由代理模式**（opt-in 的第三种隔离模式，与现有模式并存）：`ANTHROPIC_BASE_URL` 恒定指向本地代理，代理按 per-terminal 身份查路由表转发；切换 = 改路由表，会话不重启。
+
+**P1 派生要求**：
+
+- 每终端唯一身份标识（伪 token），代理按身份分流，保住 R1。
+- 真 API token 收敛到代理侧（接 keychain），不再明文落 profile `settings.json`（顺带收敛 R7 已知风险）。
+- 代理须处理：model 名改写、SSE 流式透传、daemon 生命周期、三平台可用（Q6）。
+
+**非目标（本期不做）**：
+
+- 不做限额自动检测 / 自动 failover（仅记录为候选增强）。
+- 不替换现有 eval 直连模式，代理模式为 opt-in。
+
+**开放问题**：
+
+| 编号 | 问题 | 当前倾向 |
+|---|---|---|
+| Q8 | 会话内切换的触发形态 | 候选：CLI 子命令（Bash 内执行）/ MCP 工具 / 代理拦截 in-band 命令（CCR 式）。先 CLI，MCP 作后续增强。 |
+| Q9 | daemon 形态与生命周期 | 候选：用户级常驻服务（launchd/systemd/任务计划）vs 首次 use 按需拉起 + 空闲退出。涉及产品形态变化（单二进制无常驻 → 有常驻），需确认。 |
+| Q10 | 是否支持自动 failover | 检测 429/限额自动切备用 provider。建议本期不做。 |
+
+→ 可行性分析与架构决策待 SDD 流程（`/speckit-specify`）产出后回填文档链。
+
+### v0.0.7
+
+#### R10. Claude Code 内查看并切换当前 provider 的真实模型（Mode P）
+
+> 用户原话：我想实现使用 Mode P 的时候，在 claude 中能看到当前使用服务商的对应模型（我们自己在对应服务商的 env 中配置的模型），如果在 claude 中切换了服务商，能通过 "/model" 看到新服务商配置的模型，并且能够切换。
+
+**场景**：Mode P 下，Claude Code 的 `/model` 选择器显示的是内置 Anthropic 模型目录（含误导性定价标签），看不到当前路由 provider 配置的真实模型；且代理目前把所有请求的 model 统一改写为主模型（`modelrewrite.go` 的 v1 已知简化），用户在 `/model` 里的选择不生效。
+
+**验收性要求**：
+
+- **启动时显示真实模型**：`ccs use <provider>` 后进入 claude，`/model` 列出该 provider env 中配置的模型（`ANTHROPIC_MODEL` 与 `ANTHROPIC_DEFAULT_*_MODEL`），而非内置目录；当前模型行 ✔ 正确。
+- **热切跟随**：会话内 `cc-select route switch <provider>` 后，不重启会话，`/model` 显示新 provider 的模型列表（依赖 Claude Code settings 热重载，已实验证实，见下）。
+- **选择生效**：在 `/model` 中选择 provider 模型后，后续请求实际使用该模型，不被代理统一改写为主模型。
+- **不破坏既有约束**：R1（终端隔离）与 Mode P 既有语义（在途请求按原 provider 完成、daemon 自愈、终端间零串扰）不受影响。
+
+**分级交付**：
+
+- **P0（最小闭环）**：
+  - `use` 生成 profile `settings.json` 时注入该 provider 的 `modelPicker`（模型清单从 provider env 派生）；此能力与模式无关，Mode B 同样受益。
+  - 代理 model 改写从「无条件覆写为主模型」改为「当前 provider 模型清单内**透传** + claude-\* 目录 id 按映射**翻译**（无映射时回落主模型，兼容 v1 行为）」。
+- **P1（完整目标）**：`route switch` 时同步改写该终端 `CLAUDE_CONFIG_DIR` 下 `settings.json` 的 `modelPicker` 为新 provider 的模型清单，实现热切后 `/model` 跟随刷新。
+
+**P1 派生要求**：
+
+- 写 `settings.json` 需与 Claude Code 自身落盘（`/model` 选择会写 `model` 字段）防竞态：读-改-写合并 + 原子写，不得覆盖 CC 写入的字段。
+- 若配置 `availableModels` allowlist，须与注入清单同步，避免选择被 allowlist 拒绝。
+
+**非目标（本期不做）**：
+
+- 不集成 gateway model discovery（实验已判定不可行：仅启动时查询一次、结果缓存、且 id 须含 claude/anthropic 才显示）。
+- 不做横幅 / statusline 等显示层定制（`modelPicker` 的 label 顺带生效即可）。
+- 不做模型自动选择 / 推荐 / failover（沿用 R9 的非目标）。
+
+**开放问题**：
+
+| 编号 | 问题 | 当前倾向 |
+|---|---|---|
+| Q11 | 模型清单来源：纯 env 派生（零 schema 变更，最多 4 行）vs provider 显式 `models` 字段（任意多模型 + 自定义 label/description） | 先 env 派生（P0），`models` 字段作 P1 增强 |
+| Q12 | 旧版 Claude Code（< v2.1.242，无 `modelPicker`）兼容策略 | 候选：跳过注入并提示升级 vs `ANTHROPIC_CUSTOM_MODEL_OPTION` 单行兜底 |
+| Q13 | 热切刷新的写路径：`route` CLI 在会话内执行时直接读继承的 `$CLAUDE_CONFIG_DIR` 定位文件（免额外映射）vs daemon 统一写（需登记 TID → profile 目录） | 倾向前者（与 `route switch` 由 CLI 写 `routes.json` 的现有边界一致；需验证三平台 env 继承） |
+
+→ 可行性已实验定案（2026-08-29，三轮探针实验）：Claude Code ≥ v2.1.242 的 `modelPicker` 支持**会话内热重载**，provider 格式 id（如 `glm-5.3[1m]`）不会被行审查丢弃；另 `docs/engineering-decisions.md` §8「claude env 会话内冻结」前提与现行官方行为（settings 文件含 env 类变更大多热重载）不一致，需随本需求回流修正。设计细节待 SDD 流程产出后回填文档链。
+
 ## 变更记录
 
 | 日期 | 变更 | 来源 |
@@ -104,4 +207,8 @@
 | 2026-06-28 | **机制重构落地**：改用 `CLAUDE_CONFIG_DIR`（方向 2，已实测验证）。`ccs use X` 指向 `~/.cc-select/profiles/<id>/`，claude 读该目录 settings.json。token 明文落 profile（keychain 占位机制已预留待接入）；官方 provider = unset 回默认。详见 [架构 §3.0](./architecture.md#30-切换机制claude_config_dir关键)、[工程细节 §6](./engineering-decisions.md)。 |
 | 2026-06-29 | **文档与实现同步**：更新 CLAUDE.md、docs 状态概览与路线图；统一 docs 与代码中的环境变量名为 `ANTHROPIC_AUTH_TOKEN`；修正 CLI/Windows/验收用例中 `CLAUDE_CONFIG_DIR` 相关示例。 | 文档整理 |
 | 2026-07-05 | **文档重构**：保留 cc-switch 作为「其他方案分析」的对比与能力分析；补充 i18n（Q7）已定决策；梳理「问题→方案→架构→实施」叙事主线。 | 文档整理 |
+| 2026-08-28 | 新增「新增需求记录」段（说明 + 开发基本要求）；其中 git hooks 管理器决策：**沿用 lefthook、不引入 husky**，commitlint（或等效 commit-msg 校验）为待补项。 | 用户确认 |
+| 2026-08-28 | **流程纪律缺口补齐**：commitlint（conventional）挂入 lefthook commit-msg hook；TDD / 循环 code review / commit 粒度写入 SpecKit 宪法 v1.1.0 与 CLAUDE.md；Playwright e2e 纳入 CI。 | 开发补齐 |
+| 2026-08-28 | 新增 v0.0.6 需求 R9：Claude Code 会话内切换 provider（限额救急；上下文延续 + 保持 shell 级隔离），含 P0/P1 分级与开放问题 Q8–Q10。 | 用户提出 |
+| 2026-08-29 | 新增 v0.0.7 需求 R10：Mode P 下在 Claude Code 内查看并切换当前 provider 真实模型（`modelPicker` 注入 / 热切跟随刷新 / 代理映射化改写），含开放问题 Q11–Q13；可行性经三轮探针实验定案（`modelPicker` 热重载、provider id 存活）。 | 用户提出 |
 

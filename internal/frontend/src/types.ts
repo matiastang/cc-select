@@ -20,6 +20,6 @@ export type ProviderDetail = {
   authField?: AuthField;
 };
 
-export type IsolationMode = "" | "settings-only" | "full";
+export type IsolationMode = "" | "settings-only" | "full" | "proxy";
 
 export type { Preset, PresetDetail };

@@ -35,3 +35,30 @@ func TestJoinChanges(t *testing.T) {
 		t.Errorf("JoinChanges 拼接错误，got %q", got)
 	}
 }
+
+func TestPowerShellEmit_SetIfUnset(t *testing.T) {
+	got := PowerShellEmitter{}.Emit([]Change{
+		{Op: OpSetIfUnset, Name: "CC_SELECT_TID", Value: "ccs-3f9c"},
+		{Op: OpUnset, Name: "Y"},
+	})
+	want := "if (-not $env:CC_SELECT_TID) { $env:CC_SELECT_TID = 'ccs-3f9c' }\nRemove-Item Env:\\Y -ErrorAction SilentlyContinue\n"
+	if got != want {
+		t.Errorf("PS Emit SetIfUnset:\nwant %q\ngot  %q", want, got)
+	}
+}
+
+func TestPowerShellEmit_SetRef(t *testing.T) {
+	got := PowerShellEmitter{}.Emit([]Change{{Op: OpSetRef, Name: "X", Value: "CC_SELECT_TID"}})
+	want := "$env:X = \"$env:CC_SELECT_TID\"\n"
+	if got != want {
+		t.Errorf("PS Emit SetRef:\nwant %q\ngot  %q", want, got)
+	}
+}
+
+func TestPowerShellEmit_Exec(t *testing.T) {
+	got := PowerShellEmitter{}.Emit([]Change{{Op: OpExec, Value: "cc-select route switch glm"}})
+	want := "& cc-select route switch glm *> $null\n"
+	if got != want {
+		t.Errorf("PS Emit Exec:\nwant %q\ngot  %q", want, got)
+	}
+}

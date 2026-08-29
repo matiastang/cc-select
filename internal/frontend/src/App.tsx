@@ -5,6 +5,8 @@ import { IdPlaceholder } from "./components/IdPlaceholder";
 import { ShellIntegrationBanner } from "./ShellIntegrationBanner";
 import { Header } from "./components/Header";
 import { GlobalModeCard } from "./components/GlobalModeCard";
+import { RoutesPanel } from "./components/RoutesPanel";
+import { KeychainCard } from "./components/KeychainCard";
 import { ProviderList } from "./components/ProviderList";
 import { JsonForm } from "./components/JsonForm";
 import { Provider, IsolationMode } from "./types";
@@ -109,6 +111,10 @@ export default function App() {
       )}
 
       <GlobalModeCard mode={globalMode} loading={globalModeLoading} onChange={saveGlobalMode} />
+
+      <RoutesPanel />
+
+      <KeychainCard />
 
       <ProviderList
         providers={Object.values(providers)}

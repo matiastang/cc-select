@@ -4,7 +4,8 @@
   "mode": {
     "inherit": "Inherit global",
     "settingsOnly": "settings.json only (shared history/extensions)",
-    "full": "Full directory isolation (fully independent)"
+    "full": "Full directory isolation (fully independent)",
+    "proxy": "Proxy routing (in-session hot-switch, opt-in)"
   },
   "configuredKey": "Key configured",
   "officialNotice": "Uses system default config (~/.claude); cannot be customized",
@@ -71,5 +72,25 @@
     "deleteFailed": "Delete failed",
     "saveGlobalModeFailed": "Failed to save global mode",
     "missingRequired": "Missing required fields: {{vars}}"
+  },
+  "routes": {
+    "title": "Active Routes",
+    "hint": "Mode P per-terminal routing table and router daemon status. Hot-switch inside a Claude Code session with: cc-select route switch <provider>.",
+    "routerRunning": "router running ({{addr}})",
+    "routerDown": "router down",
+    "ensureButton": "Start / repair router",
+    "pruneButton": "Prune stale routes",
+    "provider": "Provider",
+    "updatedAt": "Updated",
+    "ensureFailed": "failed to ensure router",
+    "migrated": "Enabled proxy mode: {{n}} secret(s) migrated to keychain."
+  },
+  "keychain": {
+    "title": "Security: store keys in the system keychain",
+    "hint": "Off by default: the values you enter stay exactly as you set them (plaintext, file permission 0600). Turn this on to move API keys into the OS keychain — files will then show $keychain placeholders instead of real values.",
+    "enable": "Save API keys to the system keychain (macOS Keychain / Windows Credential Manager / Linux Secret Service)",
+    "migrated": "Enabled: {{n}} existing secret(s) migrated to the keychain.",
+    "loadFailed": "failed to load the keychain setting",
+    "saveFailed": "failed to save the keychain setting"
   }
 }

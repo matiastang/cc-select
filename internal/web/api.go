@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/cc-select/cc-select/internal/app"
 	"github.com/cc-select/cc-select/internal/config"
@@ -15,7 +16,11 @@ import (
 	"github.com/cc-select/cc-select/internal/presets"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/rcinteg"
+	"github.com/cc-select/cc-select/internal/router"
+	"github.com/cc-select/cc-select/internal/routes"
+	"github.com/cc-select/cc-select/internal/secrets"
 	"github.com/cc-select/cc-select/internal/updater"
+	"github.com/cc-select/cc-select/internal/version"
 )
 
 // providerDTO 是列表视图（GET /providers）里单个 provider 的精简表示。
@@ -68,6 +73,16 @@ type apiHandler struct{}
 
 func newAPIHandler() *apiHandler { return &apiHandler{} }
 
+// migrateSecretsFn 是存量批量迁移的注入点：生产用系统 keychain，测试换 FakeStore。
+var migrateSecretsFn = func(cfg *config.Config) (int, []string) {
+	return secrets.MigrateAll(secrets.New(), cfg)
+}
+
+// migrateSecretsEnvFn 是保存路径单 env 迁移的注入点（钥匙串开关开启时生效）。
+var migrateSecretsEnvFn = func(providerID string, env map[string]string) (int, []string) {
+	return secrets.MigrateEnv(secrets.New(), providerID, env)
+}
+
 func (h *apiHandler) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/providers", h.handleProvidersCollection)
@@ -80,6 +95,9 @@ func (h *apiHandler) routes() *http.ServeMux {
 	mux.HandleFunc("/api/v1/shell-integration/install", h.handleShellIntegrationInstall)
 	mux.HandleFunc("/api/v1/update/check", h.handleUpdateCheck)
 	mux.HandleFunc("/api/v1/update", h.handleUpdateRun)
+	mux.HandleFunc("/api/v1/routes", h.handleRoutes)
+	mux.HandleFunc("/api/v1/router/ensure", h.handleRouterEnsure)
+	mux.HandleFunc("/api/v1/keychain", h.handleKeychain)
 	return mux
 }
 
@@ -198,8 +216,8 @@ func (h *apiHandler) handleMode(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 			return
 		}
-		if in.IsolationMode != prefs.ModeSettingsOnly && in.IsolationMode != prefs.ModeFull {
-			writeError(w, http.StatusBadRequest, "isolationMode must be settings-only or full")
+		if !in.IsolationMode.Valid() || in.IsolationMode == "" {
+			writeError(w, http.StatusBadRequest, "isolationMode must be settings-only, full or proxy")
 			return
 		}
 		pr, err := prefs.Load()
@@ -212,6 +230,8 @@ func (h *apiHandler) handleMode(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+		// 产品决策（2026-08-29）：keychain 迁移默认关闭，不再随 proxy 启用自动触发；
+		// 显式开关见 /api/v1/keychain（GUI「保存到钥匙串」设置项）。
 		writeJSON(w, http.StatusOK, map[string]any{"isolationMode": string(in.IsolationMode)})
 	default:
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -409,7 +429,7 @@ func (h *apiHandler) createProvider(w http.ResponseWriter, r *http.Request) {
 		in.Name = in.ID
 	}
 	if !in.IsolationMode.Valid() {
-		writeError(w, http.StatusBadRequest, "isolationMode must be empty, settings-only or full")
+		writeError(w, http.StatusBadRequest, "isolationMode must be empty, settings-only, full or proxy")
 		return
 	}
 
@@ -429,13 +449,15 @@ func (h *apiHandler) createProvider(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	mode := prefs.ResolveMode("", in.IsolationMode, a.Prefs.IsolationMode)
-	if err := applySettings(in.ID, data, mode); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+	envSaved, aerr := applySettings(in.ID, data, mode)
+	if aerr != nil {
+		writeError(w, http.StatusInternalServerError, aerr.Error())
 		return
 	}
 	a.Config.Providers[in.ID] = config.Provider{
 		ID:            in.ID,
 		Name:          in.Name,
+		Env:           envSaved,
 		IsolationMode: in.IsolationMode,
 		PresetID:      in.Preset,
 		APIFormat:     in.APIFormat,
@@ -484,7 +506,7 @@ func (h *apiHandler) updateProvider(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 	if !in.IsolationMode.Valid() {
-		writeError(w, http.StatusBadRequest, "isolationMode must be empty, settings-only or full")
+		writeError(w, http.StatusBadRequest, "isolationMode must be empty, settings-only, full or proxy")
 		return
 	}
 	if in.Name == "" {
@@ -507,14 +529,16 @@ func (h *apiHandler) updateProvider(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 	mode := prefs.ResolveMode("", in.IsolationMode, a.Prefs.IsolationMode)
-	// 整体覆盖：按 mode 写 profile。
-	if err := applySettings(id, data, mode); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+	// 整体覆盖：按 mode 写 profile（env 真值随 applySettings 落盘 providers.json）。
+	envSaved, aerr := applySettings(id, data, mode)
+	if aerr != nil {
+		writeError(w, http.StatusInternalServerError, aerr.Error())
 		return
 	}
 	a.Config.Providers[id] = config.Provider{
 		ID:            id,
 		Name:          in.Name,
+		Env:           envSaved, // 写回快照，防下方 config.Save 旧值覆盖刚落盘的 env
 		IsolationMode: in.IsolationMode,
 		PresetID:      in.Preset,
 		APIFormat:     in.APIFormat,
@@ -600,34 +624,63 @@ func normalizeSettings(raw json.RawMessage) ([]byte, error) {
 	return out, nil
 }
 
-// applySettings 按 mode 把 settings 写入 profile。
+// applySettings 按 mode 把 settings 写入 profile，并把 env 真值持久化到 providers.json。
 //   - Mode A（full）：原文写入 data，保留 env 之外字段（permissions、model 等）。
-//   - Mode B（settings-only）：只取 env 做整体替换，非 env 字段来自全局 ~/.claude/settings.json。
+//   - Mode B（settings-only）/ Mode P：只取 env 做整体替换；Mode P 下 profile 是
+//     派生产物（仅代理 BASE_URL），env 的持久真值必须落 providers.json。
 //
 // data 应是已校验/规范化的 JSON 对象字节。官方 provider 无 profile（no-op）。
-func applySettings(id string, data []byte, mode prefs.Mode) error {
-	switch mode {
-	case prefs.ModeFull:
-		if _, err := profile.EnsureRaw(id, data); err != nil {
-			return err
-		}
-	default:
-		var settings map[string]any
-		if err := json.Unmarshal(data, &settings); err != nil {
-			return fmt.Errorf(i18n.T("profile.parseGlobalSettings"), err)
-		}
-		envAny, _ := settings["env"].(map[string]any)
-		env := map[string]string{}
-		for k, v := range envAny {
-			if s, ok := v.(string); ok {
-				env[k] = s
-			}
-		}
-		if _, _, err := profile.Sync(id, env, mode); err != nil {
-			return err
+func applySettings(id string, data []byte, mode prefs.Mode) (map[string]string, error) {
+	var settings map[string]any
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return nil, fmt.Errorf(i18n.T("profile.parseGlobalSettings"), err)
+	}
+	envAny, _ := settings["env"].(map[string]any)
+	env := map[string]string{}
+	for k, v := range envAny {
+		if s, ok := v.(string); ok {
+			env[k] = s
 		}
 	}
-	return nil
+	// 钥匙串开关显式开启（默认关）时，保存路径把敏感值占位化（产品决策 2026-08-29）。
+	// 偏好读取失败必须 fail-closed（评审 P1）：开着钥匙串的用户不得因 prefs.json
+	// 损坏被静默降级为明文保存——宁可让本次保存失败并报错。
+	pr, perr := prefs.Load()
+	if perr != nil {
+		return nil, perr
+	}
+	if pr.KeychainEnabled {
+		_, _ = migrateSecretsEnvFn(id, env) // 单条迁移失败保持明文继续（不阻断保存）
+	}
+	// env 真值 → providers.json（与 CLI add/edit 的 writeProvider 行为对齐）。
+	if err := saveProviderEnv(id, env); err != nil {
+		return nil, err
+	}
+	if mode == prefs.ModeFull {
+		if _, err := profile.EnsureRaw(id, data); err != nil {
+			return nil, err
+		}
+		return env, nil
+	}
+	if _, _, err := router.SyncProfile(id, env, mode); err != nil {
+		return nil, err
+	}
+	return env, nil
+}
+
+// saveProviderEnv 把 env 写入 providers.json 对应 provider（存在则更新 Env 字段）。
+func saveProviderEnv(id string, env map[string]string) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	p, ok := cfg.Providers[id]
+	if !ok {
+		p = config.Provider{ID: id} // create 流程：applySettings 先于元信息落库
+	}
+	p.Env = env
+	cfg.Providers[id] = p
+	return config.Save(cfg)
 }
 
 // isSensitiveVar 判断变量名是否敏感（用于 toDTO 脱敏：值不回传前端）。
@@ -643,7 +696,7 @@ func isSensitiveVar(name string) bool {
 
 // toDTO 把 provider 转为列表用的脱敏 DTO（不泄露敏感值）。env 从 profile settings.json 读真值。
 func toDTO(p config.Provider) providerDTO {
-	env, _ := profile.ReadEnv(p.ID)
+	env := displayedEnv(p)
 	dto := providerDTO{
 		ID:            p.ID,
 		Name:          p.DisplayName(),
@@ -670,6 +723,12 @@ func toDetailDTO(p config.Provider, id string) providerDetailDTO {
 	if len(raw) == 0 {
 		raw = []byte("{}")
 	}
+	// Mode P 派生产物保护（specs/001 实测发现）：use(proxy) 会把 profile env 覆写为
+	// 仅含代理 BASE_URL，真值在 providers.json（上抬后）。编辑页若以派生产物回填，
+	// 用户一次保存就会把真值覆盖丢失——此处把 env 部分替换回真值（非 env 字段保留）。
+	if len(p.Env) > 0 && isProxyArtifactEnv(profileEnvOnlyBaseURL(p)) {
+		raw = restoreEnvFromTruth(raw, p.Env)
+	}
 	return providerDetailDTO{
 		ID:            id,
 		Name:          p.DisplayName(),
@@ -689,4 +748,195 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+// ---- Mode P 路由/守护端点（specs/001 contracts/web-api.md §2–4） ----
+
+// routeEntryDTO 是路由表条目的 API 表示（tid 恒为短码，与 CLI 展示规则一致）。
+type routeEntryDTO struct {
+	TID       string `json:"tid"`
+	Provider  string `json:"provider"`
+	UpdatedAt string `json:"updatedAt"`
+}
+
+// ensureRouterFn 是 web 侧 ensure 注入点：生产走 router.EnsureDeps + SpawnDetached，
+// 测试换桩（避免真拉进程）。
+var ensureRouterFn = func() (string, error) {
+	deps := router.EnsureDeps{Spawn: router.SpawnDetached, SelfVersion: version.Version}
+	return deps.Ensure()
+}
+
+// handleRoutes 处理 GET（列路由 + daemon 状态）与 DELETE（prune）。
+func (h *apiHandler) handleRoutes(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		entries, err := routes.List()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		running, addr, ver := false, "", ""
+		if a, aerr := router.ResolveAddr(); aerr == nil {
+			addr = a
+			if hi, perr := router.Probe(a); perr == nil {
+				running, ver = true, hi.Version
+			}
+		}
+		out := make([]routeEntryDTO, 0, len(entries))
+		for _, e := range entries {
+			tid := e.TID
+			if len(tid) > 12 {
+				tid = tid[:12]
+			}
+			out = append(out, routeEntryDTO{TID: tid, Provider: e.Provider, UpdatedAt: e.UpdatedAt.Format(time.RFC3339)})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"router": map[string]any{"running": running, "addr": addr, "version": ver},
+			"routes": out,
+		})
+	case http.MethodDelete:
+		q := r.URL.Query().Get("olderThan")
+		if q == "" {
+			q = "168h"
+		}
+		d, err := time.ParseDuration(q)
+		if err != nil || d <= 0 {
+			writeError(w, http.StatusBadRequest, "invalid olderThan: "+err.Error())
+			return
+		}
+		n, err := routes.Prune(d)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"pruned": n})
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+// handleRouterEnsure 处理 POST /router/ensure（GUI「启动/修复路由服务」）。
+func (h *apiHandler) handleRouterEnsure(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	addr, err := ensureRouterFn()
+	if err != nil {
+		// 503 + 可诊断错误与恢复指引（FR-011）。
+		writeError(w, http.StatusServiceUnavailable, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"running": true, "addr": addr})
+}
+
+// restoreEnvFromTruth 在 raw（profile settings.json 原文）是「仅含代理 BASE_URL 的
+// 派生产物」时，把 env 键替换为 truth（providers.json 真值），其余字段原样保留。
+// 非 派生产物 形态则原样返回（Mode A 原文编辑语义不受影响）。
+// displayedEnv 返回展示用 env：profile 是 Mode P 派生产物（仅代理 BASE_URL）
+// 且 providers.json 有真值时，用真值——列表徽标/URL/model 均反映真实配置。
+func displayedEnv(p config.Provider) map[string]string {
+	env, _ := profile.ReadEnv(p.ID)
+	if len(p.Env) > 0 && isProxyArtifactEnv(env) {
+		return p.Env
+	}
+	return env
+}
+
+// profileEnvOnlyBaseURL 读取 profile env（isProxyArtifactEnv 判定用）。
+func profileEnvOnlyBaseURL(p config.Provider) map[string]string {
+	env, _ := profile.ReadEnv(p.ID)
+	return env
+}
+
+// isProxyArtifactEnv 判定 env 是否为 use(proxy) 的派生产物形态：
+// 仅含一个 ANTHROPIC_BASE_URL 且其值恰为当前 daemon 地址。
+func isProxyArtifactEnv(env map[string]string) bool {
+	if len(env) != 1 {
+		return false
+	}
+	addr, err := router.ResolveAddr()
+	if err != nil {
+		return false
+	}
+	return env["ANTHROPIC_BASE_URL"] == "http://"+addr
+}
+
+func restoreEnvFromTruth(raw []byte, truth map[string]string) []byte {
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return raw
+	}
+	envAny, ok := m["env"].(map[string]any)
+	if !ok || len(envAny) != 1 {
+		return raw
+	}
+	v, isStr := envAny["ANTHROPIC_BASE_URL"].(string)
+	if !isStr || !isProxyArtifactEnv(map[string]string{"ANTHROPIC_BASE_URL": v}) {
+		return raw
+	}
+	envOut := make(map[string]any, len(truth))
+	for k, v := range truth {
+		envOut[k] = v
+	}
+	m["env"] = envOut
+	b, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return raw
+	}
+	return b
+}
+
+// handleKeychain 是钥匙串开关（产品决策 2026-08-29：默认关闭，显式开启才迁移）。
+//   - GET → {"enabled": bool}
+//   - PUT {"enabled": true} → 存偏好 + 存量明文一次性迁移，响应附 {migrated, failed}
+//   - PUT {"enabled": false} → 仅存偏好（已占位化的条目不自动回迁，重新保存明文即恢复）
+func (h *apiHandler) handleKeychain(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		pr, err := prefs.Load()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"enabled": pr.KeychainEnabled})
+	case http.MethodPut:
+		var in struct {
+			Enabled bool `json:"enabled"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+			return
+		}
+		pr, err := prefs.Load()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		pr.KeychainEnabled = in.Enabled
+		if err := prefs.Save(pr); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if !in.Enabled {
+			writeJSON(w, http.StatusOK, map[string]any{"enabled": false})
+			return
+		}
+		cfg, cerr := config.Load()
+		if cerr != nil {
+			writeError(w, http.StatusInternalServerError, cerr.Error())
+			return
+		}
+		n, failed := migrateSecretsFn(cfg)
+		if serr := config.Save(cfg); serr != nil {
+			writeError(w, http.StatusInternalServerError, serr.Error())
+			return
+		}
+		if failed == nil {
+			failed = []string{}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"enabled": true, "migrated": n, "failed": failed})
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
 }

@@ -42,3 +42,34 @@ func Plan(target config.Provider) []shell.Change {
 
 	return changes
 }
+
+// PlanProxy 计算 Mode P（proxy）切换到 target 所需的环境变量变更
+// （specs/001 contracts/cli.md §3，研究 D5/D6）。
+//
+// 发射顺序有语义：TID 守卫先行（确保引用求值时身份已存在），随后
+// AUTH_TOKEN 引用式指向 TID（伪 token）、CLAUDE_CONFIG_DIR 指向 profile
+// （其 settings.json 的 env 仅含恒定的代理 BASE_URL，由 profile.SyncProxy 构造）。
+//
+// 官方 provider 不参与 Mode P（研究 D2）：回退官方语义（unset CLAUDE_CONFIG_DIR），
+// 并额外 unset ANTHROPIC_AUTH_TOKEN——此前 proxy 模式注入的伪 token 不得发给官方端点。
+func PlanProxy(target config.Provider, tid string) []shell.Change {
+	if target.ID == config.OfficialProviderID {
+		return []shell.Change{
+			{Op: shell.OpUnset, Name: profile.ConfigVar},
+			{Op: shell.OpUnset, Name: config.AuthTokenVar},
+			{Op: shell.OpSet, Name: config.ActiveVar, Value: target.ID},
+		}
+	}
+
+	// Dir 出错时退化空串：实际 use 命令在 Plan 前已用 profile.Exists 校验过。
+	dir, err := profile.Dir(target.ID)
+	if err != nil {
+		dir = ""
+	}
+	return []shell.Change{
+		{Op: shell.OpSetIfUnset, Name: config.TerminalIDVar, Value: tid},
+		{Op: shell.OpSetRef, Name: config.AuthTokenVar, Value: config.TerminalIDVar},
+		{Op: shell.OpSet, Name: profile.ConfigVar, Value: dir},
+		{Op: shell.OpSet, Name: config.ActiveVar, Value: target.ID},
+	}
+}

@@ -110,6 +110,15 @@ func (c *Config) UsedVars() []string {
 // use 命令导出它，current 命令读它。见 docs/engineering-decisions.md §3。
 const ActiveVar = "CC_SELECT_ACTIVE"
 
+// TerminalIDVar 是 Mode P 的终端身份环境变量名（specs/001 研究 D6）：
+// 每 shell 守卫生成一次，值即路由 daemon 的伪 token（ccs-<128bit hex>）。
+// route/current 命令读它；路由表 ~/.cc-select/routes.json 以它为主键。
+const TerminalIDVar = "CC_SELECT_TID"
+
+// AuthTokenVar 是 claude 的鉴权 env 变量名（Mode P 下承载伪 token，
+// daemon 侧替换为 provider 真实密钥后转发上游）。
+const AuthTokenVar = "ANTHROPIC_AUTH_TOKEN"
+
 // IsKeychainPlaceholder 判断一个 env 值是否为 Keychain 占位。
 func IsKeychainPlaceholder(v string) bool {
 	return len(v) > len(KeychainPlaceholderPrefix) &&

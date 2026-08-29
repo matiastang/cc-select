@@ -3,15 +3,17 @@ package cli
 import (
 	"fmt"
 
+	"github.com/cc-select/cc-select/internal/config"
 	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/prefs"
+	"github.com/cc-select/cc-select/internal/secrets"
 	"github.com/spf13/cobra"
 )
 
 // modeCmd 查看或设置「全局隔离模式」（写入 ~/.cc-select/prefs.json）。
 // 机制与两种模式的区别见 docs/isolation-modes.md。
 var modeCmd = &cobra.Command{
-	Use:  "mode [settings-only|full]",
+	Use:  "mode [settings-only|full|proxy]",
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		pr, err := prefs.Load()
@@ -32,7 +34,7 @@ var modeCmd = &cobra.Command{
 		}
 		// 有参数 = 设置全局模式。
 		m := prefs.Mode(args[0])
-		if m != prefs.ModeSettingsOnly && m != prefs.ModeFull {
+		if !m.Valid() || m == "" {
 			return fmt.Errorf(i18n.T("cli.mode.invalid"), args[0])
 		}
 		pr.IsolationMode = m
@@ -42,6 +44,11 @@ var modeCmd = &cobra.Command{
 		fmt.Fprintln(cmd.OutOrStdout(), i18n.T("cli.mode.set", m))
 		return nil
 	},
+}
+
+// migrateSecretsFn 是迁移注入点：生产用系统 keychain，测试换 FakeStore。
+var migrateSecretsFn = func(cfg *config.Config) (int, []string) {
+	return secrets.MigrateAll(secrets.New(), cfg)
 }
 
 func init() {

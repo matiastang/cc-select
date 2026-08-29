@@ -75,3 +75,46 @@ func TestResolveMode_TieredFallback(t *testing.T) {
 		})
 	}
 }
+
+func TestModeProxy_Valid(t *testing.T) {
+	if !ModeProxy.Valid() {
+		t.Error("proxy 应为合法隔离模式")
+	}
+	// 引入第三模式不得改变兜底默认（Mode B）。
+	if DefaultMode != ModeSettingsOnly {
+		t.Errorf("默认模式必须保持 settings-only，got %q", DefaultMode)
+	}
+}
+
+func TestSaveLoad_ProxyRoundTrip(t *testing.T) {
+	setTempPrefs(t)
+	if err := Save(&Prefs{IsolationMode: ModeProxy}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	pr, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if pr.IsolationMode != ModeProxy {
+		t.Errorf("proxy 往返失败 want %q got %q", ModeProxy, pr.IsolationMode)
+	}
+}
+
+func TestResolveMode_ProxyTiers(t *testing.T) {
+	cases := []struct {
+		name             string
+		oneOff, prov, gl Mode
+		want             Mode
+	}{
+		{"oneOff proxy wins", ModeProxy, ModeSettingsOnly, ModeFull, ModeProxy},
+		{"provider proxy beats global", "", ModeProxy, ModeFull, ModeProxy},
+		{"global proxy", "", "", ModeProxy, ModeProxy},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := ResolveMode(c.oneOff, c.prov, c.gl); got != c.want {
+				t.Errorf("ResolveMode(%q,%q,%q) want %q got %q", c.oneOff, c.prov, c.gl, c.want, got)
+			}
+		})
+	}
+}

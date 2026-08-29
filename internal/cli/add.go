@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 
@@ -12,7 +13,8 @@ import (
 	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/presets"
-	"github.com/cc-select/cc-select/internal/profile"
+	"github.com/cc-select/cc-select/internal/router"
+	"github.com/cc-select/cc-select/internal/secrets"
 	"github.com/spf13/cobra"
 )
 
@@ -327,12 +329,18 @@ func upsertProvider(a *app.App, id string, fl addFlags, providerMode prefs.Mode)
 	return config.Save(a.Config)
 }
 
-// writeProvider 按解析后的隔离模式构建 profile（profile.Sync），并把 id/name + 模式覆盖 + preset 元数据记入 providers.json。
+// writeProvider 按解析后的隔离模式构建 profile（SyncProfile），并把 id/name + env 真值 + 模式覆盖 + preset 元数据记入 providers.json。
 // env 含明文敏感值（token）。供 add/edit 共用。
 func writeProvider(a *app.App, id, name string, env map[string]string, providerMode prefs.Mode, presetID, apiFormat, authField string) error {
 	// 实际生效模式 = per-provider 覆盖（若有）> 全局 > 默认。
 	resolved := prefs.ResolveMode("", providerMode, a.Prefs.IsolationMode)
-	if _, _, err := profile.Sync(id, env, resolved); err != nil {
+	// 钥匙串开关显式开启（默认关）时，保存路径把敏感值占位化（产品决策 2026-08-29）。
+	if a.Prefs != nil && a.Prefs.KeychainEnabled {
+		if _, failed := migrateEnvFn(id, env); len(failed) > 0 {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", i18n.T("cli.mode.migrateFailed"), strings.Join(failed, "; "))
+		}
+	}
+	if _, _, err := router.SyncProfile(id, env, resolved); err != nil {
 		return fmt.Errorf(i18n.T("cli.add.profileWriteFailed"), err)
 	}
 	if name == "" {
@@ -341,10 +349,16 @@ func writeProvider(a *app.App, id, name string, env map[string]string, providerM
 	a.Config.Providers[id] = config.Provider{
 		ID:            id,
 		Name:          name,
+		Env:           env, // env 真值随记录持久化（Mode P 时代 providers.json 是唯一持久真值源）
 		IsolationMode: providerMode,
 		PresetID:      presetID,
 		APIFormat:     apiFormat,
 		AuthField:     authField,
 	}
 	return nil
+}
+
+// migrateEnvFn 是单 env 迁移注入点：生产用系统 keychain，测试换 FakeStore。
+var migrateEnvFn = func(providerID string, env map[string]string) (int, []string) {
+	return secrets.MigrateEnv(secrets.New(), providerID, env)
 }

@@ -162,12 +162,29 @@ cc-select は**未署名のオープンソース**バイナリです。Windows �
 
 - **Mode B — `settings-only`（デフォルト）**: 各プロバイダーごとに `settings.json` のみ分離します。履歴・プラグイン・commands などは `~/.claude` へのリンクで共有されます。
 - **Mode A — `full`**: profile ディレクトリ全体を完全に分離します。
+- **Mode P — `proxy`**（v0.0.6、オプトイン）: ローカルルーティング daemon によるセッション内ホットスイッチ——現在のプロバイダーがレート制限に達したら、実行中の Claude Code セッション内で `cc-select route switch <provider>` を実行するだけです。詳細は [docs/isolation-modes.md §10](../isolation-modes.md)。
 
-グローバル既定値は `cc-select mode` で確認・設定できます。per-provider 上書きや一度きりの上書きには `cc-select edit <id> --mode ...` または `ccs use <id> --mode ...` を使ってください。詳細は [docs/isolation-modes.md](../isolation-modes.md) を参照。
+v0.0.7 から（Claude Code ≥ 2.1.242 が必要）：新規セッションの `/model` にはアクティブなプロバイダーの実モデルが表示されます——設定済みの `ANTHROPIC_MODEL` / `ANTHROPIC_DEFAULT_*_MODEL` から派生し、内蔵の Anthropic カタログは非表示——すべての分離モードでセッション開始時に有効です。Mode P ではリストが `route switch` にセッション内で追従し（再起動不要）、ピッカーでの選択はルーターがそのまま適用されます。古い Claude Code では `use` が一行の更新ヒントを表示します（注入は無害ですが効果はありません）。既知の制限：「現在のモデル」マーカーは Claude Code の起動時フィールドのため、ホットスイッチ後は `/model` で選択するかセッションを再起動するまで表示が遅れます。
+
+グローバル既定は `cc-select mode` で確認・設定できます。per-provider 上書きや一度きりの上書きには `cc-select edit <id> --mode ...` または `ccs use <id> --mode ...` を使ってください。詳細は [docs/isolation-modes.md](../isolation-modes.md) を参照。
+
+## レート制限に達したら？切り替えて続行
+
+実行中の Claude Code セッションのプロバイダーが使えなくなった（例：GLM の 5 時間ウィンドウ消費済み）場合、別のプロバイダーに切り替えて**同じ会話を続行**できます。デフォルトの Mode B ではセッション履歴がプロバイダー間で共有されます：
+
+```bash
+# 実行中のセッション内で：Ctrl+D（または /exit）で終了——履歴は自動保存済み
+ccs use minimax        # このターミナルを別のプロバイダーへ切り替え
+claude --continue      # 完全なコンテキストで直近のセッションを再開
+```
+
+これがドキュメント化された「クォータ救済」ワークフローです。注意：Mode B の履歴共有に依存します。Mode A（`full`）ではプロバイダーごとに履歴が分離されるため、プロバイダー横断の再開は適用されません。
+
+**Mode P では終了すら不要です**：実行中のセッション内で `cc-select route switch <provider>` を実行するだけ（Claude Code 内では `!` プレフィックス）——以降のリクエストは新しいプロバイダー経由で、v0.0.7 からは `/model` リストも再起動なしで追従します。
 
 ## セキュリティに関する注意
 
-API キーは現在、`~/.cc-select/profiles/<id>/settings.json` に**平文**で保存されています（ファイル権限 `0600`、ディレクトリ権限 `0700`）。リスクレベルは `~/.claude/settings.json` と同じです。今後、システム Keychain への対応を予定しています。keychain プレースホルダー機構と `internal/secrets` パッケージはすでに実装済みで、CLI/Web の書き込みパスに接続する予定です。
+API キーは現在、`~/.cc-select/profiles/<id>/settings.json` に**平文**で保存されています（ファイル権限 `0600`、ディレクトリ権限 `0700`）。リスクレベルは `~/.claude/settings.json` と同じです。例外：Mode P では profile ファイルにはローカルプロキシアドレスのみが入り——実トークンは `providers.json` にあり、ルーティング daemon が使用します（keychain プレースホルダー対応）。今後、システム Keychain への対応を予定しています。keychain プレースホルダー機構と `internal/secrets` パッケージはすでに実装済みで、CLI/Web の書き込みパスに接続する予定です。
 
 ## ビルド
 

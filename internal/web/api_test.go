@@ -6,13 +6,21 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+
+	"github.com/cc-select/cc-select/internal/prefs"
+
+	"github.com/cc-select/cc-select/internal/secrets"
+
+	"github.com/cc-select/cc-select/internal/config"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cc-select/cc-select/internal/profile"
+	"github.com/cc-select/cc-select/internal/routes"
 )
 
 // newTestServer 用临时配置建一个 API-only 测试服务，预置一个 glm provider（含明文 token 的 profile）。
@@ -392,9 +400,11 @@ func mustJSON(t *testing.T, v any) string {
 	return string(b)
 }
 
-// TestCreate_NoPlaintextInProvidersJSON 验证敏感值只进 profile settings.json，
-// 不落到全局共享的 providers.json（元信息只存 id/name）。
-func TestCreate_NoPlaintextInProvidersJSON(t *testing.T) {
+// TestCreate_PersistsEnvTruthInProvidersJSON 验证 env 真值（含敏感值）持久化到
+// providers.json——Mode P 时代的统一契约：providers.json 是 env 唯一持久真值源
+// （0600/0700，防护等级与 profile settings.json 相同；启用 Mode P 时敏感值
+// 迁 keychain 占位化，见 specs/001 研究 D8）。
+func TestCreate_PersistsEnvTruthInProvidersJSON(t *testing.T) {
 	srv, cfg := newTestServer(t)
 	defer srv.Close()
 	defer os.Unsetenv("CC_SELECT_CONFIG")
@@ -411,10 +421,10 @@ func TestCreate_NoPlaintextInProvidersJSON(t *testing.T) {
 		t.Fatalf("POST want 201 got %d", resp.StatusCode)
 	}
 
-	// providers.json（全局元信息）不应含任何 env 值（含 token、base url）。
+	// providers.json 应持久化完整 env 真值，且文件 0600。
 	raw, _ := os.ReadFile(cfg)
-	if strings.Contains(string(raw), "tok-secret-123") || strings.Contains(string(raw), "https://imp") {
-		t.Errorf("providers.json 不应含 env 值：%s", string(raw))
+	if !strings.Contains(string(raw), "tok-secret-123") || !strings.Contains(string(raw), "https://imp") {
+		t.Errorf("providers.json 应含 env 真值：%s", string(raw))
 	}
 	// profile settings.json 应含明文 env（含敏感 token）——claude 靠它工作。
 	env, err := profile.ReadEnv("imp")
@@ -867,5 +877,391 @@ func TestUpdateEndpoints_MethodNotAllowed(t *testing.T) {
 	resp2.Body.Close()
 	if resp2.StatusCode != http.StatusMethodNotAllowed {
 		t.Errorf("GET /update want 405 got %d", resp2.StatusCode)
+	}
+}
+
+func TestModeEndpoint_PutProxyDoesNotAutoMigrate(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	// 明文 provider 供迁移。
+	os.WriteFile(os.Getenv("CC_SELECT_CONFIG"),
+		[]byte(`{"providers":{"glm":{"id":"glm","env":{"ANTHROPIC_AUTH_TOKEN":"sk-plain"}}}}`), 0o600)
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/mode",
+		strings.NewReader(`{"isolationMode":"proxy"}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("PUT proxy want 200 got %d", resp.StatusCode)
+	}
+	var out map[string]any
+	json.NewDecoder(resp.Body).Decode(&out)
+	resp.Body.Close()
+	if out["isolationMode"] != "proxy" {
+		t.Errorf("应回显 proxy: %v", out)
+	}
+	// keychain 默认关闭：不得自动迁移（响应不再有 migrated 字段）。
+	if _, has := out["migrated"]; has {
+		t.Errorf("不应附带迁移结果: %v", out)
+	}
+	data, _ := os.ReadFile(os.Getenv("CC_SELECT_CONFIG"))
+	if !strings.Contains(string(data), "sk-plain") {
+		t.Errorf("用户明文必须保持原样: %s", data)
+	}
+}
+
+// ---- Mode P 路由/守护端点（T023） ----
+
+func TestRoutesEndpoint_List(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	// 探活地址指向死端口：本机可能有真实 daemon 在默认端口跑着（开发机常态），
+	// 测试不得依赖机器状态——固定断言 running=false。
+	t.Setenv("CC_SELECT_PROXY_ADDR", "127.0.0.1:1")
+	tidA, _ := routes.NewTID()
+	tidB, _ := routes.NewTID()
+	_ = routes.Set(tidA, "glm")
+	_ = routes.Set(tidB, "minimax")
+
+	resp, err := http.Get(srv.URL + "/api/v1/routes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("want 200 got %d", resp.StatusCode)
+	}
+	var out struct {
+		Router struct {
+			Running bool   `json:"running"`
+			Addr    string `json:"addr"`
+			Version string `json:"version"`
+		} `json:"router"`
+		Routes []struct {
+			TID      string `json:"tid"`
+			Provider string `json:"provider"`
+		} `json:"routes"`
+	}
+	json.NewDecoder(resp.Body).Decode(&out)
+	if len(out.Routes) != 2 {
+		t.Fatalf("应列 2 条: %+v", out.Routes)
+	}
+	byProvider := map[string]string{}
+	for _, r := range out.Routes {
+		byProvider[r.Provider] = r.TID
+	}
+	if byProvider["glm"] != tidA[:12] || byProvider["minimax"] != tidB[:12] {
+		t.Errorf("tid 应短码展示: %+v", out.Routes)
+	}
+	if out.Routes != nil && len(tidA) == 36 { /* 完整 tid 不应出现 */
+	}
+	if out.Router.Running {
+		t.Errorf("无 daemon 时 running 应为 false: %+v", out.Router)
+	}
+}
+
+func TestRoutesEndpoint_Prune(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	stale, _ := routes.NewTID()
+	fresh, _ := routes.NewTID()
+	_ = routes.Set(stale, "glm")
+	_ = routes.Set(fresh, "glm")
+	tbl, _ := routes.Load()
+	for i := range tbl.Routes {
+		if tbl.Routes[i].TID == stale {
+			tbl.Routes[i].UpdatedAt = time.Now().UTC().Add(-8 * 24 * time.Hour)
+		}
+	}
+	_ = routes.Save(tbl)
+
+	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/routes", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out map[string]any
+	json.NewDecoder(resp.Body).Decode(&out)
+	if out["pruned"] != float64(1) {
+		t.Errorf("应清理 1 条: %v", out)
+	}
+	if _, ok := routes.Get(fresh); !ok {
+		t.Error("新条目应保留")
+	}
+
+	// 非法时长 → 400。
+	req2, _ := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/routes?olderThan=bogus", nil)
+	resp2, err2 := http.DefaultClient.Do(req2)
+	if err2 != nil {
+		t.Fatal(err2)
+	}
+	defer resp2.Body.Close()
+	if resp2.StatusCode != http.StatusBadRequest {
+		t.Errorf("非法时长 want 400 got %d", resp2.StatusCode)
+	}
+}
+
+func TestRouterEnsure_Ok(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	orig := ensureRouterFn
+	ensureRouterFn = func() (string, error) { return "127.0.0.1:48270", nil }
+	defer func() { ensureRouterFn = orig }()
+
+	resp, err := http.Post(srv.URL+"/api/v1/router/ensure", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("want 200 got %d", resp.StatusCode)
+	}
+	var out map[string]any
+	json.NewDecoder(resp.Body).Decode(&out)
+	if out["running"] != true || out["addr"] != "127.0.0.1:48270" {
+		t.Errorf("ensure 响应不符: %v", out)
+	}
+}
+
+func TestRouterEnsure_Fail503(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	orig := ensureRouterFn
+	ensureRouterFn = func() (string, error) { return "", errorsNew("spawn failed") }
+	defer func() { ensureRouterFn = orig }()
+
+	resp, err := http.Post(srv.URL+"/api/v1/router/ensure", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("失败 want 503 got %d", resp.StatusCode)
+	}
+}
+
+func errorsNew(msg string) error { return &stubError{msg} }
+
+type stubError struct{ msg string }
+
+func (e *stubError) Error() string { return e.msg }
+
+// Mode P 派生产物保护：use(proxy) 后 profile env 仅含代理 BASE_URL，真值在
+// providers.json。编辑页回填必须用真值，否则一次保存即真值丢失。
+func TestGetProvider_ProxyArtifactShowsRealEnv(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	// providers.json 真值（上抬后的形态）。
+	os.WriteFile(os.Getenv("CC_SELECT_CONFIG"), []byte(`{"providers":{"glm":{"id":"glm","env":{"ANTHROPIC_BASE_URL":"https://glm.api","ANTHROPIC_AUTH_TOKEN":"sk-real","ANTHROPIC_MODEL":"glm-5.3"}}}}`), 0o600)
+	// profile = use(proxy) 的派生产物（env 仅代理地址，非 env 字段来自全局合并）。
+	profile.EnsureRaw("glm", []byte(`{"permissions":{"allow":["foo"]},"env":{"ANTHROPIC_BASE_URL":"http://127.0.0.1:48270"}}`))
+
+	resp, err := http.Get(srv.URL + "/api/v1/providers/glm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out struct {
+		Settings map[string]any `json:"settings"`
+	}
+	json.NewDecoder(resp.Body).Decode(&out)
+	env, _ := out.Settings["env"].(map[string]any)
+	if env == nil || env["ANTHROPIC_BASE_URL"] != "https://glm.api" || env["ANTHROPIC_AUTH_TOKEN"] != "sk-real" {
+		t.Errorf("编辑页应回填 providers.json 真值而非代理派生产物: %+v", env)
+	}
+	if _, has := out.Settings["permissions"]; !has {
+		t.Errorf("非 env 字段应保留: %+v", out.Settings)
+	}
+}
+
+// 列表页同样受 Mode P 派生产物影响：GLM 被 use 后 profile 只剩代理地址，
+// 列表应展示 providers.json 真值（URL/model/已配 key 徽标），而非吓人的空壳。
+func TestListProviders_ProxyArtifactShowsTruth(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	os.WriteFile(os.Getenv("CC_SELECT_CONFIG"), []byte(`{"providers":{"glm":{"id":"glm","env":{"ANTHROPIC_BASE_URL":"https://open.bigmodel.cn/api/anthropic","ANTHROPIC_AUTH_TOKEN":"$keychain:cc-select:glm:ANTHROPIC_AUTH_TOKEN","ANTHROPIC_MODEL":"glm-5.3"}}}}`), 0o600)
+	profile.EnsureRaw("glm", []byte(`{"env":{"ANTHROPIC_BASE_URL":"http://127.0.0.1:48270"}}`))
+
+	resp, err := http.Get(srv.URL + "/api/v1/providers")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out map[string]any
+	json.NewDecoder(resp.Body).Decode(&out)
+	got, _ := out["providers"].(map[string]any)
+	glm, _ := got["glm"].(map[string]any)
+	if glm["hasKey"] != true {
+		t.Errorf("真值含 token 占位，应显示已配 key: %v", glm)
+	}
+	env, _ := glm["env"].(map[string]any)
+	if env["ANTHROPIC_BASE_URL"] != "https://open.bigmodel.cn/api/anthropic" {
+		t.Errorf("列表 URL 应为真值而非代理地址: %v", env)
+	}
+	if env["ANTHROPIC_MODEL"] != "glm-5.3" {
+		t.Errorf("列表应展示真值 model: %v", env)
+	}
+}
+
+// 全局模式为 proxy 时，保存 provider 不得被 Sync 的防误用守卫拦截——
+// 真值落 providers.json，profile 重建为代理派生产物。
+func TestUpdateProvider_GlobalProxyModeSucceeds(t *testing.T) {
+	srv, cfgPath := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	os.WriteFile(filepath.Join(filepath.Dir(cfgPath), "prefs.json"), []byte(`{"isolationMode":"proxy"}`), 0o600)
+
+	body := `{"name":"GLM","settings":{"env":{"ANTHROPIC_BASE_URL":"https://open.bigmodel.cn/api/anthropic","ANTHROPIC_AUTH_TOKEN":"sk-real","ANTHROPIC_MODEL":"glm-5.3"}}}`
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/providers/glm", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("全局 proxy 下保存应成功，got %d: %s", resp.StatusCode, b)
+	}
+	// 真值进 providers.json。
+	data, _ := os.ReadFile(cfgPath)
+	if !strings.Contains(string(data), "sk-real") || !strings.Contains(string(data), "open.bigmodel.cn") {
+		t.Errorf("providers.json 应保存真值: %s", data)
+	}
+	// profile = 代理派生产物。
+	env, _ := profile.ReadEnv("glm")
+	if env["ANTHROPIC_BASE_URL"] != "http://127.0.0.1:48270" {
+		t.Errorf("proxy 模式下 profile 应指向 daemon: %+v", env)
+	}
+}
+
+// ---- 钥匙串开关（默认关闭，显式开启才迁移） ----
+
+func TestKeychain_DefaultOffAndExplicitEnable(t *testing.T) {
+	srv, cfgPath := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	// 默认关闭。
+	resp, _ := http.Get(srv.URL + "/api/v1/keychain")
+	var out map[string]any
+	json.NewDecoder(resp.Body).Decode(&out)
+	resp.Body.Close()
+	if out["enabled"] != false {
+		t.Fatalf("默认应关闭: %v", out)
+	}
+
+	// 存量明文。
+	os.WriteFile(cfgPath, []byte(`{"providers":{"glm":{"id":"glm","env":{"ANTHROPIC_AUTH_TOKEN":"sk-plain"}}}}`), 0o600)
+	orig := migrateSecretsFn
+	migrateSecretsFn = func(cfg *config.Config) (int, []string) {
+		return secrets.MigrateAll(secrets.NewFake(), cfg)
+	}
+	defer func() { migrateSecretsFn = orig }()
+
+	// 显式开启 → 存量迁移。
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/keychain", strings.NewReader(`{"enabled":true}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp2, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out2 map[string]any
+	json.NewDecoder(resp2.Body).Decode(&out2)
+	resp2.Body.Close()
+	if out2["enabled"] != true || out2["migrated"] != float64(1) {
+		t.Fatalf("开启应迁移存量: %v", out2)
+	}
+	data, _ := os.ReadFile(cfgPath)
+	if !strings.Contains(string(data), "$keychain:cc-select:glm:ANTHROPIC_AUTH_TOKEN") {
+		t.Errorf("开启后存量应占位化: %s", data)
+	}
+
+	// 关闭 → 偏好落盘，不回迁。
+	req2, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/keychain", strings.NewReader(`{"enabled":false}`))
+	req2.Header.Set("Content-Type", "application/json")
+	resp3, _ := http.DefaultClient.Do(req2)
+	resp3.Body.Close()
+	pr, _ := prefs.Load()
+	if pr.KeychainEnabled {
+		t.Error("关闭后偏好应为 false")
+	}
+}
+
+func TestSave_WithKeychainEnabledPlaceholders(t *testing.T) {
+	srv, cfgPath := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	os.WriteFile(filepath.Join(filepath.Dir(cfgPath), "prefs.json"), []byte(`{"keychainEnabled":true}`), 0o600)
+	origEnv := migrateSecretsEnvFn
+	migrateSecretsEnvFn = func(id string, env map[string]string) (int, []string) {
+		return secrets.MigrateEnv(secrets.NewFake(), id, env)
+	}
+	defer func() { migrateSecretsEnvFn = origEnv }()
+
+	body := `{"name":"glm","settings":{"env":{"ANTHROPIC_BASE_URL":"https://glm","ANTHROPIC_AUTH_TOKEN":"sk-new"}}}`
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/providers/glm", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("保存 want 200 got %d", resp.StatusCode)
+	}
+	data, _ := os.ReadFile(cfgPath)
+	if !strings.Contains(string(data), "$keychain:cc-select:glm:ANTHROPIC_AUTH_TOKEN") || strings.Contains(string(data), "sk-new") {
+		t.Errorf("开关开启时保存应占位化: %s", data)
+	}
+}
+
+func TestSave_KeychainDisabledKeepsPlaintext(t *testing.T) {
+	srv, cfgPath := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	body := `{"name":"glm","settings":{"env":{"ANTHROPIC_BASE_URL":"https://glm","ANTHROPIC_AUTH_TOKEN":"sk-keep"}}}`
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/providers/glm", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	data, _ := os.ReadFile(cfgPath)
+	if !strings.Contains(string(data), "sk-keep") {
+		t.Errorf("默认关闭时明文必须原样保留: %s", data)
+	}
+}
+
+// P1 修复：偏好读取失败时保存路径必须 fail-closed——开着钥匙串的用户不得
+// 因 prefs.json 损坏被静默降级为明文保存。
+func TestSave_PrefsCorruptFailsClosed(t *testing.T) {
+	srv, cfgPath := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	os.WriteFile(filepath.Join(filepath.Dir(cfgPath), "prefs.json"), []byte(`{corrupt`), 0o600)
+
+	body := `{"name":"glm","settings":{"env":{"ANTHROPIC_BASE_URL":"https://glm","ANTHROPIC_AUTH_TOKEN":"sk-x"}}}`
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/providers/glm", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("prefs 损坏时保存应 fail-closed(500)，got %d", resp.StatusCode)
 	}
 }

@@ -37,6 +37,9 @@ func resetFlags() {
 	useModeFlag = ""
 	initShellFlag = ""
 	removeForce = false
+	routeTIDFlag = ""
+	routeOlderThanFlag = ""
+	routePruneOlderFlag = "168h"
 }
 
 // execRoot 通过 rootCmd 执行一条子命令，捕获 stdout/stderr。

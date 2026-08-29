@@ -32,6 +32,12 @@ func (ZshEmitter) Emit(changes []Change) string {
 		switch c.Op {
 		case OpSet:
 			fmt.Fprintf(&b, "export %s=%s\n", c.Name, singleQuote(c.Value))
+		case OpSetIfUnset:
+			fmt.Fprintf(&b, "if [ -z \"${%s:-}\" ]; then\n  export %s=%s\nfi\n", c.Name, c.Name, singleQuote(c.Value))
+		case OpSetRef:
+			fmt.Fprintf(&b, "export %s=\"$%s\"\n", c.Name, c.Value)
+		case OpExec:
+			fmt.Fprintf(&b, "%s >/dev/null 2>&1 || true\n", c.Value)
 		case OpUnset:
 			fmt.Fprintf(&b, "unset %s\n", c.Name)
 		}
