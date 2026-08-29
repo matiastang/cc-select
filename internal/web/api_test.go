@@ -1244,3 +1244,24 @@ func TestSave_KeychainDisabledKeepsPlaintext(t *testing.T) {
 		t.Errorf("默认关闭时明文必须原样保留: %s", data)
 	}
 }
+
+// P1 修复：偏好读取失败时保存路径必须 fail-closed——开着钥匙串的用户不得
+// 因 prefs.json 损坏被静默降级为明文保存。
+func TestSave_PrefsCorruptFailsClosed(t *testing.T) {
+	srv, cfgPath := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	os.WriteFile(filepath.Join(filepath.Dir(cfgPath), "prefs.json"), []byte(`{corrupt`), 0o600)
+
+	body := `{"name":"glm","settings":{"env":{"ANTHROPIC_BASE_URL":"https://glm","ANTHROPIC_AUTH_TOKEN":"sk-x"}}}`
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/providers/glm", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("prefs 损坏时保存应 fail-closed(500)，got %d", resp.StatusCode)
+	}
+}

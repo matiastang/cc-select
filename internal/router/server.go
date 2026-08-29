@@ -96,9 +96,11 @@ func (s *Server) handler() http.Handler {
 	return mux
 }
 
-// handleHealthz 处理 GET（探活）与 POST+stopHeader（优雅退出侧信道）。
+// handleHealthz 处理 GET（探活）与 POST+stopHeader（优雅退出侧信道）；
+// 其余方法 405（契约仅定义 GET/POST，评审 P2）。
 func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
+	switch r.Method {
+	case http.MethodPost:
 		if r.Header.Get(stopHeader) == "" || r.Header.Get(stopHeader) != s.stopToken {
 			http.Error(w, "invalid stop token", http.StatusForbidden)
 			return
@@ -110,10 +112,12 @@ func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 			defer cancel()
 			_ = s.httpSrv.Shutdown(ctx)
 		}()
-		return
+	case http.MethodGet:
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(HealthInfo{Status: "ok", Version: s.version})
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(HealthInfo{Status: "ok", Version: s.version})
 }
 
 // auth 校验 Bearer 伪 token（= tid）并在上下文挂载命中的路由条目。

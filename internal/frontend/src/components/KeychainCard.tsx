@@ -9,27 +9,35 @@ export function KeychainCard() {
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     void (async () => {
       try {
         const r = await fetch("./api/v1/keychain");
+        if (!r.ok) throw new Error(String(r.status));
         const j = (await r.json()) as { enabled?: boolean };
         setEnabled(!!j.enabled);
       } catch {
-        /* 读不到按默认关闭展示 */
+        setError(t("keychain.loadFailed"));
       }
     })();
-  }, []);
+  }, [t]);
 
   const toggle = async () => {
     setBusy(true);
+    setError("");
     try {
       const r = await fetch("./api/v1/keychain", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: !enabled }),
       });
+      if (!r.ok) {
+        // 失败保持原状态，不误置复选框（评审 P2）。
+        setError(t("keychain.saveFailed"));
+        return;
+      }
       const j = (await r.json()) as { enabled?: boolean; migrated?: number };
       setEnabled(!!j.enabled);
       if (j.enabled) {
@@ -37,6 +45,8 @@ export function KeychainCard() {
       } else {
         setNotice("");
       }
+    } catch {
+      setError(t("keychain.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -61,6 +71,11 @@ export function KeychainCard() {
       {notice && (
         <div className="notice" data-testid="keychain-notice">
           {notice}
+        </div>
+      )}
+      {error && (
+        <div className="notice notice--danger" role="alert" data-testid="keychain-error">
+          {error}
         </div>
       )}
     </Card>

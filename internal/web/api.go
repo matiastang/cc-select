@@ -643,11 +643,14 @@ func applySettings(id string, data []byte, mode prefs.Mode) (map[string]string, 
 		}
 	}
 	// 钥匙串开关显式开启（默认关）时，保存路径把敏感值占位化（产品决策 2026-08-29）。
-	if pr, perr := prefs.Load(); perr == nil && pr.KeychainEnabled {
-		if _, failed := migrateSecretsEnvFn(id, env); len(failed) > 0 {
-			// 单条失败保持明文并继续（不阻断保存），明细随日志语义由前端态展示。
-			_ = failed
-		}
+	// 偏好读取失败必须 fail-closed（评审 P1）：开着钥匙串的用户不得因 prefs.json
+	// 损坏被静默降级为明文保存——宁可让本次保存失败并报错。
+	pr, perr := prefs.Load()
+	if perr != nil {
+		return nil, perr
+	}
+	if pr.KeychainEnabled {
+		_, _ = migrateSecretsEnvFn(id, env) // 单条迁移失败保持明文继续（不阻断保存）
 	}
 	// env 真值 → providers.json（与 CLI add/edit 的 writeProvider 行为对齐）。
 	if err := saveProviderEnv(id, env); err != nil {

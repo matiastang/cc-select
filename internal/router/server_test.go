@@ -157,3 +157,18 @@ func TestServer_StopSideChannel(t *testing.T) {
 func containsBody(body, sub string) bool {
 	return strings.Contains(body, sub)
 }
+
+func TestServer_HealthzRejectsOtherMethods(t *testing.T) {
+	addr, _ := startTestServer(t, http.NotFoundHandler())
+	for _, method := range []string{http.MethodPut, http.MethodDelete, http.MethodPatch} {
+		req, _ := http.NewRequest(method, "http://"+addr+"/healthz", nil)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("%s: %v", method, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusMethodNotAllowed {
+			t.Errorf("%s /healthz want 405 got %d（契约仅 GET/POST）", method, resp.StatusCode)
+		}
+	}
+}
