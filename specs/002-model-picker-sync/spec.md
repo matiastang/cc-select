@@ -77,7 +77,7 @@ Mode P 会话内热切到另一个服务商后，**不重启会话**，用户打
 - **FR-001**: 系统 MUST 在生成/重建 profile settings.json 时，把当前 provider 的模型清单注入 Claude Code 模型选择器配置：`ANTHROPIC_MODEL` 与 `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL` 去重后为全部选项，且仅显示这些选项（隐藏内置目录）；官方 provider（无 env）与未配置任何模型变量的 provider MUST NOT 注入。
 - **FR-002**: 注入的每个模型行 MUST 以可读的模型标识显示（模型 id 原文或等价可读名），且 Claude Code 能识别「当前使用模型」行并正确标记。
 - **FR-003**: 代理的模型改写 MUST 从「无条件覆写为主模型」改为映射化规则：请求 model 属于当前路由 provider 清单 → 原样转发；内置目录 model id（含 opus/sonnet/haiku 别名）→ 按槽位映射到 provider 对应模型变量，该变量未配置时回落主模型；provider 未配置 `ANTHROPIC_MODEL` 时 → 保持原样透传（v1 行为）。
-- **FR-004**: Mode P 热切 MUST 同步刷新该终端配置目录下的选择器配置为新 provider 的模型清单；刷新 MUST 以读-改-写合并方式执行，保留 Claude Code 写入的其他字段（如 `/model` 选择持久化的 `model` 字段），且写入 MUST 是原子的。
+- **FR-004**: Mode P 热切 MUST 同步刷新该终端配置目录下的选择器配置为新 provider 的模型清单；刷新 MUST 以读-改-写合并方式执行，保留 Claude Code 写入的其他字段（permissions、effortLevel 等；`model` 字段本身按新 provider 主模型改写，见 contracts/profile-settings.md §3），且写入 MUST 是原子的。
 - **FR-005**: 热切刷新 MUST 只影响发起切换的终端（经该终端配置目录定位），其他终端的选择器配置与路由 MUST 不变。
 - **FR-006**: 当用户配置了 `availableModels` 白名单时，注入清单 MUST 与之兼容（白名单不得拒绝注入的模型行）。
 - **FR-007**: 检测到 Claude Code 版本不支持选择器配置时，系统 MUST 跳过注入并提示升级，不影响其余功能。

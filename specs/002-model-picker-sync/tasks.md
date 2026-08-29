@@ -111,6 +111,19 @@ description: "Task list for 002-model-picker-sync（Mode P 会话内真实模型
 - [X] T019 全量门禁：`make check` + `make test` + `make integration` 全绿
 - [ ] T020 循环 code review（宪法/开发基本要求）：静态检查 + 评审，修复所有中等严重及以上问题并复评至清零
 
+**T020 评审记录（2026-08-29，独立评审 agent 全量复审 002 代码 diff）**：
+
+| # | 严重度 | 问题 | 处置 |
+|---|--------|------|------|
+| 1 | 中 | 热切刷新只读 providers.json Env，legacy provider（真值仅在 profile）被清空选择器 → 显示/路由分裂（SC-002） | 已修复：`providerEnvOrProfile` 与 `router.providerEnvFor` 同语义回退（commit bbb9515） |
+| 2 | 中 | `RefreshPicker` 单轮读-改-写，CC 并发写入（/model 选择落盘）落在窗口内被过期快照覆盖（SC-005） | 已修复：写前字节比对 + 重读重合并（至多 3 轮），耗尽报错不写（commit 9afa7b6） |
+| 3 | 低 | `use` 每次无条件子进程探测 `claude --version`（最坏 3s），无模型变量 provider 白付开销且提示误导 | 已修复：plan 非空才探测（commit 4f04d9f） |
+| 4 | 低 | 清单非空但无主模型时残留上一个 provider 的 `model` 旧值 → CC 标记列表外模型，旧 id 直通下游 | 已修复：注入与刷新两条路径统一删除（commit a642427） |
+| 5 | 低 | 字段级合并未用 `json.Decoder.UseNumber`，超大整数经 float64 往返 | **接受**：与既有 `mergeSettings` 同模式，影响面仅限 exotic 数值设置项；如未来 settings 合并统一升级 UseNumber 时一并处理 |
+| 6 | 一致性 | spec.md FR-004「保留 model 字段」与 contract §3「刷新改写 model」措辞张力 | 已修正 spec.md 措辞（以 contract 为准，代码即按 contract） |
+
+复评：修复后重新派发评审 agent 复核 4 个修复 commit + 回归门禁，无中等及以上残留。
+
 ---
 
 ## Dependencies & Execution Order
