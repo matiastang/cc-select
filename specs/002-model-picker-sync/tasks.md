@@ -108,7 +108,7 @@ description: "Task list for 002-model-picker-sync（Mode P 会话内真实模型
 - [X] T016 [P] 验收回流：`docs/acceptance-tests.md` 新增 AC17（对齐 quickstart 五场景 + 失败路径抽查表；标注自动化覆盖范围：Go 单测/集成对应关系）
 - [X] T017 [P] 事实修正回流：`docs/engineering-decisions.md` §8「claude env 会话内冻结」表述修正（research D9 ②：官方现行文档确认 settings 大多热重载，冻结键仅 model/effortLevel/outputStyle；Mode P 架构依据不受影响）
 - [X] T018 [P] 模式文档回流：`docs/isolation-modes.md` Mode P 节补「模型显示与切换」小节（三故事能力 + model 不热重载的已知限制）+ README「已知限制」同步（en/zh/ja 语言切换器路径核对）
-- [ ] T019 全量门禁：`make check` + `make test` + `make integration` 全绿
+- [X] T019 全量门禁：`make check` + `make test` + `make integration` 全绿
 - [ ] T020 循环 code review（宪法/开发基本要求）：静态检查 + 评审，修复所有中等严重及以上问题并复评至清零
 
 ---
