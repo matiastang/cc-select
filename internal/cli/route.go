@@ -139,10 +139,25 @@ func refreshPickerAfterSwitch(cmd *cobra.Command, target config.Provider) {
 	if _, err := os.Stat(settingsPath); err != nil {
 		return // 无 settings.json 的目录不是 profile，不造文件。
 	}
-	plan := config.ModelPlanFromEnv(target.Env)
+	plan := config.ModelPlanFromEnv(providerEnvOrProfile(target))
 	if err := profile.RefreshPicker(settingsPath, plan); err != nil {
 		fmt.Fprintln(cmd.ErrOrStderr(), i18n.T("profile.refreshFailed", err.Error()))
 	}
+}
+
+// providerEnvOrProfile 取 provider 的模型计划源 env：providers.json 优先，
+// 空则回退 profile settings.json（两代存储并存，与 router.providerEnvFor
+// 同语义）——否则热切到从未上抬过的 legacy provider 会把选择器清空，
+// 造成「显示回落内置目录、路由却正确」的显示/路由分裂（T020 评审 finding 1）。
+func providerEnvOrProfile(target config.Provider) map[string]string {
+	if len(target.Env) > 0 {
+		return target.Env
+	}
+	env, err := profile.ReadEnv(target.ID)
+	if err != nil || len(env) == 0 {
+		return target.Env
+	}
+	return env
 }
 
 func runRouteList(cmd *cobra.Command) error {

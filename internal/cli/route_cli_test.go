@@ -353,6 +353,53 @@ func TestRouteSwitch_NoConfigDirSkipsRefresh(t *testing.T) {
 	}
 }
 
+// T020 评审 finding 1：legacy provider（env 真值只存在于 profile settings.json，
+// providers.json 的 Env 为空）热切刷新必须走与 daemon providerEnvFor 相同的
+// 「providers.json 优先，空则回退 profile」取值——否则刷新会把选择器清掉，
+// 造成「显示回落内置目录、路由却正确」的显示/路由分裂（SC-002）。
+func TestRouteSwitch_LegacyProviderEnvFallbackRefreshesPicker(t *testing.T) {
+	setTempCfg(t)
+	writeProvidersWithModels(t) // 含 "bare":{"id":"bare"}（providers.json 无 env）
+
+	// legacy 真值：bare 的模型只在 profile settings.json 里。
+	pdir, err := profile.Dir("bare")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(pdir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	legacyEnv := `{"env":{"ANTHROPIC_BASE_URL":"https://legacy.example.com","ANTHROPIC_MODEL":"legacy-model[1m]"}}`
+	if err := os.WriteFile(filepath.Join(pdir, "settings.json"), []byte(legacyEnv), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	tid, _ := routes.NewTID()
+	t.Setenv(config.TerminalIDVar, tid)
+	dir := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", dir)
+	settings := filepath.Join(dir, "settings.json")
+	os.WriteFile(settings, []byte(`{"modelPicker":{"replaceBuiltInOptions":true,"options":[{"model":"glm-5.3[1m]"}]}}`), 0o600)
+
+	if _, _, err := execRoot(t, "", "route", "switch", "bare"); err != nil {
+		t.Fatalf("switch: %v", err)
+	}
+
+	m := map[string]any{}
+	b, _ := os.ReadFile(settings)
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatalf("刷新后应为合法 JSON: %v", err)
+	}
+	mp, _ := m["modelPicker"].(map[string]any)
+	opts, _ := mp["options"].([]any)
+	if len(opts) != 1 || opts[0].(map[string]any)["model"] != "legacy-model[1m]" {
+		t.Fatalf("legacy provider 的模型清单应来自 profile 回退: %v", mp)
+	}
+	if m["model"] != "legacy-model[1m]" {
+		t.Fatalf("model 应为 legacy-model[1m]: %v", m["model"])
+	}
+}
+
 func TestRouteSwitch_CorruptSettingsSwitchSucceedsWithWarning(t *testing.T) {
 	setTempCfg(t)
 	writeProvidersWithModels(t)
