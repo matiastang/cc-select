@@ -162,7 +162,9 @@ cc-select 是**未签名的开源**二进制。在 Windows 上：
 
 - **Mode B — `settings-only`（默认）**：每个 provider 仅隔离 `settings.json`；历史、插件、commands 等通过链接共享回 `~/.claude`。
 - **Mode A — `full`**：整个 profile 目录完全隔离。
-- **Mode P — `proxy`**（v0.0.6，可选启用）：本地路由 daemon 实现会话内热切——当前 provider 限额时，在运行中的 Claude Code 会话里执行 `cc-select route switch <provider>` 即可。详见 [docs/isolation-modes.md §10](../isolation-modes.md)。v0.0.7 起 `/model` 显示当前路由 provider 的真实模型（列表随热切刷新、无需重启会话；需 Claude Code ≥ 2.1.242），选择器中的选择会被代理如实执行。
+- **Mode P — `proxy`**（v0.0.6，可选启用）：本地路由 daemon 实现会话内热切——当前 provider 限额时，在运行中的 Claude Code 会话里执行 `cc-select route switch <provider>` 即可。详见 [docs/isolation-modes.md §10](../isolation-modes.md)。
+
+v0.0.7 起（需 Claude Code ≥ 2.1.242）：新会话的 `/model` 显示当前 provider 的真实模型——由其所配 `ANTHROPIC_MODEL` / `ANTHROPIC_DEFAULT_*_MODEL` 派生、隐藏内置 Anthropic 目录——三种隔离模式统一生效。Mode P 下列表还随 `route switch` 在会话内刷新、无需重启，选择器中的选择会被代理如实执行。已知限制：「当前模型」标记是 Claude Code 启动期字段，热切后会有滞后，直至在 `/model` 中选择或重启会话。
 
 使用 `cc-select mode` 查看/设置全局默认；用 `cc-select edit <id> --mode ...` 或 `ccs use <id> --mode ...` 做 per-provider 覆盖或一次性覆盖。详见 [docs/isolation-modes.md](../isolation-modes.md)。
 
@@ -177,6 +179,8 @@ claude --continue      # 带完整上下文继续最近一次会话
 ```
 
 这就是文档化的「限额救急」工作流。注意：它依赖 Mode B 的历史共享；Mode A（`full`）下每个 provider 的历史各自隔离，跨 provider 续会话不适用。
+
+**Mode P 下连退出都不用**：在运行中的会话里直接执行 `cc-select route switch <provider>`（在 Claude Code 内用 `!` 前缀）——后续请求即由新 provider 服务，v0.0.7 起 `/model` 列表也随之刷新、无需重启。
 
 ## 安全说明
 

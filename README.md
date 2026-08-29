@@ -162,7 +162,9 @@ A child process cannot modify its parent shell's environment. `cc-select` theref
 
 - **Mode B — `settings-only` (default)**: only `settings.json` is isolated per provider; history, plugins, commands, etc. are shared via links back to `~/.claude`.
 - **Mode A — `full`**: the entire profile directory is isolated.
-- **Mode P — `proxy`** (v0.0.6, opt-in): in-session hot-switching via a local routing daemon — run `cc-select route switch <provider>` inside a running Claude Code session when the current provider hits its quota. See [docs/isolation-modes.md §10](docs/isolation-modes.md). Since v0.0.7, `/model` shows the routed provider's real models (list follows `route switch` without restarting; requires Claude Code ≥ 2.1.242) and picker selections are honored by the router.
+- **Mode P — `proxy`** (v0.0.6, opt-in): in-session hot-switching via a local routing daemon — run `cc-select route switch <provider>` inside a running Claude Code session when the current provider hits its quota. See [docs/isolation-modes.md §10](docs/isolation-modes.md).
+
+Since v0.0.7 (requires Claude Code ≥ 2.1.242): `/model` shows the active provider's real models — derived from its configured `ANTHROPIC_MODEL` / `ANTHROPIC_DEFAULT_*_MODEL`, with the built-in Anthropic catalog hidden — in every isolation mode at session start. In Mode P the list also follows `route switch` in-session without a restart, and picker selections are routed faithfully. Known limitation: the "current model" marker is a startup-time Claude Code field, so after a hot-switch it lags until you pick from `/model` or restart the session.
 
 Use `cc-select mode` to view/set the global default, or `cc-select edit <id> --mode ...` / `ccs use <id> --mode ...` for per-provider or one-time overrides. See [docs/isolation-modes.md](docs/isolation-modes.md) for details.
 
@@ -177,6 +179,8 @@ claude --continue      # resume the most recent session with full context
 ```
 
 This is the documented quota-rescue workflow. Note: it relies on Mode B's shared history; in Mode A (`full`) each provider keeps its own isolated history, so cross-provider resume does not apply there.
+
+**In Mode P you don't even need to quit**: run `cc-select route switch <provider>` inside the running session (from Claude Code, prefix with `!`) — subsequent requests route to the new provider, and since v0.0.7 the `/model` list follows without a restart.
 
 ## Security note
 
