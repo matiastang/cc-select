@@ -122,7 +122,7 @@ description: "Task list for 002-model-picker-sync（Mode P 会话内真实模型
 | 5 | 低 | 字段级合并未用 `json.Decoder.UseNumber`，超大整数经 float64 往返 | **接受**：与既有 `mergeSettings` 同模式，影响面仅限 exotic 数值设置项；如未来 settings 合并统一升级 UseNumber 时一并处理 |
 | 6 | 一致性 | spec.md FR-004「保留 model 字段」与 contract §3「刷新改写 model」措辞张力 | 已修正 spec.md 措辞（以 contract 为准，代码即按 contract） |
 
-复评：修复后重新派发评审 agent 复核 4 个修复 commit + 回归门禁，无中等及以上残留。
+复评：修复后重新派发评审 agent 复核 4 个修复 commit + 回归门禁，无中等及以上残留。复评提及的低severity残留（「Mode A/B 下 legacy provider 构建期不注入选择器」）经核实为误报——`Sync` 对 env==nil 的 use 路径本就回退 `ReadEnv`（build.go:37-50），与 `providerEnvOrProfile` 同语义；已加 `TestSync_LegacyProfileEnvInjectsPicker` 锁定该行为。
 
 ---
 

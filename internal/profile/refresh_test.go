@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/cc-select/cc-select/internal/config"
+	"github.com/cc-select/cc-select/internal/prefs"
 )
 
 // T012：RefreshPicker 刷新原语（specs/002 contracts/profile-settings.md §3 / research D3）。
@@ -109,6 +110,48 @@ func TestRefreshPicker_NoMainDeletesStaleModel(t *testing.T) {
 	}
 	if m["keep"] != float64(1) {
 		t.Fatalf("其他字段应保留: %v", m["keep"])
+	}
+}
+
+// T020 复评残留确认：legacy provider（providers.json 无 env、真值只在 profile
+// settings.json）经 Sync(nil, Mode B) 构建时，env 在 Sync 内回退 ReadEnv（build.go
+// 的 use 路径分支）——选择器照常注入，与 route 刷新 / use gate 的
+// providerEnvOrProfile 同语义，不存在「构建期无选择器」的显示空洞。
+func TestSync_LegacyProfileEnvInjectsPicker(t *testing.T) {
+	setTempRoot(t)
+	home := setTempClaudeHome(t)
+	os.MkdirAll(filepath.Join(home, "projects"), 0o700)
+
+	cfg := config.Default()
+	cfg.Providers["legacy"] = config.Provider{ID: "legacy"} // providers.json 无 env
+	if err := config.Save(cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	// legacy 真值：模型变量只在此文件的 env 里。
+	pdir, err := Dir("legacy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.MkdirAll(pdir, 0o700)
+	os.WriteFile(filepath.Join(pdir, "settings.json"),
+		[]byte(`{"env":{"ANTHROPIC_BASE_URL":"https://legacy.example.com","ANTHROPIC_MODEL":"legacy-model[1m]"}}`), 0o600)
+
+	dir, _, err := Sync("legacy", nil, prefs.ModeSettingsOnly)
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	m := map[string]any{}
+	b, err := os.ReadFile(filepath.Join(dir, "settings.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatal(err)
+	}
+	opts := pickerOptions(t, m)
+	if len(opts) != 1 || opts[0].(map[string]any)["model"] != "legacy-model[1m]" {
+		t.Fatalf("legacy provider 构建期应注入选择器: %v", m["modelPicker"])
 	}
 }
 
