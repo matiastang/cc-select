@@ -1,13 +1,10 @@
-// modelrewrite.go 在请求进入转发层前改写 JSON body 的 model 字段（研究 D9/L3）。
+// modelrewrite.go 在请求进入转发层前按映射契约改写 JSON body 的 model 字段
+// （specs/002 contracts/proxy-model-routing.md——001 的「统一映射主模型」简化
+// （L3）按既定进化方向升级为映射化规则）。
 //
 // 背景：会话内切换后，claude 仍按启动时认知发送旧 provider 的 model id；
-// 改写必须在代理侧完成。规则：
-//   - body 是 JSON object 且含 "model" 字段，且当前路由 provider 的 env 定义了
-//     ANTHROPIC_MODEL（且非 keychain 占位——模型名不是敏感值）→ 替换为该值；
-//   - 其余一切情况（未配置 / 非 JSON / 非法 JSON / 无 model 字段 / 无 body）
-//     → 逐字节透传，不破坏在途内容。
-//
-// 已知简化（L3）：所有出现的 model 统一映射到主模型（后台小任务也用主模型）。
+// 改写必须在代理侧完成。用户在 /model 选择的模型（∈ provider 清单）原样透传，
+// 内置目录/别名按槽位映射，未知 id 回落主模型，未配置主模型则全路径透传。
 package router
 
 import (
@@ -34,12 +31,6 @@ func ModelRewrite(next http.Handler) http.Handler {
 			return
 		}
 
-		model, ok := targetModel(entry.Provider)
-		if !ok {
-			next.ServeHTTP(w, r)
-			return
-		}
-
 		// 体积上限（评审 #7）：超限的巨型 body 原样透传不改写（防内存放大）。
 		const maxRewriteBody = 32 << 20 // 32 MiB——远大于正常 Messages 请求
 		body, err := io.ReadAll(io.LimitReader(r.Body, maxRewriteBody+1))
@@ -53,7 +44,7 @@ func ModelRewrite(next http.Handler) http.Handler {
 			return
 		}
 
-		// 解析失败（含非 object JSON）/ 无 model 字段 → 原样透传。
+		// 解析失败（含非 object JSON）→ 原样透传。
 		var obj map[string]any
 		dec := json.NewDecoder(bytes.NewReader(body))
 		dec.UseNumber() // 保留数字字面量，避免精度改写
@@ -61,12 +52,18 @@ func ModelRewrite(next http.Handler) http.Handler {
 			passBody(w, r, next, body)
 			return
 		}
-		if _, has := obj["model"]; !has {
+		reqModel, has := obj["model"].(string)
+		if !has {
 			passBody(w, r, next, body)
 			return
 		}
 
-		obj["model"] = model
+		target, rewrite := resolveTargetModel(entry.Provider, reqModel)
+		if !rewrite {
+			passBody(w, r, next, body)
+			return
+		}
+		obj["model"] = target
 		rewritten, err := json.Marshal(obj)
 		if err != nil {
 			passBody(w, r, next, body)
@@ -84,15 +81,53 @@ func passBody(w http.ResponseWriter, r *http.Request, next http.Handler, body []
 	next.ServeHTTP(w, r)
 }
 
-// targetModel 查当前路由 provider 配置的 ANTHROPIC_MODEL；未配置/为占位 → ok=false。
-func targetModel(providerID string) (string, bool) {
+// resolveTargetModel 按映射契约（specs/002 contracts/proxy-model-routing.md R1~R6）
+// 把请求体 model 解析为转发值；ok=false 表示原样透传。
+//
+// 规则（按序，首个命中）：
+//  1. 精确等于 provider 清单某 id（含 [1m] 形态）→ 透传（用户在 /model 的选择）；
+//  2. 含子串 opus/sonnet/haiku（不区分大小写）→ 对应槽位变量；槽空 → 回落主模型；
+//  3. 其余（含热切后旧 provider 的 id）→ 主模型（v1「无条件主模型」兼容）；
+//  4. 主模型为空（未配 ANTHROPIC_MODEL）→ 透传（v1 逐字节兼容）。
+//
+// 清单精确匹配优先于子串分类：provider id 恰含 "sonnet" 之类子串时不得误判。
+// 槽位数据经 config.ModelPlanFromEnv 派生——与 /model 注入清单严格同源。
+func resolveTargetModel(providerID, reqModel string) (string, bool) {
 	env, err := providerEnvFor(providerID)
 	if err != nil {
 		return "", false
 	}
-	m := env["ANTHROPIC_MODEL"]
-	if m == "" || config.IsKeychainPlaceholder(m) {
+	plan := config.ModelPlanFromEnv(env)
+
+	// R1：清单内 → 透传。
+	for _, e := range plan.Entries {
+		if e.ID == reqModel {
+			return "", false
+		}
+	}
+
+	// R6 前置：无任何模型变量 → 全路径透传。
+	fallback := plan.Main
+	if fallback == "" && len(plan.Entries) == 0 {
 		return "", false
 	}
-	return m, true
+
+	// R2~R4：内置目录/别名形态 → 槽位映射。
+	lm := strings.ToLower(reqModel)
+	target := ""
+	switch {
+	case strings.Contains(lm, "opus"):
+		target = plan.Opus
+	case strings.Contains(lm, "sonnet"):
+		target = plan.Sonnet
+	case strings.Contains(lm, "haiku"):
+		target = plan.Haiku
+	}
+	if target == "" {
+		target = fallback // R3 槽空回落 / R5 未知回落
+	}
+	if target == "" {
+		return "", false
+	}
+	return target, true
 }

@@ -131,3 +131,59 @@ func TestModelRewrite_LegacyModelFromProfile(t *testing.T) {
 		t.Errorf("legacy provider 的 model 应从 profile 取得并改写: %s", cap.body)
 	}
 }
+
+// T010：映射化改写契约表全量（specs/002 contracts/proxy-model-routing.md R1~R6）。
+// 槽位数据：main=glm-5.3[1m]、opus=glm-5.2[1m]、haiku=glm-5.3-Flash、sonnet 未配置。
+func TestModelRewrite_MappingContract(t *testing.T) {
+	const glmEnv = `"env":{"ANTHROPIC_MODEL":"glm-5.3[1m]","ANTHROPIC_DEFAULT_OPUS_MODEL":"glm-5.2[1m]","ANTHROPIC_DEFAULT_HAIKU_MODEL":"glm-5.3-Flash"}`
+
+	cases := []struct {
+		name     string
+		env      string // providers.json 里 glm 的 env JSON 片段
+		reqModel string
+		want     string // 期望下游收到的 model（空串 = 期望原样透传）
+	}{
+		// R1：清单内精确透传（含 [1m] 形态）。
+		{"R1 清单内 main 透传", glmEnv, "glm-5.3[1m]", ""},
+		{"R1 清单内 haiku 透传", glmEnv, "glm-5.3-Flash", ""},
+		// R2：opus 家族 → Opus 槽。
+		{"R2 完整 id claude-opus-5", glmEnv, "claude-opus-5", "glm-5.2[1m]"},
+		{"R2 别名 opus", glmEnv, "opus", "glm-5.2[1m]"},
+		{"R2 别名 opus[1m]", glmEnv, "opus[1m]", "glm-5.2[1m]"},
+		// R3：sonnet 家族 → sonnet 槽空 → 回落 main。
+		{"R3 sonnet 槽空回落 main", glmEnv, "claude-sonnet-5", "glm-5.3[1m]"},
+		{"R3 别名 sonnet", glmEnv, "sonnet", "glm-5.3[1m]"},
+		// R4：haiku 家族 → Haiku 槽（后台小任务路径）。
+		{"R4 别名 haiku", glmEnv, "haiku", "glm-5.3-Flash"},
+		{"R4 完整 id claude-haiku-4-5", glmEnv, "claude-haiku-4-5-20251001", "glm-5.3-Flash"},
+		// R5：未知 id（热切后旧 provider 的模型）→ 主模型（v1 兼容）。
+		{"R5 未知 id 回落 main", glmEnv, "glm-4.6", "glm-5.3[1m]"},
+		{"R5 default 别名", glmEnv, "default", "glm-5.3[1m]"},
+		// R6：未配置 ANTHROPIC_MODEL → 全路径透传（v1 回归）。
+		{"R6 无 main 透传", `"env":{}`, "claude-opus-5", ""},
+		{"R6 无 main 未知 id 也透传", `"env":{}`, "whatever", ""},
+		// 清单精确匹配优先于子串分类：provider id 恰含 "sonnet" 不得误判。
+		{"R1 优先于子串：id 含 sonnet", `"env":{"ANTHROPIC_MODEL":"acme-sonnet-x"}`, "acme-sonnet-x", ""},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			setTempProviders(t, `{"providers":{"glm":{"id":"glm",`+c.env+`}}}`)
+			next, cap := captureNext()
+			body := `{"model":"` + c.reqModel + `","x":1}`
+			ModelRewrite(next).ServeHTTP(httptest.NewRecorder(), rewriteReq(t, body, "application/json"))
+			if c.want == "" {
+				if cap.body != body {
+					t.Errorf("应逐字节透传: got %s", cap.body)
+				}
+				return
+			}
+			if !strings.Contains(cap.body, `"model":"`+c.want+`"`) {
+				t.Errorf("model 应改写为 %s: %s", c.want, cap.body)
+			}
+			if strings.Contains(cap.body, c.reqModel) {
+				t.Errorf("旧 model 不得残留: %s", cap.body)
+			}
+		})
+	}
+}
