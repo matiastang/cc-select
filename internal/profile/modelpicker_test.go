@@ -49,6 +49,20 @@ func pickerOptions(t *testing.T, m map[string]any) []any {
 	return opts
 }
 
+// T020 评审 finding 4：Mode P（withModel=true）清单非空但无主模型时，全局合并
+// 带入的 model 是旧值（别的 provider 的 id），必须删除而非保留——否则 CC 标记
+// 列表外的模型，请求体旧 id 落入改写末路直通下游。
+func TestInjectModelPicker_WithModelNoMainDeletesStaleModel(t *testing.T) {
+	m := mustInject(t, `{"model":"inherited-opus[1m]","env":{}}`,
+		config.ModelPlanFromEnv(map[string]string{"ANTHROPIC_DEFAULT_HAIKU_MODEL": "slot-haiku"}), true)
+	if _, exists := m["model"]; exists {
+		t.Fatalf("无主模型时应删除残留 model: %v", m["model"])
+	}
+	if len(pickerOptions(t, m)) != 1 {
+		t.Fatalf("modelPicker 应仍有清单: %v", m)
+	}
+}
+
 // T005：注入形状——replaceBuiltInOptions=true、options 仅含 model 键、顺序 = Entries。
 func TestInjectModelPicker_Shape(t *testing.T) {
 	m := mustInject(t, `{"env":{}}`, fullPlan(), false)

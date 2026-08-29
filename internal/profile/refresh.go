@@ -45,6 +45,9 @@ func RefreshPicker(settingsPath string, plan config.ModelPlan) error {
 		m["modelPicker"] = buildPickerBlock(plan)
 		if plan.Main != "" {
 			m["model"] = plan.Main
+		} else {
+			// 无主模型时残留的 model 是上一个 provider 的 id（评审 finding 4）。
+			delete(m, "model")
 		}
 		appendAvailableModels(m, plan)
 	}

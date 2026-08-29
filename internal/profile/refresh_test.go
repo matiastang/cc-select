@@ -88,6 +88,28 @@ func TestRefreshPicker_EmptyPlanRemovesInjection(t *testing.T) {
 	}
 }
 
+// T020 评审 finding 4：plan 有清单但无主模型（只配 DEFAULT 槽位）时，残留的
+// model 是上一个 provider 的 id——CC 会标记列表外的模型，请求体携带旧 id 落入
+// 改写规则末路透传给不认识它的下游。刷新应删除 model。
+func TestRefreshPicker_NoMainDeletesStaleModel(t *testing.T) {
+	p := refreshFixture(t, `{"model":"old-provider-model","keep":1}`)
+	plan := config.ModelPlanFromEnv(map[string]string{"ANTHROPIC_DEFAULT_SONNET_MODEL": "slot-sonnet"})
+
+	if err := RefreshPicker(p, plan); err != nil {
+		t.Fatalf("RefreshPicker: %v", err)
+	}
+	m := readJSON(t, p)
+	if _, exists := m["model"]; exists {
+		t.Fatalf("无主模型时应删除残留 model: %v", m["model"])
+	}
+	if len(pickerOptions(t, m)) != 1 {
+		t.Fatalf("modelPicker 应仍有清单: %v", m)
+	}
+	if m["keep"] != float64(1) {
+		t.Fatalf("其他字段应保留: %v", m["keep"])
+	}
+}
+
 // T012：availableModels 追加（与注入同规则，research D5）。
 func TestRefreshPicker_AppendsAvailableModels(t *testing.T) {
 	p := refreshFixture(t, `{"availableModels":["sonnet"],"env":{}}`)

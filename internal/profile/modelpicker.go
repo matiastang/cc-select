@@ -49,8 +49,14 @@ func injectModelPicker(data []byte, plan config.ModelPlan, withModel bool) ([]by
 	}
 
 	m["modelPicker"] = buildPickerBlock(plan)
-	if withModel && plan.Main != "" {
-		m["model"] = plan.Main
+	if withModel {
+		if plan.Main != "" {
+			m["model"] = plan.Main
+		} else {
+			// 无主模型时全局合并可能带入别的 provider 的 model 旧值——
+			// 保留会让 CC 标记列表外的模型（评审 finding 4）。
+			delete(m, "model")
+		}
 	}
 	appendAvailableModels(m, plan)
 
