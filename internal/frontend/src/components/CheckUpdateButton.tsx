@@ -77,10 +77,11 @@ export function CheckUpdateButton() {
 
   if (phase === "idle") return null;
 
-  // 结果卡片：absolute 浮在按钮下方，复用 .notice 样式（不改全局 CSS）。
+  // 结果卡片：absolute 浮在按钮下方，复用 .notice + .notice--popover——
+  // 浮层必须不透明，半透明底会透出页面文字（#10）。
   const card = (content: React.ReactNode, testid: string) => (
     <div
-      className="notice"
+      className="notice notice--popover"
       data-testid={testid}
       style={{
         position: "absolute",

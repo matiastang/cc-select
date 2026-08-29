@@ -159,6 +159,16 @@ code {
   border-left-color: var(--danger);
 }
 
+/* 浮层变体：叠在页面内容上方的 .notice（如更新结果卡片）必须不透明——
+   半透明底会透出底层文字导致不可读（#10）。 */
+.notice--popover {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  box-shadow: var(--shadow-md);
+  margin-bottom: 0;
+}
+
 .header-title {
   display: flex;
   align-items: center;

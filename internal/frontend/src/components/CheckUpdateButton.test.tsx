@@ -83,6 +83,21 @@ describe("CheckUpdateButton", () => {
     expect(card).toHaveTextContent("brew upgrade cc-select");
   });
 
+  it("refused(scoop) 显示 scoop 升级指引，且浮层使用不透明背景修饰类（#10）", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        res({ hasUpdate: true, currentVersion: "1.0.0", latestVersion: "1.2.0" }),
+      )
+      .mockResolvedValueOnce(res({ refused: true, kind: "scoop", error: "..." }, false));
+    renderWithI18n(<CheckUpdateButton />);
+    fireEvent.click(await screen.findByTestId("update-now-button"));
+    const card = await screen.findByTestId("update-refused-card");
+    expect(card).toHaveTextContent("scoop update cc-select");
+    // 浮层卡片叠在页面内容上方，.notice 的半透明底会透出底层文字（#10），
+    // 必须带不透明浮层修饰类。
+    expect(card).toHaveClass("notice--popover");
+  });
+
   it("refused(dev) 显示 dev 构建指引", async () => {
     fetchMock
       .mockResolvedValueOnce(
