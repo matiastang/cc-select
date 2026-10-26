@@ -38,8 +38,20 @@ export default function App() {
         renderers: {
           providers: () => <ProvidersModule />,
           modeRoutes: () => <ModeRoutesModule />,
-          security: () => <KeychainCard />,
-          ...(desktop ? { desktop: () => <DesktopSettings /> } : {}),
+          security: () => (
+            <div data-testid="module-security">
+              <KeychainCard />
+            </div>
+          ),
+          ...(desktop
+            ? {
+                desktop: () => (
+                  <div data-testid="module-desktop">
+                    <DesktopSettings />
+                  </div>
+                ),
+              }
+            : {}),
           general: () => <GeneralModule />,
           about: () => <AboutModule />,
         },

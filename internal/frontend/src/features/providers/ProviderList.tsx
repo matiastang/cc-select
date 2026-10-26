@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Boxes } from "lucide-react";
 import { Provider } from "../../types";
+import { OFFICIAL_ID } from "../../constants";
 import { Card, EmptyState } from "../../components/ui";
 import { ProviderCard } from "./ProviderCard";
 import { JsonForm } from "./JsonForm";
@@ -26,23 +27,26 @@ export function ProviderList({
 }: ProviderListProps) {
   const { t } = useTranslation("providers");
 
-  if (providers.length === 0) {
-    return (
-      <Card flat>
-        <EmptyState
-          data-testid="providers-empty-state"
-          icon={<Boxes size={32} />}
-          title={t("empty.title")}
-          description={t("empty.description")}
-          actionLabel={onAdd ? t("empty.action") : undefined}
-          onAction={onAdd}
-        />
-      </Card>
-    );
-  }
+  // 官方 provider 是内置默认（不可删、无需配置）；「真正配置过」以排除官方后
+  // 是否还有服务商判断——仅有官方时同样显示引导（FR-007 的实际可达形态）。
+  const meaningful = providers.filter((p) => p.id !== OFFICIAL_ID);
+
+  const emptyState = meaningful.length === 0 && (
+    <Card flat>
+      <EmptyState
+        data-testid="providers-empty-state"
+        icon={<Boxes size={32} />}
+        title={t("empty.title")}
+        description={t("empty.description")}
+        actionLabel={onAdd ? t("empty.action") : undefined}
+        onAction={onAdd}
+      />
+    </Card>
+  );
 
   return (
     <>
+      {emptyState}
       {[...providers]
         .sort((a, b) => a.id.localeCompare(b.id))
         .map((provider) => (

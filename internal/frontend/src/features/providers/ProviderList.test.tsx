@@ -47,6 +47,17 @@ describe("ProviderList 空状态（FR-007）", () => {
   });
 });
 
+describe("ProviderList 空状态（仅官方默认）", () => {
+  it("只有官方 provider 时也显示引导", () => {
+    renderList({
+      providers: [{ ...baseProvider, id: "claude-official", name: "Claude Official" }],
+      onAdd: vi.fn(),
+    });
+    expect(screen.getByTestId("providers-empty-state")).toBeTruthy();
+    expect(screen.getByTestId("provider-card-claude-official")).toBeTruthy();
+  });
+});
+
 describe("ProviderList 渲染", () => {
   it("按 id 排序渲染 provider 卡片", () => {
     renderList({
