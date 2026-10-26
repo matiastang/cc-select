@@ -128,7 +128,11 @@ func installEmbeddedCLI(opts installOptions) (installResult, *installConflict, e
 	fellBack := false
 	for i, dir := range targets {
 		dest := filepath.Join(dir, cliFileName())
-		if err := opts.ExtractEmbedded(dest); err != nil {
+		// 先写同目录临时文件再原子 rename：避免对「正在运行的旧 CLI」原位截断
+		//（Linux ETXTBSY）；rename 对 unix 运行中二进制安全（持有旧 inode）。
+		tmp := dest + ".cc-select-incoming"
+		if err := opts.ExtractEmbedded(tmp); err != nil {
+			_ = os.Remove(tmp)
 			if os.IsPermission(err) {
 				if i == len(targets)-1 {
 					return installResult{}, &installConflict{
@@ -140,7 +144,27 @@ func installEmbeddedCLI(opts installOptions) (installResult, *installConflict, e
 				fellBack = true
 				continue
 			}
-			return installResult{}, nil, fmt.Errorf("write %s: %w", dest, err)
+			return installResult{}, nil, fmt.Errorf("write %s: %w", tmp, err)
+		}
+		if err := os.Chmod(tmp, 0o755); err != nil {
+			_ = os.Remove(tmp)
+			return installResult{}, nil, fmt.Errorf("chmod %s: %w", tmp, err)
+		}
+		if err := os.Rename(tmp, dest); err != nil {
+			_ = os.Remove(tmp)
+			if os.IsPermission(err) {
+				if i == len(targets)-1 {
+					return installResult{}, &installConflict{
+						Kind: conflictPermission,
+						Path: dir,
+						Hint: permissionHint(dir),
+					}, nil
+				}
+				fellBack = true
+				continue
+			}
+			// Windows 上目标正在运行会共享冲突——如实透传（用户重试或先停用）。
+			return installResult{}, nil, fmt.Errorf("replace %s: %w", dest, err)
 		}
 
 		res := installResult{InstalledPath: dest, InstalledVersion: opts.EmbeddedVersion}

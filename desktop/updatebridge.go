@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/updater"
 )
@@ -75,7 +76,11 @@ func (b *updateBridge) handleInstall(w http.ResponseWriter, r *http.Request) {
 	}
 	defer b.mu.Unlock()
 
-	if err := b.svc.DownloadAndInstall(r.Context()); err != nil {
+	// 安装不随 HTTP 请求取消而中断（webview 导航/断开不应砍掉下载与校验），
+	// 用独立超时上下文（下载大包 + 摘要校验的合理上限）。
+	installCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	if err := b.svc.DownloadAndInstall(installCtx); err != nil {
 		msg := err.Error()
 		// 校验类失败（摘要/签名不匹配）422：当前版本完好（FR-007 验收 2）。
 		if strings.Contains(strings.ToLower(msg), "checksum") ||
