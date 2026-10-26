@@ -1430,3 +1430,55 @@ func newTestServerWithPresetOpts(t *testing.T, opts func() *presets.ResolveOptio
 	srv := httptest.NewServer(h.routes())
 	return srv, cfg
 }
+
+func TestProvidersProbe(t *testing.T) {
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(401)
+		_, _ = w.Write([]byte(`invalid api key`))
+	}))
+	defer target.Close()
+
+	// 注入探测目标：把 probe 指向本地 httptest（生产不可达外网环境也能确定性测试）
+	old := probeTargetOverride
+	probeTargetOverride = map[string]string{"https://probe.example.com": target.URL}
+	defer func() { probeTargetOverride = old }()
+
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	// 成功路径：探测目标 401 → ok=false + kind=auth
+	body := `{"env":{"ANTHROPIC_BASE_URL":"https://probe.example.com","ANTHROPIC_AUTH_TOKEN":"sk-x","ANTHROPIC_MODEL":"m"}}`
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/providers/probe", strings.NewReader(body))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out struct {
+		OK    bool `json:"ok"`
+		Error struct {
+			Kind string `json:"kind"`
+		} `json:"error"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&out)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || out.OK || out.Error.Kind != "auth" {
+		t.Fatalf("probe = %d ok=%v kind=%s", resp.StatusCode, out.OK, out.Error.Kind)
+	}
+
+	// 缺认证 → 400
+	req2, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/providers/probe", strings.NewReader(`{"env":{"ANTHROPIC_BASE_URL":"https://x"}}`))
+	resp2, _ := http.DefaultClient.Do(req2)
+	resp2.Body.Close()
+	if resp2.StatusCode != 400 {
+		t.Fatalf("missing auth status=%d, want 400", resp2.StatusCode)
+	}
+
+	// 自定义 base 无模型 → 400
+	req3, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/providers/probe", strings.NewReader(`{"env":{"ANTHROPIC_BASE_URL":"https://x","ANTHROPIC_AUTH_TOKEN":"sk"}}`))
+	resp3, _ := http.DefaultClient.Do(req3)
+	resp3.Body.Close()
+	if resp3.StatusCode != 400 {
+		t.Fatalf("missing model status=%d, want 400", resp3.StatusCode)
+	}
+}

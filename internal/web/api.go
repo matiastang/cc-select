@@ -14,6 +14,7 @@ import (
 	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/presets"
+	"github.com/cc-select/cc-select/internal/probe"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/rcinteg"
 	"github.com/cc-select/cc-select/internal/router"
@@ -97,6 +98,7 @@ var migrateSecretsEnvFn = func(providerID string, env map[string]string) (int, [
 func (h *apiHandler) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/providers", h.handleProvidersCollection)
+	mux.HandleFunc("/api/v1/providers/probe", h.handleProvidersProbe)
 	mux.HandleFunc("/api/v1/providers/", h.handleProviderItem)
 	mux.HandleFunc("/api/v1/presets", h.handlePresetsCollection)
 	mux.HandleFunc("/api/v1/remote-presets", h.handleRemotePresets)
@@ -178,6 +180,54 @@ func (h *apiHandler) handleRemotePresets(w http.ResponseWriter, r *http.Request)
 		w.Header().Set("Allow", "GET, PUT")
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 	}
+}
+
+// probeTargetOverride 测试注入点：base URL → 实际探测地址（hermetic）。
+// 生产为 nil——探测始终发往用户配置的服务商地址。
+var probeTargetOverride map[string]string
+
+// handleProvidersProbe 处理 POST /api/v1/providers/probe（specs/004 T016 / FR-016-017）。
+// 表单未保存也可测：body 即最终 env。仅手动触发，后端不做任何自动调用。
+func (h *apiHandler) handleProvidersProbe(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var body struct {
+		Env map[string]string `json:"env"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Env == nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid body: expect env object"})
+		return
+	}
+
+	env := body.Env
+	if t, ok := probeTargetOverride[env["ANTHROPIC_BASE_URL"]]; ok {
+		env = cloneEnvWithBase(env, t)
+	}
+
+	// 前置校验（contracts/api.md §2.3）：缺认证/缺模型语义 → 400（对齐 probe 的 invalid 分类）
+	hasAuth := env["ANTHROPIC_AUTH_TOKEN"] != "" || env["ANTHROPIC_API_KEY"] != ""
+	if !hasAuth {
+		writeError(w, http.StatusBadRequest, "missing_auth")
+		return
+	}
+	if env["ANTHROPIC_BASE_URL"] != "" && env["ANTHROPIC_MODEL"] == "" {
+		writeError(w, http.StatusBadRequest, "missing_model")
+		return
+	}
+
+	res := probe.Probe(r.Context(), env, nil)
+	writeJSON(w, http.StatusOK, res)
+}
+
+func cloneEnvWithBase(env map[string]string, baseURL string) map[string]string {
+	out := make(map[string]string, len(env))
+	for k, v := range env {
+		out[k] = v
+	}
+	out["ANTHROPIC_BASE_URL"] = baseURL
+	return out
 }
 
 // handlePresetItem 处理 GET /presets/<id>。
