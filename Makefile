@@ -127,7 +127,12 @@ frontend-lint:
 frontend-check: frontend-typecheck frontend-lint frontend-format-check
 
 # 统一静态检查入口（本地和 CI 都使用）
-check: fmt-check vet frontend-typecheck frontend-lint frontend-format-check scripts-check mod-tidy-check
+# presets-lint（specs/004 T011）：用与运行时同一校验器检查仓库内 presets.json，
+# 改坏预设无法过 CI/本地检查。
+presets-lint:
+	go test ./internal/presets/ -run 'TestEmbeddedBundlePassesValidation|TestPresetCatalogContents' -count=1
+
+check: fmt-check vet frontend-typecheck frontend-lint frontend-format-check scripts-check mod-tidy-check presets-lint
 
 # 安装到 GOPATH/bin：go install 跨平台编译并装入，无需 ln/copy。
 install:
