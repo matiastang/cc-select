@@ -88,6 +88,7 @@ func (h *apiHandler) routes() *http.ServeMux {
 	mux.HandleFunc("/api/v1/providers", h.handleProvidersCollection)
 	mux.HandleFunc("/api/v1/providers/", h.handleProviderItem)
 	mux.HandleFunc("/api/v1/presets", h.handlePresetsCollection)
+	mux.HandleFunc("/api/v1/remote-presets", h.handleRemotePresets)
 	mux.HandleFunc("/api/v1/presets/", h.handlePresetItem)
 	mux.HandleFunc("/api/v1/mode", h.handleMode)
 	mux.HandleFunc("/api/v1/language", h.handleLanguage)
@@ -129,6 +130,41 @@ func (h *apiHandler) handleProviderItem(w http.ResponseWriter, r *http.Request) 
 		h.deleteProvider(w, r, id)
 	default:
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+// handleRemotePresets 处理 GET|PUT /api/v1/remote-presets（specs/004 T012）。
+// GET → {enabled}；PUT 全量 {enabled} → prefs.RemotePresetsDisabled 反义。
+func (h *apiHandler) handleRemotePresets(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		p, err := prefs.Load()
+		enabled := true
+		if err == nil {
+			enabled = !p.RemotePresetsDisabled
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"enabled": enabled})
+	case http.MethodPut:
+		var body struct {
+			Enabled *bool `json:"enabled"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Enabled == nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid body: expect enabled(bool)"})
+			return
+		}
+		p, err := prefs.Load()
+		if err != nil {
+			p = &prefs.Prefs{}
+		}
+		p.RemotePresetsDisabled = !*body.Enabled
+		if err := prefs.Save(p); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"enabled": *body.Enabled})
+	default:
+		w.Header().Set("Allow", "GET, PUT")
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 	}
 }
 

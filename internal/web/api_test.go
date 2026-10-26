@@ -1265,3 +1265,57 @@ func TestSave_PrefsCorruptFailsClosed(t *testing.T) {
 		t.Fatalf("prefs 损坏时保存应 fail-closed(500)，got %d", resp.StatusCode)
 	}
 }
+
+func TestRemotePresetsToggle(t *testing.T) {
+	srv, cfg := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	// 默认启用
+	r, err := http.Get(srv.URL + "/api/v1/remote-presets")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]bool
+	_ = json.NewDecoder(r.Body).Decode(&got)
+	r.Body.Close()
+	if r.StatusCode != 200 || !got["enabled"] {
+		t.Fatalf("default enabled=true, got %d %v", r.StatusCode, got)
+	}
+
+	// PUT false → 落盘 prefs
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/remote-presets", bytes.NewBufferString(`{"enabled":false}`))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("PUT status=%d", resp.StatusCode)
+	}
+	p, err := prefs.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.RemotePresetsDisabled {
+		t.Error("PUT enabled=false should persist remotePresetsDisabled=true")
+	}
+
+	// GET 反映关闭
+	r2, _ := http.Get(srv.URL + "/api/v1/remote-presets")
+	var got2 map[string]bool
+	_ = json.NewDecoder(r2.Body).Decode(&got2)
+	r2.Body.Close()
+	if got2["enabled"] {
+		t.Error("GET should report enabled=false after PUT false")
+	}
+
+	// 非法 body 400
+	req3, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/remote-presets", bytes.NewBufferString(`{bad`))
+	resp3, _ := http.DefaultClient.Do(req3)
+	resp3.Body.Close()
+	if resp3.StatusCode != 400 {
+		t.Fatalf("invalid body status=%d, want 400", resp3.StatusCode)
+	}
+	_ = cfg
+}

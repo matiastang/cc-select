@@ -47,6 +47,9 @@ type Prefs struct {
 	// 产品决策 2026-08-29：不擅自改写用户设置的明文）。开启后：存量迁移 + 后续
 	// 保存路径自动占位化。
 	KeychainEnabled bool `json:"keychainEnabled,omitempty"`
+	// RemotePresetsDisabled 关闭远端预设热更新（specs/004 US5/Q19）：默认 false=启用。
+	// 关闭后预设源回落内置，且不发起任何网络请求；旧版本二进制读到该字段会忽略。
+	RemotePresetsDisabled bool `json:"remotePresetsDisabled,omitempty"`
 	// Desktop 是桌面端（Wails，v0.1.0）偏好；nil 表示「从未设置」，LoadDesktop 归一为默认。
 	// 旧版 CLI 读到该未知字段会忽略（encoding/json 行为），双向向后兼容。
 	Desktop *DesktopPrefs `json:"desktop,omitempty"`
