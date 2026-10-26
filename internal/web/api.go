@@ -69,9 +69,20 @@ type presetDetailDTO struct {
 }
 
 // apiHandler 持有依赖，处理 /api/v1/* 路由。
-type apiHandler struct{}
+type apiHandler struct {
+	// presetOpts 是预设源解析的注入点：生产 nil（DefaultOptions：锁定远端地址），
+	// 测试注入 httptest 地址（hermetic，不触网）。
+	presetOpts func() *presets.ResolveOptions
+}
 
 func newAPIHandler() *apiHandler { return &apiHandler{} }
+
+func (h *apiHandler) resolveOpts() *presets.ResolveOptions {
+	if h.presetOpts != nil {
+		return h.presetOpts()
+	}
+	return presets.DefaultOptions()
+}
 
 // migrateSecretsFn 是存量批量迁移的注入点：生产用系统 keychain，测试换 FakeStore。
 var migrateSecretsFn = func(cfg *config.Config) (int, []string) {
@@ -90,6 +101,7 @@ func (h *apiHandler) routes() *http.ServeMux {
 	mux.HandleFunc("/api/v1/presets", h.handlePresetsCollection)
 	mux.HandleFunc("/api/v1/remote-presets", h.handleRemotePresets)
 	mux.HandleFunc("/api/v1/presets/", h.handlePresetItem)
+	mux.HandleFunc("/api/v1/presets/refresh", h.handlePresetsRefresh)
 	mux.HandleFunc("/api/v1/mode", h.handleMode)
 	mux.HandleFunc("/api/v1/language", h.handleLanguage)
 	mux.HandleFunc("/api/v1/shell-integration", h.handleShellIntegration)
@@ -194,6 +206,7 @@ func (h *apiHandler) handlePresetsCollection(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	all := presets.All()
+	meta := presets.Meta()
 	out := make([]presetDTO, len(all))
 	for i, p := range all {
 		out[i] = toPresetDTO(p)
@@ -201,7 +214,24 @@ func (h *apiHandler) handlePresetsCollection(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, http.StatusOK, map[string]any{
 		"presets":    out,
 		"categories": presets.Categories(),
+		"meta":       meta, // v0.1.1：预设来源与拉取时间（向后兼容的增补字段）
 	})
+}
+
+// handlePresetsRefresh 处理 POST /api/v1/presets/refresh（specs/004 T013）：
+// 用户手动刷新远端预设。永远 200——网络/校验失败不是服务端错误，
+// 以 warning 表达回落状态（contracts/api.md §2.1）。
+func (h *apiHandler) handlePresetsRefresh(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	meta, warning := presets.Refresh(r.Context(), h.resolveOpts())
+	body := map[string]any{"meta": meta}
+	if warning != "" {
+		body["warning"] = warning
+	}
+	writeJSON(w, http.StatusOK, body)
 }
 
 func toPresetDTO(p presets.Preset) presetDTO {

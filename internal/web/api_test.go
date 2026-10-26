@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 
 	"github.com/cc-select/cc-select/internal/prefs"
+	"github.com/cc-select/cc-select/internal/presets"
 
 	"github.com/cc-select/cc-select/internal/secrets"
 
@@ -1318,4 +1319,114 @@ func TestRemotePresetsToggle(t *testing.T) {
 		t.Fatalf("invalid body status=%d, want 400", resp3.StatusCode)
 	}
 	_ = cfg
+}
+
+func TestPresetsMetaFieldAndRefresh(t *testing.T) {
+	srv, _ := newTestServerWithPresetOpts(t, func() *presets.ResolveOptions {
+		return &presets.ResolveOptions{RemoteURL: unreachableURL(t), CachePath: filepath.Join(t.TempDir(), "c.json")}
+	})
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	// /presets 响应含 meta（hermetic：未解析 → builtin）
+	r, _ := http.Get(srv.URL + "/api/v1/presets")
+	var list struct {
+		Meta struct {
+			Source string `json:"source"`
+		} `json:"meta"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&list)
+	r.Body.Close()
+	if list.Meta.Source != "builtin" {
+		t.Fatalf("meta.source=%s, want builtin (unresolved)", list.Meta.Source)
+	}
+
+	// refresh：远端不可达 → 200 + warning=fetch_failed + builtin meta
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/presets/refresh", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body struct {
+		Meta struct {
+			Source string `json:"source"`
+		} `json:"meta"`
+		Warning string `json:"warning"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || body.Warning != "fetch_failed" || body.Meta.Source != "builtin" {
+		t.Fatalf("refresh = %d %+v", resp.StatusCode, body)
+	}
+}
+
+func TestPresetsRefresh_SwapsStoreFromRemote(t *testing.T) {
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"schemaVersion":1,"presets":[` + minimaxPresetJSON + `]}`))
+	}))
+	defer remote.Close()
+
+	srv, _ := newTestServerWithPresetOpts(t, func() *presets.ResolveOptions {
+		return &presets.ResolveOptions{RemoteURL: remote.URL, CachePath: filepath.Join(t.TempDir(), "c.json")}
+	})
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/presets/refresh", nil)
+	resp, _ := http.DefaultClient.Do(req)
+	var body struct {
+		Meta struct {
+			Source string `json:"source"`
+		} `json:"meta"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	resp.Body.Close()
+	if body.Meta.Source != "remote" {
+		t.Fatalf("meta.source=%s, want remote", body.Meta.Source)
+	}
+
+	// 列表随之热替换（新增 marker 可见）
+	r2, _ := http.Get(srv.URL + "/api/v1/presets")
+	var list struct {
+		Presets []struct {
+			ID string `json:"id"`
+		} `json:"presets"`
+	}
+	_ = json.NewDecoder(r2.Body).Decode(&list)
+	r2.Body.Close()
+	found := false
+	for _, p := range list.Presets {
+		if p.ID == "minimax" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("remote preset should appear in list after refresh")
+	}
+}
+
+// unreachableURL 返回一个立刻连接失败的地址。
+func unreachableURL(t *testing.T) string {
+	t.Helper()
+	return "http://127.0.0.1:1/presets.json"
+}
+
+const minimaxPresetJSON = `{"id":"minimax","displayName":"MiniMax","category":"cn_official","apiFormat":"anthropic","authField":"ANTHROPIC_AUTH_TOKEN","envTemplate":{"ANTHROPIC_BASE_URL":"https://api.minimax.io/anthropic","ANTHROPIC_AUTH_TOKEN":"${API_KEY}","ANTHROPIC_MODEL":"MiniMax-M3"},"requiredVars":["ANTHROPIC_AUTH_TOKEN"],"oauth":false}`
+
+// newTestServerWithPresetOpts 建注入预设源选项的测试服务。
+func newTestServerWithPresetOpts(t *testing.T, opts func() *presets.ResolveOptions) (*httptest.Server, string) {
+	t.Helper()
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "providers.json")
+	os.Setenv("CC_SELECT_CONFIG", cfg)
+	_ = os.WriteFile(cfg, []byte(`{"providers":{}}`), 0o600)
+
+	h := newAPIHandler()
+	h.presetOpts = opts
+	// 隔离：结束恢复内置预设与解析状态（远端热替换会污染全局 store）
+	t.Cleanup(func() {
+		presets.ResetForTest()
+	})
+	srv := httptest.NewServer(h.routes())
+	return srv, cfg
 }

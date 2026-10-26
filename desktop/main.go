@@ -16,6 +16,7 @@ import (
 
 	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/prefs"
+	"github.com/cc-select/cc-select/internal/presets"
 	"github.com/cc-select/cc-select/internal/version"
 	"github.com/cc-select/cc-select/internal/web"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -98,6 +99,9 @@ func main() {
 	// US4：托盘常驻 + 关窗驻留/退出语义（FR-008/FR-009）。
 	tray = newTrayController(app, window, notifier)
 	window.RegisterHook(events.Common.WindowClosing, tray.onWindowClosing)
+
+	// 远端预设（specs/004 US5）：与 CLI gui 同语义——后台解析，失败回落 builtin。
+	go presets.EnsureResolved(context.Background(), presets.DefaultOptions())
 
 	go startupUpdateCheck(app, notifier, appVersion)
 
