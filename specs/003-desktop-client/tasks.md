@@ -30,9 +30,9 @@ description: "Task list for feature implementation"
 
 **Purpose**: 桌面构建目标初始化
 
-- [ ] T001 在 go.mod 引入并锁定 `github.com/wailsapp/wails/v3 v3.0.0-beta.34`（`go get`+`go mod tidy`，确认根 `main.go` CLI 构建不受影响）
-- [ ] T002 [P] 创建 `desktop/` 包骨架（`package main` 占位 main.go、`assets/` 目录与 `.gitignore`（忽略构建期拷入的 CLI 二进制））per plan.md
-- [ ] T003 [P] Makefile 新增 `desktop-build` / `desktop-package` / `desktop-clean` 目标（依赖链：frontend → CLI → 拷贝 `bin/cc-select-*` 至 `desktop/assets/cli/` → `wails3 build`；不污染既有 `build`）
+- [x] T001 在 go.mod 引入并锁定 `github.com/wailsapp/wails/v3 v3.0.0-beta.34`（`go get`+`go mod tidy`，确认根 `main.go` CLI 构建不受影响）
+- [x] T002 [P] 创建 `desktop/` 包骨架（`package main` 占位 main.go、`assets/` 目录与 `.gitignore`（忽略构建期拷入的 CLI 二进制））per plan.md
+- [x] T003 [P] Makefile 新增 `desktop-build` / `desktop-package` / `desktop-clean` 目标（依赖链：frontend → CLI → 拷贝 `bin/cc-select-*` 至 `desktop/assets/cli/` → `wails3 build`；不污染既有 `build`）
 - [ ] T004 [P] 配置 `desktop/` 的 wails3 构建 Task 文件与图标资源（app icon / tray icon 占位）
 
 ---
@@ -43,10 +43,10 @@ description: "Task list for feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 TDD：在 `internal/web/api_test.go` 先写导出包装测试（`Handler()` 能服务 `/api/v1/providers` 列表、`AssetsFS()` 非空），FAIL 后在 `internal/web/api.go`/`embed.go` 实现 `Handler() http.Handler` 与 `AssetsFS() fs.FS` 导出包装（行为零变化，`ccs gui` 复用同一实现）
-- [ ] T006 [P] TDD：在 `internal/prefs/prefs_test.go` 先写 `DesktopPrefs` 测试（缺省归一化 trayResident=true/autoStart=false/autoUpdateCheck=true；旧格式 prefs.json 无 desktop 字段可读；round-trip 原子写），FAIL 后在 `internal/prefs/prefs.go` 实现 `Desktop *DesktopPrefs` 字段与 `NormalizeDesktop()`（data-model §1.1）
-- [ ] T007 TDD：在 `desktop/bridge_test.go` 先写桥接路由测试（非 `/api/v1/` 前缀 → `404 {"error":"not found"}` 且**不得返回 HTML**；`/api/v1/*` 其余 → 透传 fake handler；契约见 contracts/desktop-api.md §1），FAIL 后在 `desktop/bridge.go` 实现路由核心（构造函数注入下游 handler，纯 net/http 可测）
-- [ ] T008 [P] TDD：在 `desktop/info_test.go` 先写 `GET /api/v1/desktop/info` 契约测试（mode/appVersion/embeddedCliVersion 字段、cli 探测经注入 fake、响应结构见 data-model §2.1），FAIL 后在 `desktop/info.go` 实现（CLI 探测器定义为接口，便于 US2 替换真实实现）
+- [x] T005 TDD：在 `internal/web/api_test.go` 先写导出包装测试（`Handler()` 能服务 `/api/v1/providers` 列表、`AssetsFS()` 非空），FAIL 后在 `internal/web/api.go`/`embed.go` 实现 `Handler() http.Handler` 与 `AssetsFS() fs.FS` 导出包装（行为零变化，`ccs gui` 复用同一实现）
+- [x] T006 [P] TDD：在 `internal/prefs/prefs_test.go` 先写 `DesktopPrefs` 测试（缺省归一化 trayResident=true/autoStart=false/autoUpdateCheck=true；旧格式 prefs.json 无 desktop 字段可读；round-trip 原子写），FAIL 后在 `internal/prefs/prefs.go` 实现 `Desktop *DesktopPrefs` 字段与 `NormalizeDesktop()`（data-model §1.1）
+- [x] T007 TDD：在 `desktop/bridge_test.go` 先写桥接路由测试（非 `/api/v1/` 前缀 → `404 {"error":"not found"}` 且**不得返回 HTML**；`/api/v1/*` 其余 → 透传 fake handler；契约见 contracts/desktop-api.md §1），FAIL 后在 `desktop/bridge.go` 实现路由核心（构造函数注入下游 handler，纯 net/http 可测）
+- [x] T008 [P] TDD：在 `desktop/info_test.go` 先写 `GET /api/v1/desktop/info` 契约测试（mode/appVersion/embeddedCliVersion 字段、cli 探测经注入 fake、响应结构见 data-model §2.1），FAIL 后在 `desktop/info.go` 实现（CLI 探测器定义为接口，便于 US2 替换真实实现）
 
 **Checkpoint**: Foundation ready — user story implementation can now begin in parallel
 
@@ -60,8 +60,8 @@ description: "Task list for feature implementation"
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] 实现 `desktop/main.go` 应用装配：`application.New`（窗口 + `AssetServer{Assets: internal/web.AssetsFS(), Handler: desktop.NewBridge(...)}` + 生命周期），版本经 ldflags 注入 `internal/version.Version`（research R1）
-- [ ] T010 [US1] 单实例：v3 SingleInstance 配置，二次启动回调聚焦既有窗口（FR-011，research R6）
+- [x] T009 [US1] 实现 `desktop/main.go` 应用装配：`application.New`（窗口 + `AssetServer{Assets: internal/web.AssetsFS(), Handler: desktop.NewBridge(...)}` + 生命周期），版本经 ldflags 注入 `internal/version.Version`（research R1）
+- [x] T010 [US1] 单实例：v3 SingleInstance 配置，二次启动回调聚焦既有窗口（FR-011，research R6）
 - [ ] T011 [US1] `wails3 dev` 开发流打通（dev server 指向 vite；quickstart §1 命令实测可用，差异写入 desktop/README.md）
 - [ ] T012 [US1] 验证检查点：跑 quickstart §2 Story 1 手工脚本 + 全量回归（`make check && make test && make e2e`，FR-003/SC-003 零回归证明）
 
