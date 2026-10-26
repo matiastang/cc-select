@@ -23,15 +23,27 @@ func main() {
 	update := newStubUpdateBridge(appVersion)
 	desktopAPI := newDesktopAPI(appVersion, appVersion, &notInstalledDetector{})
 
+	var window *application.WebviewWindow
+
 	app := application.New(application.Options{
 		Name:        "CC Select",
 		Description: "cc-select 桌面客户端",
 		Assets: application.AssetOptions{
 			Handler: newBridge(content, update, desktopAPI),
 		},
+		// FR-011：单实例——二次启动聚焦既有窗口，不产生第二进程/托盘。
+		SingleInstance: &application.SingleInstanceOptions{
+			UniqueID: "com.matiastang.cc-select.desktop",
+			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
+				if window != nil {
+					window.Restore()
+					window.Focus()
+				}
+			},
+		},
 	})
 
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	window = app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:     "CC Select",
 		Width:     1120,
 		Height:    760,
