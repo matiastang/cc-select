@@ -227,3 +227,56 @@ func TestResolve_RejectsCrossHostRedirect(t *testing.T) {
 		t.Fatalf("source=%s, want builtin (redirect rejected)", meta.Source)
 	}
 }
+
+func TestSetRemoteDisabled_ImmediateEffect(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(remoteBundleJSON(t))
+	}))
+	defer srv.Close()
+
+	to := newTestOpts(t, srv.URL)
+	// 先解析为远端
+	if meta := EnsureResolved(context.Background(), &to.opts); meta.Source != SourceRemote {
+		t.Fatalf("precondition: source=%s", meta.Source)
+	}
+	if _, ok := ByID("remote-marker"); !ok {
+		t.Fatal("precondition: remote preset live")
+	}
+
+	// 关闭：立即回落 builtin 且 meta 如实
+	SetRemoteDisabled(true)
+	if meta := Meta(); meta.Source != SourceBuiltin {
+		t.Fatalf("after disable meta=%s, want builtin", meta.Source)
+	}
+	if _, ok := ByID("remote-marker"); ok {
+		t.Fatal("remote preset must leave store after disable")
+	}
+
+	// 再开启后刷新可恢复远端
+	SetRemoteDisabled(false)
+	meta, warning := Refresh(context.Background(), &to.opts)
+	if warning != "" || meta.Source != SourceRemote {
+		t.Fatalf("re-enable refresh = %s %q", meta.Source, warning)
+	}
+}
+
+func TestRefresh_FailureReportsCurrentSourceNotBuiltin(t *testing.T) {
+	// 契约 §2.1：已生效 remote 后刷新失败 → meta 仍报 remote（当前生效源）。
+	good := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(remoteBundleJSON(t))
+	}))
+	defer good.Close()
+	to := newTestOpts(t, good.URL)
+	if meta := EnsureResolved(context.Background(), &to.opts); meta.Source != SourceRemote {
+		t.Fatalf("precondition: %s", meta.Source)
+	}
+
+	to.opts.RemoteURL = "http://127.0.0.1:1/presets.json"
+	meta, warning := Refresh(context.Background(), &to.opts)
+	if warning != "fetch_failed" {
+		t.Fatalf("warning=%q", warning)
+	}
+	if meta.Source != SourceRemote {
+		t.Fatalf("failure meta=%s, want remote (current effective)", meta.Source)
+	}
+}

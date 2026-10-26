@@ -1,9 +1,14 @@
 package probe
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -154,3 +159,57 @@ func indexOf(s, sub string) int {
 	}
 	return -1
 }
+
+func TestProbe_SanitizeAcrossTruncateBoundary(t *testing.T) {
+	// token 跨第 200 rune 边界：先脱敏再截断，任何残段不得泄露。
+	long := strings.Repeat("x", 195)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(400)
+		_, _ = w.Write([]byte(long + "sk-boundary-token-abcdefghijklmnop"))
+	}))
+	defer srv.Close()
+
+	res := Probe(context.Background(), envFor(srv.URL, "sk-boundary-token-abcdefghijklmnop", "m"), nil)
+	if res.OK {
+		t.Fatal("want error")
+	}
+	if strings.Contains(res.Error.Message, "sk-boundary") || strings.Contains(res.Error.Message, "boundary-token") {
+		t.Fatalf("token fragment leaked: %q", res.Error.Message)
+	}
+}
+
+func TestProbe_OfficialFormUsesDefaultModel(t *testing.T) {
+	// 官方形态（无 base URL）：经注入 Transport 定向到本地服务，验证默认模型与 /v1/messages 路径。
+	var gotModel, gotPath string
+	rt := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		gotPath = r.URL.Path
+		if r.URL.Host != "api.anthropic.com" {
+			return nil, fmt.Errorf("unexpected host: %s", r.URL.Host)
+		}
+		body, _ := io.ReadAll(r.Body)
+		var payload map[string]any
+		_ = json.NewDecoder(bytes.NewReader(body)).Decode(&payload)
+		gotModel, _ = payload["model"].(string)
+		return &http.Response{
+			StatusCode: 200,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{"model":"echo"}`)),
+			Request:    r,
+		}, nil
+	})
+	env := map[string]string{"ANTHROPIC_AUTH_TOKEN": "sk-official"}
+	res := Probe(context.Background(), env, &Options{Client: &http.Client{Transport: rt}})
+	if !res.OK || res.Model != "echo" {
+		t.Fatalf("official probe = %+v", res)
+	}
+	if gotPath != "/v1/messages" {
+		t.Errorf("path=%s", gotPath)
+	}
+	if gotModel != OfficialDefaultModel {
+		t.Errorf("default model=%q, want %q", gotModel, OfficialDefaultModel)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }

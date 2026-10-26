@@ -1272,6 +1272,8 @@ func TestRemotePresetsToggle(t *testing.T) {
 	srv, cfg := newTestServer(t)
 	defer srv.Close()
 	defer os.Unsetenv("CC_SELECT_CONFIG")
+	// PUT 会全局切换进程内预设源——结束恢复，避免污染其他用例。
+	t.Cleanup(presets.ResetForTest)
 
 	// 默认启用
 	r, err := http.Get(srv.URL + "/api/v1/remote-presets")
@@ -1310,6 +1312,28 @@ func TestRemotePresetsToggle(t *testing.T) {
 	r2.Body.Close()
 	if got2["enabled"] {
 		t.Error("GET should report enabled=false after PUT false")
+	}
+
+	// PUT false 后 /presets meta 立即翻为 builtin（H2 即时生效，hermetic 注入同上）
+	old := usageSelect
+	_ = old
+	h := newAPIHandler()
+	h.presetOpts = func() *presets.ResolveOptions {
+		return &presets.ResolveOptions{Disabled: true, RemoteURL: "http://127.0.0.1:1/p.json"}
+	}
+	srv2 := httptest.NewServer(h.routes())
+	defer srv2.Close()
+	respMeta, _ := http.Post(srv2.URL+"/api/v1/presets/refresh", "", nil)
+	var body struct {
+		Meta struct {
+			Source string `json:"source"`
+		} `json:"meta"`
+		Warning string `json:"warning"`
+	}
+	_ = json.NewDecoder(respMeta.Body).Decode(&body)
+	respMeta.Body.Close()
+	if body.Meta.Source != "builtin" || body.Warning != "disabled" {
+		t.Fatalf("disabled refresh = %+v", body)
 	}
 
 	// 非法 body 400

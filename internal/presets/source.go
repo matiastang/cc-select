@@ -70,6 +70,7 @@ var resolveState struct {
 	mu     sync.Mutex
 	done   bool
 	result SourceMeta
+	forced bool // 用户显式关闭远端后为 true：在飞解析收尾一律按 builtin 落地
 }
 
 // CacheFilePath 返回缓存文件路径（~/.cc-select/presets.cache.json，与 providers.json 同目录）。
@@ -137,6 +138,7 @@ func ResetForTest() {
 	resolveState.mu.Lock()
 	resolveState.done = false
 	resolveState.result = SourceMeta{}
+	resolveState.forced = false
 	resolveState.mu.Unlock()
 }
 
@@ -147,11 +149,13 @@ func SetRemoteDisabled(disabled bool) {
 	if disabled {
 		reloadBuiltin()
 		resolveState.mu.Lock()
+		resolveState.forced = true
 		resolveState.done = true
 		resolveState.result = SourceMeta{Source: SourceBuiltin}
 		resolveState.mu.Unlock()
 	} else {
 		resolveState.mu.Lock()
+		resolveState.forced = false
 		resolveState.done = false
 		resolveState.result = SourceMeta{}
 		resolveState.mu.Unlock()
@@ -192,6 +196,10 @@ func EnsureResolved(ctx context.Context, opts *ResolveOptions) SourceMeta {
 
 	meta := resolve(ctx, o)
 	resolveState.mu.Lock()
+	if resolveState.forced {
+		// 解析在飞期间用户关闭了远端（NEW-3 竞态）：丢弃结果，保持 builtin。
+		meta = SourceMeta{Source: SourceBuiltin}
+	}
 	resolveState.done = true
 	resolveState.result = meta
 	resolveState.mu.Unlock()
@@ -203,6 +211,12 @@ func EnsureResolved(ctx context.Context, opts *ResolveOptions) SourceMeta {
 func Refresh(ctx context.Context, opts *ResolveOptions) (SourceMeta, string) {
 	o := defaultResolveOptions(opts)
 
+	if resolveState.mu.Lock(); resolveState.forced || o.Disabled {
+		resolveState.mu.Unlock()
+		reloadBuiltin()
+		return SourceMeta{Source: SourceBuiltin}, "disabled"
+	}
+	resolveState.mu.Unlock()
 	if o.Disabled {
 		reloadBuiltin()
 		return SourceMeta{Source: SourceBuiltin}, "disabled"
@@ -351,6 +365,13 @@ func writeCache(o *ResolveOptions, b loadedBundle) {
 	_ = os.Rename(tmp, o.CachePath)
 }
 
+// currentMeta 返回「当前生效源」（契约 §2.1：Refresh 失败也如实报告）：
+// 已解析 → 记忆结果；未解析 → store 即 builtin。
 func currentMeta(*ResolveOptions, Source) SourceMeta {
+	resolveState.mu.Lock()
+	defer resolveState.mu.Unlock()
+	if resolveState.done {
+		return resolveState.result
+	}
 	return SourceMeta{Source: SourceBuiltin}
 }

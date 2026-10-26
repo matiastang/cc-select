@@ -86,9 +86,14 @@ func Validate(data []byte) error {
 		if err := checkPlaceholders(p, i); err != nil {
 			return err
 		}
-		// 宪法 VI：预设决定 token 去向——env 模板里的 base URL 若非空必须 https。
-		if base := p.EnvTemplate["ANTHROPIC_BASE_URL"]; base != "" && !strings.HasPrefix(base, "https://") {
-			return fmt.Errorf("presets[%d] %q: envTemplate ANTHROPIC_BASE_URL must be https", i, p.ID)
+		// 宪法 VI：预设决定 token 去向——env 模板里的 base URL 若非空必须是可解析、
+		// host 非空的 https 地址。含 ${VAR} 占位符（如 bedrock 的区域）先替换为合法
+		// 字符再校验结构（占位符本身已由 checkPlaceholders 声明性覆盖）。
+		if base := p.EnvTemplate["ANTHROPIC_BASE_URL"]; base != "" {
+			normalized := placeholder.ReplaceAllString(base, "placeholder")
+			if err := checkHTTPS("envTemplate.ANTHROPIC_BASE_URL", normalized); err != nil {
+				return fmt.Errorf("presets[%d] %q: envTemplate ANTHROPIC_BASE_URL must be a valid https URL", i, p.ID)
+			}
 		}
 	}
 	return nil

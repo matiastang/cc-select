@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -177,8 +178,12 @@ func (h *apiHandler) handleRemotePresets(w http.ResponseWriter, r *http.Request)
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
 		}
-		// contracts/api.md §2.2：开关在本进程内即时生效（关闭→回落 builtin）。
+		// contracts/api.md §2.2：开关在本进程内即时生效（关闭→回落 builtin）；
+		// 重新开启时后台补一次解析（NEW-4：避免等重启/手动刷新才恢复远端）。
 		presets.SetRemoteDisabled(!*body.Enabled)
+		if *body.Enabled {
+			go presets.EnsureResolved(context.Background(), presets.DefaultOptions())
+		}
 		writeJSON(w, http.StatusOK, map[string]bool{"enabled": *body.Enabled})
 	default:
 		w.Header().Set("Allow", "GET, PUT")
