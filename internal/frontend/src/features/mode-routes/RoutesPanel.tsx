@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Card } from "./ui";
+import { Button, Card } from "../../components/ui";
 
 type RouteEntry = {
   tid: string;

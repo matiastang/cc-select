@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
-import { IsolationMode } from "../types";
-import { Card, FormField, Select } from "./ui";
+import { IsolationMode } from "../../types";
+import { Card, FormField, Select } from "../../components/ui";
 
 type GlobalModeCardProps = {
   mode: IsolationMode;

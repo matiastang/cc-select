@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import "../i18n"; // 初始化 i18next（desktop 命名空间），否则 t() 返回原始键
+import "../../i18n"; // 初始化 i18next（desktop 命名空间），否则 t() 返回原始键
 import { DesktopSettings } from "./DesktopSettings";
 
 // T018/T025：DesktopSettings 契约。mock 按 URL 路由 + 每路由独立序列，

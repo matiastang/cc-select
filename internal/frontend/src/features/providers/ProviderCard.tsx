@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { Provider } from "../types";
-import { OFFICIAL_ID } from "../constants";
-import { Button } from "./ui";
+import { Provider } from "../../types";
+import { OFFICIAL_ID } from "../../constants";
+import { Button } from "../../components/ui";
 
 type ProviderCardProps = {
   provider: Provider;

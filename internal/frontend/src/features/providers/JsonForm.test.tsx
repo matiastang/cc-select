@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
-import i18n from "../i18n";
+import i18n from "../../i18n";
 import { JsonForm } from "./JsonForm";
 
 function renderWithI18n(ui: React.ReactNode) {

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Button } from "./ui";
-import { API_BASE } from "../constants";
+import { Button } from "../../components/ui";
+import { API_BASE } from "../../constants";
 
 // CheckUpdateButton: header-controls 里的自更新入口。
 // 自包含状态机（同 ShellIntegrationBanner 的约定）：平台判断全在后端，

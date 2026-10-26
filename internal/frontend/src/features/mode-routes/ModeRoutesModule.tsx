@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { GlobalModeCard } from "../../components/GlobalModeCard";
-import { RoutesPanel } from "../../components/RoutesPanel";
+import { GlobalModeCard } from "./GlobalModeCard";
+import { RoutesPanel } from "./RoutesPanel";
 import { IsolationMode } from "../../types";
 import { API_BASE } from "../../constants";
 

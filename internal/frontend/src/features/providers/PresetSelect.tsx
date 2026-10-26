@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
-import { Preset, PresetCategory, groupPresetsByCategory } from "../presets/presets";
-import { FormField, Select, Icon } from "./ui";
+import { Preset, PresetCategory, groupPresetsByCategory } from "../../presets/presets";
+import { FormField, Select, Icon } from "../../components/ui";
 
 type PresetSelectProps = {
   presets: Preset[];

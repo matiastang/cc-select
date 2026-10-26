@@ -9,8 +9,15 @@ import {
   HAIKU_MODEL_KEY,
   FABLE_MODEL_KEY,
   SUBAGENT_MODEL_KEY,
-} from "../presets/presets";
-import { Button, Collapsible, FormField, Input, SegmentedControl, Select } from "./ui";
+} from "../../presets/presets";
+import {
+  Button,
+  Collapsible,
+  FormField,
+  Input,
+  SegmentedControl,
+  Select,
+} from "../../components/ui";
 
 type EnvField = {
   key: string;

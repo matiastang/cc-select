@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { Button, Card } from "../../components/ui";
-import { ShellIntegrationBanner } from "../../ShellIntegrationBanner";
+import { ShellIntegrationBanner } from "./ShellIntegrationBanner";
 import { IdPlaceholder } from "../../components/IdPlaceholder";
-import { ProviderList } from "../../components/ProviderList";
-import { JsonForm } from "../../components/JsonForm";
+import { ProviderList } from "./ProviderList";
+import { JsonForm } from "./JsonForm";
 import { Provider } from "../../types";
 import { API_BASE } from "../../constants";
 

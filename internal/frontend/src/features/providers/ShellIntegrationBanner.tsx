@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
-import { IdPlaceholder } from "./components/IdPlaceholder";
-import { Button, Textarea } from "./components/ui";
+import { IdPlaceholder } from "../../components/IdPlaceholder";
+import { Button, Textarea } from "../../components/ui";
 
 // ShellIntegrationBanner: detects whether shell integration is installed on first visit;
 // if not, offers one-click install.

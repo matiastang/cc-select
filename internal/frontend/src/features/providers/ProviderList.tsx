@@ -1,7 +1,7 @@
-import { Provider } from "../types";
+import { Provider } from "../../types";
 import { ProviderCard } from "./ProviderCard";
 import { JsonForm } from "./JsonForm";
-import { Card } from "./ui";
+import { Card } from "../../components/ui";
 
 type ProviderListProps = {
   providers: Provider[];

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Card } from "./ui";
+import { Card } from "../../components/ui";
 
 // DesktopSettings 是桌面端专属设置区（US2 起步：CLI 安装；US3–US5 递增开关项）。
 // 能力探测契约（contracts/desktop-api.md §3.1）：GET /desktop/info 在 web 模式（ccs gui）

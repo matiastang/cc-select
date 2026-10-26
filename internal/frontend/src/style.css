@@ -5,7 +5,7 @@
 /* ============================================================================
  * 设计 token 层（contracts/frontend §2）——唯一颜色/圆角/阴影真值。
  * Tailwind 语义类经 tailwind.config.ts 映射消费；组件禁止裸色值。
- * 既有过渡样式块（下方非 @layer 区）随基件重写逐步退役。
+ * 深浅色三态：:root 浅色 / [data-theme="dark"] 手动深色 / 媒体查询跟随系统。
  * ========================================================================== */
 :root {
   --bg: #f6f7f9;
@@ -79,69 +79,25 @@
   --focus-ring: 0 0 0 2px rgba(88, 166, 255, 0.3);
 }
 
-* {
-  box-sizing: border-box;
-}
-
-[hidden] {
-  display: none !important;
-}
-
-a {
-  color: var(--accent);
-  text-decoration: none;
-}
-
-a:hover {
-  text-decoration: underline;
-}
-
-html {
-  color-scheme: light dark;
-}
-
-body {
-  margin: 0;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  line-height: 1.5;
-}
-
-code {
-  font-family:
-    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  font-size: 0.9em;
-  padding: 0.1em 0.3em;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-}
-
-.container {
-  max-width: 760px;
-  margin: 2rem auto;
-  padding: 0 1rem;
-}
-
+/* ============================================================================
+ * 过渡期工具类：仅供尚未完全 Tailwind 化的存量组件使用（T006 起）。
+ * 新代码禁止使用——统一写 Tailwind 语义类。全部基件(.ui-*)已 Tailwind 化，
+ * 旧规则已删除。
+ * ========================================================================== */
 .row {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
 }
-
 .row-content {
   flex: 1;
   min-width: 0;
 }
-
 .row-detail {
   word-break: break-all;
   margin-top: 0.25rem;
 }
-
 .row-actions {
   flex-shrink: 0;
   white-space: nowrap;
@@ -149,12 +105,10 @@ code {
   display: inline-flex;
   gap: 0.5rem;
 }
-
 .muted {
   color: var(--muted);
   font-size: 0.85rem;
 }
-
 .badge {
   font-size: 0.72rem;
   padding: 0.15rem 0.5rem;
@@ -163,7 +117,6 @@ code {
   color: var(--text);
   font-weight: 500;
 }
-
 .notice {
   background: var(--notice-bg);
   border-left: 3px solid var(--accent);
@@ -172,14 +125,10 @@ code {
   font-size: 0.85rem;
   margin-bottom: 1rem;
 }
-
 .notice--danger {
   background: var(--notice-danger-bg);
   border-left-color: var(--danger);
 }
-
-/* 浮层变体：叠在页面内容上方的 .notice（如更新结果卡片）必须不透明——
-   半透明底会透出底层文字导致不可读（#10）。 */
 .notice--popover {
   background: var(--card);
   border: 1px solid var(--border);
@@ -187,22 +136,6 @@ code {
   box-shadow: var(--shadow-md);
   margin-bottom: 0;
 }
-
-.header-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.header-controls {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
 .language-switcher {
   display: inline-flex;
   gap: 0.25rem;
@@ -211,7 +144,6 @@ code {
   padding: 0.15rem;
   background: var(--card);
 }
-
 .language-switcher button {
   background: transparent;
   color: var(--text);
@@ -222,16 +154,13 @@ code {
   cursor: pointer;
   transition: background-color var(--transition-fast);
 }
-
 .language-switcher button.active {
   background: var(--accent);
   color: #fff;
 }
-
 .language-switcher button:not(.active):hover {
   background: var(--bg);
 }
-
 .theme-switcher {
   display: inline-flex;
   gap: 0.25rem;
@@ -240,7 +169,6 @@ code {
   padding: 0.15rem;
   background: var(--card);
 }
-
 .theme-switcher button {
   display: inline-flex;
   align-items: center;
@@ -254,325 +182,10 @@ code {
   cursor: pointer;
   transition: background-color var(--transition-fast);
 }
-
 .theme-switcher button.active {
   background: var(--accent);
   color: #fff;
 }
-
 .theme-switcher button:not(.active):hover {
   background: var(--bg);
-}
-
-@media (max-width: 480px) {
-  .header-title {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .row {
-    flex-direction: column;
-  }
-
-  .row-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-}
-
-/* ============================================================
-   UI Primitive Components
-   ============================================================ */
-
-.ui-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 1.25rem 1.5rem;
-  margin-bottom: 1rem;
-  box-shadow: var(--shadow-sm);
-}
-
-.ui-card--flat {
-  box-shadow: none;
-}
-
-.ui-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  border: 1px solid transparent;
-  padding: 0.45rem 0.9rem;
-  border-radius: var(--radius-md);
-  font-size: 0.85rem;
-  font-weight: 500;
-  line-height: 1.4;
-  cursor: pointer;
-  background: var(--accent);
-  color: #fff;
-  transition:
-    background-color var(--transition-fast),
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast),
-    transform 60ms ease;
-}
-
-.ui-button:active {
-  transform: translateY(1px);
-}
-
-.ui-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.ui-button:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
-.ui-button--primary {
-  background: var(--accent);
-  color: #fff;
-}
-
-.ui-button--primary:hover:not(:disabled) {
-  background: var(--accent-hover);
-}
-
-.ui-button--secondary {
-  background: transparent;
-  color: var(--text);
-  border-color: var(--border);
-}
-
-.ui-button--secondary:hover:not(:disabled) {
-  background: var(--bg);
-  border-color: var(--muted);
-}
-
-.ui-button--danger {
-  background: var(--danger);
-  color: #fff;
-}
-
-.ui-button--danger:hover:not(:disabled) {
-  background: var(--danger-hover);
-}
-
-.ui-button--ghost {
-  background: transparent;
-  color: var(--muted);
-}
-
-.ui-button--ghost:hover:not(:disabled) {
-  color: var(--text);
-  background: var(--bg);
-}
-
-.ui-button--sm {
-  padding: 0.3rem 0.6rem;
-  font-size: 0.8rem;
-}
-
-.ui-icon {
-  display: inline-block;
-  flex-shrink: 0;
-  vertical-align: middle;
-}
-
-.ui-label {
-  display: block;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--muted);
-  margin: 0.75rem 0 0.35rem;
-}
-
-.ui-form-field {
-  margin-bottom: 0.5rem;
-}
-
-.ui-form-field__helper {
-  display: block;
-  font-size: 0.78rem;
-  color: var(--muted);
-  margin-top: 0.25rem;
-}
-
-.ui-input,
-.ui-select__native,
-.ui-textarea {
-  width: 100%;
-  padding: 0.5rem 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--input-bg);
-  color: var(--text);
-  font-size: 0.9rem;
-  line-height: 1.35;
-  font-family: inherit;
-  box-shadow: var(--shadow-sm);
-  transition:
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast),
-    background-color var(--transition-fast);
-}
-
-.ui-input:hover,
-.ui-select__native:hover,
-.ui-textarea:hover {
-  border-color: var(--muted);
-}
-
-.ui-input:focus,
-.ui-select__native:focus,
-.ui-textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: var(--focus-ring);
-}
-
-.ui-input:disabled,
-.ui-select__native:disabled,
-.ui-textarea:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.ui-input::placeholder,
-.ui-textarea::placeholder {
-  color: var(--muted);
-  opacity: 0.7;
-}
-
-.ui-select {
-  position: relative;
-  display: block;
-}
-
-.ui-select__native {
-  appearance: none;
-  -webkit-appearance: none;
-  padding-right: 2.2rem;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.65rem center;
-  background-size: 0.9rem;
-  cursor: pointer;
-}
-
-.ui-select__native option,
-.ui-select__native optgroup {
-  color: var(--text);
-  background: var(--card);
-}
-
-.ui-textarea {
-  resize: vertical;
-  min-height: 6rem;
-}
-
-.ui-segmented-control {
-  display: inline-flex;
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 0.15rem;
-  background: var(--card);
-  gap: 0.15rem;
-}
-
-.ui-segmented-control__option {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  background: transparent;
-  color: var(--text);
-  padding: 0.45rem 0.7rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  font-weight: 500;
-  line-height: 1.4;
-  cursor: pointer;
-  transition:
-    background-color var(--transition-fast),
-    color var(--transition-fast);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.ui-segmented-control__option:hover:not([aria-checked="true"]) {
-  background: var(--bg);
-}
-
-.ui-segmented-control__option:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
-.ui-segmented-control__option--active {
-  background: var(--accent);
-  color: #fff;
-}
-
-.ui-collapsible {
-  margin-bottom: 0.5rem;
-}
-
-.ui-collapsible__header {
-  width: 100%;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 0.85rem;
-  font-weight: 500;
-  line-height: 1.4;
-  cursor: pointer;
-  transition:
-    background-color var(--transition-fast),
-    border-color var(--transition-fast);
-}
-
-.ui-collapsible__header:hover {
-  background: var(--card);
-  border-color: var(--muted);
-}
-
-.ui-collapsible__header:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
-.ui-collapsible__header .ui-icon {
-  transition: transform var(--transition-fast);
-}
-
-.ui-collapsible__header[aria-expanded="true"] .ui-icon--chevron-right {
-  transform: rotate(90deg);
-}
-
-.ui-collapsible__content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-  padding-left: 0.25rem;
-}
-
-h1 {
-  font-size: 1.4rem;
-  margin: 0 0 0.5rem;
-}
-
-h2 {
-  font-size: 1.05rem;
-  margin: 0 0 1rem;
 }

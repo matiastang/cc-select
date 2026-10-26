@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ProviderDetail, IsolationMode } from "../types";
-import { API_BASE } from "../constants";
+import { ProviderDetail, IsolationMode } from "../../types";
+import { API_BASE } from "../../constants";
 import {
   Preset,
   PresetCategory,
@@ -12,10 +12,10 @@ import {
   fetchPreset,
   applyPresetTemplate,
   placeholdersIn,
-} from "../presets/presets";
+} from "../../presets/presets";
 import { PresetSelect } from "./PresetSelect";
 import { EnvFieldEditor, EnvFieldValues } from "./EnvFieldEditor";
-import { Button, FormField, Input, Select, Textarea } from "./ui";
+import { Button, FormField, Input, Select, Textarea } from "../../components/ui";
 
 const PROVIDERS_API = `${API_BASE}/providers`;
 

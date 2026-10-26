@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Card } from "./ui";
+import { Card } from "../../components/ui";
 
 // KeychainCard 是钥匙串开关（产品决策 2026-08-29）：默认关闭——保存保持明文原样；
 // 用户显式开启后，存量密钥迁入系统钥匙串，且后续保存自动占位化。
