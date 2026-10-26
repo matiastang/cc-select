@@ -81,7 +81,7 @@
 | 编号 | 问题 | 决策 / 当前倾向 |
 |---|---|---|
 | Q1 | 语言选型（Rust / Node / Go / 脚本） | **已定：Go**。理由：单二进制（用户无需装运行时，对 Windows 友好）、跨三平台交叉编译最省心、启动快（CLI 频繁调用）、标准库即可起 Web 配置页。Node+TS / Rust 作为备选保留。 |
-| Q2 | GUI 形态（桌面 App / 本地 Web 服务） | **已定：本地 Web 服务**。桌面 App（Tauri/Electron/Wails）作为备选保留。 |
+| Q2 | GUI 形态（桌面 App / 本地 Web 服务） | **已定（2026-10-26 更新）：双形态并存**——本地 Web 服务保留（零回归），**Wails v3 桌面 App 转正**（v0.1.0，Issue #12）。Tauri/Electron 仍为备选。 |
 | Q3 | 存储格式（JSON / SQLite / 多文件） | **已定：JSON**（原子写）+ key 走 Keychain。SQLite/多文件作为备选保留。 |
 | Q4 | 派生需求 R6/R7/R8 是否纳入 | **已纳入**（见上文 R6/R7/R8，验收见 [acceptance-tests.md](./acceptance-tests.md)）。 |
 | Q5 | 目标 shell 范围 | **已定：zsh / bash / PowerShell**；fish 作为后续扩展。`init` 与 shell 发射器按 shell 类型可扩展设计。 |
@@ -195,6 +195,25 @@
 
 → 可行性已实验定案（2026-08-29，三轮探针实验）：Claude Code ≥ v2.1.242 的 `modelPicker` 支持**会话内热重载**，provider 格式 id（如 `glm-5.3[1m]`）不会被行审查丢弃；另 `docs/engineering-decisions.md` §8「claude env 会话内冻结」前提与现行官方行为（settings 文件含 env 类变更大多热重载）不一致，需随本需求回流修正。设计细节待 SDD 流程产出后回填文档链。
 
+### v0.1.0
+
+使用`Wails v3`（当前v3的最新版本）完成`https://github.com/matiastang/cc-select/issues/12`的需求。
+要求：
+* 目前已经有的功能不能回归
+* 客户端需要支持MacOS、Windows、Linux三个平台，MacOS可以只支持 M 系列芯片
+* 客户中能检查并更新，现在虽然也有更新逻辑，但是操作比较麻烦
+* 如果还有其他能提升用户体验的功能，也可以加上
+
+**已确认决策（2026-10-26，可行性分析后用户逐项确认）**：
+
+1. **分发关系**：App 内置 `ccs` CLI，并提供「安装到 PATH」按钮（对 cc-switch 用户最友好）。
+2. **macOS 签名**：暂无 Apple Developer 账号——首发 unsigned + 文档说明「右键打开」；账号到位后补签名/公证。
+3. **Linux 打包**：首发 AppImage 一种格式。
+4. **更新渠道**：沿用 GitHub Releases（与 CLI 自更新同渠道）。
+5. **体验增强范围**：托盘常驻 + 快捷切换面板、开机自启，均纳入 v0.1.0。
+
+**提示** 如果有需要确认的可以询问我
+
 ## 变更记录
 
 | 日期 | 变更 | 来源 |
@@ -211,4 +230,5 @@
 | 2026-08-28 | **流程纪律缺口补齐**：commitlint（conventional）挂入 lefthook commit-msg hook；TDD / 循环 code review / commit 粒度写入 SpecKit 宪法 v1.1.0 与 CLAUDE.md；Playwright e2e 纳入 CI。 | 开发补齐 |
 | 2026-08-28 | 新增 v0.0.6 需求 R9：Claude Code 会话内切换 provider（限额救急；上下文延续 + 保持 shell 级隔离），含 P0/P1 分级与开放问题 Q8–Q10。 | 用户提出 |
 | 2026-08-29 | 新增 v0.0.7 需求 R10：Mode P 下在 Claude Code 内查看并切换当前 provider 真实模型（`modelPicker` 注入 / 热切跟随刷新 / 代理映射化改写），含开放问题 Q11–Q13；可行性经三轮探针实验定案（`modelPicker` 热重载、provider id 存活）。 | 用户提出 |
+| 2026-10-26 | 新增 v0.1.0 需求：Wails v3 桌面客户端（Issue #12），含 5 项已确认决策（内置 ccs 装 PATH / macOS 首发 unsigned / Linux 首发 AppImage / 沿用 GitHub Releases / 托盘+自启纳入）；Q2 决策更新为「Web + 桌面双形态并存」；spec 已建（`specs/003-desktop-client/`）。 | 用户确认 |
 
