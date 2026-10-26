@@ -1,154 +1,61 @@
-import { useEffect, useState } from "react";
-import { Trans, useTranslation } from "react-i18next";
+import { useEffect, useMemo } from "react";
 import i18n from "./i18n";
-import { IdPlaceholder } from "./components/IdPlaceholder";
-import { ShellIntegrationBanner } from "./ShellIntegrationBanner";
-import { Header } from "./components/Header";
-import { GlobalModeCard } from "./components/GlobalModeCard";
-import { RoutesPanel } from "./components/RoutesPanel";
+import { fetchBackendLanguage } from "./i18n/useLanguage";
+import { LanguageSwitcher } from "./i18n/LanguageSwitcher";
+import { ThemeSwitcher } from "./theme/ThemeSwitcher";
+import { CheckUpdateButton } from "./components/CheckUpdateButton";
+import { AppShell } from "./components/layout/AppShell";
+import { navigate, useHashRoute } from "./navigation/router";
+import { buildNavModules } from "./navigation/registry";
+import { ToastProvider, TooltipProvider } from "./components/ui";
+import { useDesktopMode } from "./features/desktop/useDesktopMode";
+import { ProvidersModule } from "./features/providers/ProvidersModule";
+import { ModeRoutesModule } from "./features/mode-routes/ModeRoutesModule";
 import { KeychainCard } from "./components/KeychainCard";
 import { DesktopSettings } from "./components/DesktopSettings";
-import { ProviderList } from "./components/ProviderList";
-import { JsonForm } from "./components/JsonForm";
-import { Provider, IsolationMode } from "./types";
-import { fetchBackendLanguage } from "./i18n/useLanguage";
-import { Button, Card } from "./components/ui";
+import { GeneralModule } from "./features/general/GeneralModule";
+import { AboutModule } from "./features/about/AboutModule";
 
-import { API_BASE } from "./constants";
-
-const API = `${API_BASE}/providers`;
-const MODE_API = `${API_BASE}/mode`;
-
+// 应用壳：单一前端双形态（web/desktop）。模块注册表是导航唯一真值，
+// 「桌面端」模块按 /desktop/info 探测条件注册（specs/003 FR-015 契约沿用）。
 export default function App() {
-  const { t } = useTranslation("providers");
-  const [providers, setProviders] = useState<Record<string, Provider>>({});
-  const [globalMode, setGlobalMode] = useState<IsolationMode>("settings-only");
-  const [globalModeLoading, setGlobalModeLoading] = useState(true);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string>("");
-
-  const refresh = async () => {
-    try {
-      const r = await fetch(API);
-      const data = await r.json();
-      setProviders(data.providers || {});
-      setError("");
-    } catch (e) {
-      setError(String(e));
-    }
-  };
-
-  const loadGlobalMode = async () => {
-    try {
-      const r = await fetch(MODE_API);
-      const data = await r.json();
-      setGlobalMode(data.isolationMode || "settings-only");
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setGlobalModeLoading(false);
-    }
-  };
-
-  const loadLanguage = async () => {
-    const backend = await fetchBackendLanguage();
-    if (backend) {
-      await i18n.changeLanguage(backend);
-    }
-  };
+  const route = useHashRoute();
+  const desktop = useDesktopMode();
 
   useEffect(() => {
-    refresh();
-    loadGlobalMode();
-    loadLanguage();
+    void (async () => {
+      const backend = await fetchBackendLanguage();
+      if (backend) {
+        await i18n.changeLanguage(backend);
+      }
+    })();
   }, []);
 
-  const saveGlobalMode = async (mode: IsolationMode) => {
-    setGlobalMode(mode);
-    try {
-      const r = await fetch(MODE_API, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isolationMode: mode }),
-      });
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        setError(j.error || t("errors.saveGlobalModeFailed"));
-        await loadGlobalMode(); // rollback to server value
-      } else {
-        setError("");
-      }
-    } catch (e) {
-      setError(String(e));
-      await loadGlobalMode();
-    }
-  };
-
-  const remove = async (id: string) => {
-    const r = await fetch(`${API}/${id}`, { method: "DELETE" });
-    if (!r.ok) setError((await r.json().catch(() => ({}))).error || t("errors.deleteFailed"));
-    refresh();
-  };
+  const modules = useMemo(
+    () =>
+      buildNavModules({
+        desktop,
+        renderers: {
+          providers: () => <ProvidersModule />,
+          modeRoutes: () => <ModeRoutesModule />,
+          security: () => <KeychainCard />,
+          ...(desktop ? { desktop: () => <DesktopSettings /> } : {}),
+          general: () => <GeneralModule />,
+          about: () => <AboutModule />,
+        },
+      }),
+    [desktop],
+  );
 
   return (
-    <div className="container">
-      <Header />
-
-      <ShellIntegrationBanner />
-
-      <div className="notice">
-        <Trans
-          i18nKey="notice"
-          ns="common"
-          components={{ code: <code />, strong: <strong />, id: <IdPlaceholder /> }}
-        />
-      </div>
-
-      {error && (
-        <div className="notice notice--danger" role="alert">
-          {error}
-        </div>
-      )}
-
-      <GlobalModeCard mode={globalMode} loading={globalModeLoading} onChange={saveGlobalMode} />
-
-      <RoutesPanel />
-
-      <KeychainCard />
-
-      <DesktopSettings />
-
-      <ProviderList
-        providers={Object.values(providers)}
-        editingId={editing}
-        onEditStart={setEditing}
-        onEditCancel={() => setEditing(null)}
-        onDelete={remove}
-        onSaved={() => {
-          setEditing(null);
-          refresh();
-        }}
-      />
-
-      <Card>
-        {creating ? (
-          <JsonForm
-            mode="create"
-            onCancel={() => setCreating(false)}
-            onSaved={() => {
-              setCreating(false);
-              refresh();
-            }}
-          />
-        ) : (
-          <div className="row">
-            <Button data-testid="add-provider-button" onClick={() => setCreating(true)}>
-              {t("addButton")}
-            </Button>
-          </div>
-        )}
-      </Card>
-    </div>
+    <ToastProvider>
+      <TooltipProvider>
+        <AppShell modules={modules} route={route} onNavigate={navigate}>
+          <CheckUpdateButton />
+          <ThemeSwitcher />
+          <LanguageSwitcher />
+        </AppShell>
+      </TooltipProvider>
+    </ToastProvider>
   );
 }

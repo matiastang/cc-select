@@ -1,0 +1,16 @@
+{
+  "title": "General",
+  "theme": {
+    "label": "Theme",
+    "helper": "Follow system, light, or dark appearance."
+  },
+  "language": {
+    "label": "Language",
+    "helper": "Interface language for CLI and GUI."
+  },
+  "remotePresets": {
+    "title": "Remote presets",
+    "helper": "Fetch the latest provider presets from the official repository.",
+    "enabled": "Enable remote presets"
+  }
+}

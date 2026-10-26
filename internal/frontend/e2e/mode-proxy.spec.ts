@@ -2,9 +2,11 @@ import { test, expect } from "./fixtures";
 
 // 端到端覆盖 Mode P（proxy）：全局模式选择器含 proxy 选项、可切换保存；
 // 活跃路由面板渲染 daemon 状态与路由表，ensure 按钮可点。
+// v0.1.1 模块化后：模式/路由在「模式与路由」模块，钥匙串在「安全」模块（T005）。
 
 test("全局模式选择器含 proxy 选项并保存成功", async ({ page, server }) => {
   await page.goto(server.baseURL);
+  await page.getByTestId("nav-mode-routes").click();
 
   const select = page.getByTestId("global-mode-select");
   await expect(select).toBeVisible();
@@ -15,13 +17,15 @@ test("全局模式选择器含 proxy 选项并保存成功", async ({ page, serv
   // 切到 proxy → 保存 → 回显。
   await select.selectOption("proxy");
   await expect(select).toHaveValue("proxy");
-  // 刷新后偏好持久。
+  // 刷新后偏好持久（hash 路由随 URL 恢复模块）。
   await page.reload();
+  await page.getByTestId("nav-mode-routes").click();
   await expect(page.getByTestId("global-mode-select")).toHaveValue("proxy");
 });
 
 test("活跃路由面板渲染 daemon 状态与路由表", async ({ page, server }) => {
   await page.goto(server.baseURL);
+  await page.getByTestId("nav-mode-routes").click();
 
   const panel = page.getByTestId("routes-panel");
   await expect(panel).toBeVisible();
@@ -35,6 +39,7 @@ test("活跃路由面板渲染 daemon 状态与路由表", async ({ page, server
 
 test("钥匙串开关默认关闭，显式开启后偏好持久", async ({ page, server }) => {
   await page.goto(server.baseURL);
+  await page.getByTestId("nav-security").click();
   const toggle = page.getByTestId("keychain-toggle");
   await expect(toggle).toBeVisible();
   await expect(toggle).not.toBeChecked(); // 默认关闭：明文原样
@@ -42,5 +47,6 @@ test("钥匙串开关默认关闭，显式开启后偏好持久", async ({ page,
   await toggle.click();
   await expect(toggle).toBeChecked();
   await page.reload();
+  await page.getByTestId("nav-security").click();
   await expect(page.getByTestId("keychain-toggle")).toBeChecked(); // 偏好持久
 });

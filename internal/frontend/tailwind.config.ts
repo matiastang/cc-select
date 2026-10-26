@@ -9,6 +9,9 @@ export default {
   darkMode: ["class", '[data-theme="dark"]'],
   theme: {
     extend: {
+      screens: {
+        wide: "880px", // 导航断点（contracts/frontend §2）：侧边栏 ↔ 顶部 tab
+      },
       colors: {
         bg: "var(--bg)",
         card: "var(--card)",

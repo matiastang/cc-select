@@ -1,0 +1,16 @@
+{
+  "title": "外观与通用",
+  "theme": {
+    "label": "主题",
+    "helper": "跟随系统、浅色或深色外观。"
+  },
+  "language": {
+    "label": "语言",
+    "helper": "CLI 与 GUI 的界面语言。"
+  },
+  "remotePresets": {
+    "title": "远端预设",
+    "helper": "从官方仓库拉取最新的服务商预设。",
+    "enabled": "启用远端预设"
+  }
+}
