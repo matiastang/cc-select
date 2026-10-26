@@ -121,9 +121,15 @@ func SendMessage(ctx context.Context, o *Options, baseURL, authToken, apiKey, mo
 	if apiKey != "" {
 		req.Header.Set("x-api-key", apiKey)
 	}
-	client := o.Client
-	if client == nil {
-		client = &http.Client{Timeout: o.Timeout}
+	var client *http.Client
+	if o != nil && o.Client != nil {
+		client = o.Client
+	} else {
+		timeout := probeTimeout
+		if o != nil && o.Timeout > 0 {
+			timeout = o.Timeout
+		}
+		client = &http.Client{Timeout: timeout}
 	}
 	resp, err := client.Do(req)
 	if err != nil {
