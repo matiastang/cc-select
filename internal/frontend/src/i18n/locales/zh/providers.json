@@ -92,5 +92,14 @@
     "migrated": "已开启：{{n}} 条存量密钥迁入钥匙串。",
     "loadFailed": "钥匙串设置读取失败",
     "saveFailed": "钥匙串设置保存失败"
+  },
+  "empty": {
+    "title": "还没有服务商",
+    "description": "从预设画廊选择一个服务商——通常只需填 API key 即可用。",
+    "action": "添加服务商"
+  },
+  "toast": {
+    "saved": "已保存",
+    "deleted": "已删除"
   }
 }

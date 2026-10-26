@@ -92,5 +92,14 @@
     "migrated": "Enabled: {{n}} existing secret(s) migrated to the keychain.",
     "loadFailed": "failed to load the keychain setting",
     "saveFailed": "failed to save the keychain setting"
+  },
+  "empty": {
+    "title": "No providers yet",
+    "description": "Pick a provider from the preset gallery — API key is usually the only thing you need.",
+    "action": "Add provider"
+  },
+  "toast": {
+    "saved": "Provider saved",
+    "deleted": "Provider deleted"
   }
 }
