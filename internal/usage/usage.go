@@ -55,7 +55,8 @@ var registry = []Adapter{
 	anthropicHeaders{},
 }
 
-func matchAdapter(baseURL string) Adapter {
+// Select 按 base URL 匹配适配器（首个命中；兜底恒匹配）。
+func Select(baseURL string) Adapter {
 	for _, a := range registry {
 		if a.Match(baseURL) {
 			return a
@@ -64,13 +65,20 @@ func matchAdapter(baseURL string) Adapter {
 	return nil
 }
 
+func matchAdapter(baseURL string) Adapter { return Select(baseURL) }
+
 // Query 对给定 env 执行限额查询。错误（网络/服务端 5xx）以 error 返回并已脱敏；
 // 「服务商不支持」是正常结果（Supported=false + Reason），不是 error。
 func Query(ctx context.Context, env map[string]string) (*Report, error) {
-	a := matchAdapter(env["ANTHROPIC_BASE_URL"])
+	a := Select(env["ANTHROPIC_BASE_URL"])
 	if a == nil {
 		return nil, nil // 理论不可达：兜底适配器恒匹配
 	}
+	return QueryWith(ctx, env, a)
+}
+
+// QueryWith 以显式适配器执行（web 层测试注入点）。
+func QueryWith(ctx context.Context, env map[string]string, a Adapter) (*Report, error) {
 	return a.Query(ctx, env, nil)
 }
 

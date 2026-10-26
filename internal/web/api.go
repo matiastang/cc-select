@@ -21,6 +21,7 @@ import (
 	"github.com/cc-select/cc-select/internal/routes"
 	"github.com/cc-select/cc-select/internal/secrets"
 	"github.com/cc-select/cc-select/internal/updater"
+	"github.com/cc-select/cc-select/internal/usage"
 	"github.com/cc-select/cc-select/internal/version"
 )
 
@@ -99,6 +100,7 @@ func (h *apiHandler) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/providers", h.handleProvidersCollection)
 	mux.HandleFunc("/api/v1/providers/probe", h.handleProvidersProbe)
+	mux.HandleFunc("/api/v1/usage/", h.handleUsage)
 	mux.HandleFunc("/api/v1/providers/", h.handleProviderItem)
 	mux.HandleFunc("/api/v1/presets", h.handlePresetsCollection)
 	mux.HandleFunc("/api/v1/remote-presets", h.handleRemotePresets)
@@ -229,6 +231,69 @@ func cloneEnvWithBase(env map[string]string, baseURL string) map[string]string {
 	out["ANTHROPIC_BASE_URL"] = baseURL
 	return out
 }
+
+// usageSelect / usageEnvOverride 是限额查询的测试注入点（hermetic）。
+// 生产：usageSelect = usage.Select（按 base URL host 匹配），env 不改写。
+var (
+	usageSelect      = usage.Select
+	usageEnvOverride func(env map[string]string) map[string]string
+)
+
+// handleUsage 处理 POST /api/v1/usage/{providerId}（specs/004 T020 / FR-018-020）。
+// 每次调用即实时查询（仅手动刷新，无服务端缓存）；适配器网络失败 → 200 + error 字段
+// （前端呈现错误与重试），provider 缺失才是 404（contracts/api.md §2.4）。
+func (h *apiHandler) handleUsage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	id := strings.TrimPrefix(r.URL.Path, "/api/v1/usage/")
+	if id == "" || strings.Contains(id, "/") {
+		writeError(w, http.StatusNotFound, "provider not found")
+		return
+	}
+
+	a, err := app.New()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if _, ok := a.Config.Providers[id]; !ok {
+		writeError(w, http.StatusNotFound, "provider not found")
+		return
+	}
+
+	env, err := profile.ReadEnv(id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "read provider env: "+err.Error())
+		return
+	}
+
+	adapter := usageSelect(env["ANTHROPIC_BASE_URL"])
+	queryEnv := env
+	if usageEnvOverride != nil {
+		queryEnv = usageEnvOverride(env)
+	}
+
+	if adapter == nil {
+		writeJSON(w, http.StatusOK, usage.Report{Supported: false, FetchedAt: timeNowUTC(), Reason: "no_public_endpoint"})
+		return
+	}
+	rep, qerr := usage.QueryWith(r.Context(), queryEnv, adapter)
+	if qerr != nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"supported":  false,
+			"providerId": id,
+			"fetchedAt":  timeNowUTC(),
+			"error":      qerr.Error(),
+		})
+		return
+	}
+	rep.ProviderID = id
+	writeJSON(w, http.StatusOK, rep)
+}
+
+func timeNowUTC() time.Time { return time.Now().UTC() }
 
 // handlePresetItem 处理 GET /presets/<id>。
 func (h *apiHandler) handlePresetItem(w http.ResponseWriter, r *http.Request) {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/presets"
+	"github.com/cc-select/cc-select/internal/usage"
 
 	"github.com/cc-select/cc-select/internal/secrets"
 
@@ -1480,5 +1481,67 @@ func TestProvidersProbe(t *testing.T) {
 	resp3.Body.Close()
 	if resp3.StatusCode != 400 {
 		t.Fatalf("missing model status=%d, want 400", resp3.StatusCode)
+	}
+}
+
+func TestUsageEndpoint(t *testing.T) {
+	quota := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "tok-glm" {
+			t.Errorf("Authorization=%q", r.Header.Get("Authorization"))
+		}
+		_, _ = w.Write([]byte(`{"data":{"limits":[{"type":"TOKENS_LIMIT","percentage":42}]}}`))
+	}))
+	defer quota.Close()
+
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	// 注入：适配器固定 GLM + env 的 base URL 重写指向本地（hermetic）
+	oldSel, oldEnv := usageSelect, usageEnvOverride
+	usageSelect = func(string) usage.Adapter { return usage.GLMAdapter }
+	usageEnvOverride = func(env map[string]string) map[string]string {
+		e := map[string]string{}
+		for k, v := range env {
+			e[k] = v
+		}
+		e["ANTHROPIC_BASE_URL"] = quota.URL
+		return e
+	}
+	defer func() { usageSelect, usageEnvOverride = oldSel, oldEnv }()
+
+	profile.Ensure("glm", map[string]string{
+		"ANTHROPIC_BASE_URL":   "https://open.bigmodel.cn/api/anthropic",
+		"ANTHROPIC_AUTH_TOKEN": "tok-glm",
+	})
+
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/usage/glm", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out struct {
+		Supported  bool   `json:"supported"`
+		ProviderID string `json:"providerId"`
+		Windows    []struct {
+			Type    string   `json:"type"`
+			Percent *float64 `json:"percent"`
+		} `json:"windows"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&out)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || !out.Supported || out.ProviderID != "glm" || len(out.Windows) != 1 || out.Windows[0].Type != "5h" {
+		t.Fatalf("usage = %d %+v", resp.StatusCode, out)
+	}
+	if out.Windows[0].Percent == nil || *out.Windows[0].Percent != 42 {
+		t.Fatalf("5h percent = %+v", out.Windows[0])
+	}
+
+	// 不存在的 provider → 404
+	req404, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/usage/nope", nil)
+	resp404, _ := http.DefaultClient.Do(req404)
+	resp404.Body.Close()
+	if resp404.StatusCode != 404 {
+		t.Fatalf("missing provider status=%d, want 404", resp404.StatusCode)
 	}
 }

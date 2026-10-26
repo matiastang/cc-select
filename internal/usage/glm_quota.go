@@ -22,6 +22,9 @@ import (
 //	TOKENS_LIMIT → 5 小时窗口（仅百分比）；TIME_LIMIT → 月度 MCP 用量（仅百分比）。
 type glmQuota struct{}
 
+// GLMAdapter 是 GLM 配额适配器的导出实例（web 层测试注入用）。
+var GLMAdapter Adapter = glmQuota{}
+
 func (glmQuota) ID() string { return "glm" }
 
 func (glmQuota) Match(baseURL string) bool {
