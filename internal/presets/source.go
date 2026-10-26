@@ -140,6 +140,24 @@ func ResetForTest() {
 	resolveState.mu.Unlock()
 }
 
+// SetRemoteDisabled 在用户切换远端预设开关后即时生效（contracts/api.md §2.2）：
+// 关闭 → 立即回落内置并定格 meta；开启 → 清除记忆态，下次 EnsureResolved/Refresh
+// 按缓存 TTL 重新解析（未过期缓存直接复用）。
+func SetRemoteDisabled(disabled bool) {
+	if disabled {
+		reloadBuiltin()
+		resolveState.mu.Lock()
+		resolveState.done = true
+		resolveState.result = SourceMeta{Source: SourceBuiltin}
+		resolveState.mu.Unlock()
+	} else {
+		resolveState.mu.Lock()
+		resolveState.done = false
+		resolveState.result = SourceMeta{}
+		resolveState.mu.Unlock()
+	}
+}
+
 // Meta 返回当前生效的来源（未解析过 = builtin）。API meta 字段真值。
 func Meta() SourceMeta {
 	resolveState.mu.Lock()
@@ -186,7 +204,8 @@ func Refresh(ctx context.Context, opts *ResolveOptions) (SourceMeta, string) {
 	o := defaultResolveOptions(opts)
 
 	if o.Disabled {
-		return currentMeta(o, SourceBuiltin), "disabled"
+		reloadBuiltin()
+		return SourceMeta{Source: SourceBuiltin}, "disabled"
 	}
 
 	data, err := fetchRemote(ctx, o)
@@ -204,18 +223,23 @@ func Refresh(ctx context.Context, opts *ResolveOptions) (SourceMeta, string) {
 
 	meta := SourceMeta{Source: SourceRemote, FetchedAt: &now}
 	resolveState.mu.Lock()
+	resolveState.done = true
 	resolveState.result = meta
 	resolveState.mu.Unlock()
 	return meta, ""
 }
 
 // resolve 实现状态机主体（无记忆语义）。
+// meta 语义（contracts/api.md §1）：remote=本次拉取或新鲜缓存(<24h)；cache=已过期
+// 但仍采用的缓存；builtin=embed 兜底。凡采用某 bundle 都必须 reloadStore 生效。
 func resolve(ctx context.Context, o *ResolveOptions) SourceMeta {
 	if o.Disabled {
+		reloadBuiltin()
 		return SourceMeta{Source: SourceBuiltin}
 	}
 	if cb, ok := readCache(o); ok && o.Now().Sub(cb.fetchedAt) < cacheTTL {
-		return SourceMeta{Source: SourceCache, FetchedAt: &cb.fetchedAt}
+		reloadStore(Bundle{SchemaVersion: SchemaVersion, Presets: cb.bundle.Presets})
+		return SourceMeta{Source: SourceRemote, FetchedAt: &cb.fetchedAt}
 	}
 
 	data, err := fetchRemote(ctx, o)
@@ -230,9 +254,16 @@ func resolve(ctx context.Context, o *ResolveOptions) SourceMeta {
 	}
 	// 拉取/校验失败：缓存（任意年龄）兜底，再不济 builtin。
 	if cb, ok := readCache(o); ok {
+		reloadStore(Bundle{SchemaVersion: SchemaVersion, Presets: cb.bundle.Presets})
 		return SourceMeta{Source: SourceCache, FetchedAt: &cb.fetchedAt}
 	}
 	return SourceMeta{Source: SourceBuiltin}
+}
+
+func reloadBuiltin() {
+	var b Bundle
+	_ = json.Unmarshal(embeddedPresets, &b)
+	reloadStore(b)
 }
 
 func fetchRemote(ctx context.Context, o *ResolveOptions) ([]byte, error) {
@@ -320,9 +351,6 @@ func writeCache(o *ResolveOptions, b loadedBundle) {
 	_ = os.Rename(tmp, o.CachePath)
 }
 
-func currentMeta(o *ResolveOptions, fallback Source) SourceMeta {
-	if cb, ok := readCache(o); ok {
-		return SourceMeta{Source: SourceCache, FetchedAt: &cb.fetchedAt}
-	}
-	return SourceMeta{Source: fallback}
+func currentMeta(*ResolveOptions, Source) SourceMeta {
+	return SourceMeta{Source: SourceBuiltin}
 }

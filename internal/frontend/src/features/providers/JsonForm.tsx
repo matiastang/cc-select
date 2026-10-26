@@ -185,6 +185,8 @@ export function JsonForm(props: JsonFormProps) {
       .then((p) => {
         if (cancelled) return;
         setPresetDetail(p);
+        // 向导（US3）：名称默认取预设名——用户未动过名称时跟随预设切换。
+        setName((prev) => (prev === "" ? p.displayName : prev));
         setSettings((prev) => {
           const prevEnv = prev.env as EnvFieldValues;
           const prevAuthField =
@@ -549,7 +551,7 @@ export function JsonForm(props: JsonFormProps) {
         <Button data-testid="provider-save-button" onClick={submit} disabled={loading}>
           {t("save", { ns: "common" })}
         </Button>
-        <Button variant="secondary" onClick={props.onCancel}>
+        <Button variant="secondary" data-testid="provider-cancel-button" onClick={props.onCancel}>
           {t("cancel", { ns: "common" })}
         </Button>
       </div>

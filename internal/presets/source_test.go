@@ -154,8 +154,13 @@ func TestResolve_UsesFreshCacheWithoutNetwork(t *testing.T) {
 	}
 
 	meta := EnsureResolved(context.Background(), &to.opts)
-	if meta.Source != SourceCache {
-		t.Fatalf("source=%s, want cache", meta.Source)
+	// 契约（contracts/api.md §1）：新鲜缓存(<24h)报告为 remote（来自远端且未过期）。
+	if meta.Source != SourceRemote {
+		t.Fatalf("source=%s, want remote (fresh cache)", meta.Source)
+	}
+	// 缓存 bundle 必须真正生效（H1：曾缺失 reloadStore）。
+	if _, ok := ByID("cached-marker"); !ok {
+		t.Fatal("fresh cache preset should be live in store")
 	}
 }
 
@@ -175,6 +180,9 @@ func TestResolve_StaleCacheStillBeatsFailedFetch(t *testing.T) {
 	meta := EnsureResolved(context.Background(), &to.opts)
 	if meta.Source != SourceCache {
 		t.Fatalf("source=%s, want cache (stale but beats failed fetch)", meta.Source)
+	}
+	if _, ok := ByID("cached-marker"); !ok {
+		t.Fatal("stale cache preset should be live in store")
 	}
 }
 

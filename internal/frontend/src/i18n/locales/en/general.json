@@ -26,6 +26,7 @@
       "fetch_failed": "Remote unreachable — using local presets",
       "invalid_schema": "Remote presets invalid — using local presets",
       "disabled": "Remote presets disabled"
-    }
+    },
+    "refreshFailed": "Refresh failed — check network"
   }
 }

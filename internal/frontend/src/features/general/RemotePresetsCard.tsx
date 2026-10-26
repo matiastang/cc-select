@@ -29,6 +29,14 @@ export function RemotePresetsCard() {
       } catch {
         /* 离线：保持默认展示 */
       }
+      // 徽标初始真值来自 /presets 的 meta（M9：与画廊徽标一致，不再硬编码）。
+      try {
+        const r = await fetch(`${API_BASE}/presets`);
+        const body = (await r.json()) as { meta?: PresetsMeta };
+        if (!cancelled && body.meta) setMeta(body.meta);
+      } catch {
+        /* 同上 */
+      }
     })();
     return () => {
       cancelled = true;
@@ -69,7 +77,7 @@ export function RemotePresetsCard() {
       }
     } catch {
       setWarning("fetch_failed");
-      toast({ kind: "error", message: t("remotePresets.toggleFailed") });
+      toast({ kind: "error", message: t("remotePresets.refreshFailed") });
     } finally {
       setBusy(false);
     }

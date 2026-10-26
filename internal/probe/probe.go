@@ -146,13 +146,16 @@ func SendMessage(ctx context.Context, o *Options, baseURL, authToken, apiKey, mo
 func classify(err error, status int, body string, secrets []string) *ProbeError {
 	msg := func(s string) string {
 		s = strings.TrimSpace(s)
-		if len(s) > 200 {
-			s = s[:200]
-		}
+		// 先脱敏再截断：避免 token 跨截断边界时前缀残段泄露（M4）；
+		// 按 rune 截断避免切开多字节字符。
 		for _, sec := range secrets {
 			if sec != "" {
 				s = strings.ReplaceAll(s, sec, "***")
 			}
+		}
+		runes := []rune(s)
+		if len(runes) > 200 {
+			s = string(runes[:200])
 		}
 		return s
 	}
@@ -194,12 +197,4 @@ func fail(kind ErrorKind, msg string) Result {
 
 func secrets(authToken, apiKey string) []string {
 	return []string{authToken, apiKey}
-}
-
-// defaultModelFor 暴露给测试验证官方兜底逻辑。
-func defaultModelFor(baseURL string) string {
-	if baseURL == "" {
-		return OfficialDefaultModel
-	}
-	return ""
 }

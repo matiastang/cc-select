@@ -26,6 +26,7 @@
       "fetch_failed": "远端不可达——已回落本地预设",
       "invalid_schema": "远端预设校验失败——已回落本地预设",
       "disabled": "远端预设已关闭"
-    }
+    },
+    "refreshFailed": "刷新失败——请检查网络"
   }
 }

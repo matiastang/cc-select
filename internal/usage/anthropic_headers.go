@@ -25,11 +25,15 @@ func (anthropicHeaders) Match(string) bool { return true } // 兜底恒匹配
 
 func (anthropicHeaders) Query(ctx context.Context, env map[string]string, opts *probe.Options) (*Report, error) {
 	baseURL := strings.TrimSpace(env["ANTHROPIC_BASE_URL"])
+	if baseURL == "" {
+		// 官方形态（contracts/api.md §2.4）：无自定义 base → 探测官方端点。
+		baseURL = probe.OfficialBaseURL
+	}
 	token := strings.TrimSpace(env["ANTHROPIC_AUTH_TOKEN"])
 	apiKey := strings.TrimSpace(env["ANTHROPIC_API_KEY"])
 	model := strings.TrimSpace(env["ANTHROPIC_MODEL"])
 	if model == "" {
-		model = "claude-sonnet-4-5" // 探测用模型：只读响应头，不影响计费语义
+		model = probe.OfficialDefaultModel // 探测用模型：只读响应头
 	}
 
 	status, header, _, err := probe.SendMessage(ctx, opts, baseURL, token, apiKey, model)

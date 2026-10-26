@@ -2,7 +2,6 @@ package probe
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -125,27 +124,6 @@ func TestProbe_MissingRequirements(t *testing.T) {
 	if res := Probe(context.Background(), env, nil); res.Error == nil || res.Error.Kind != "invalid" {
 		t.Fatalf("want invalid (missing model), got %+v", res)
 	}
-}
-
-func TestProbe_OfficialDefaultModel(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var body map[string]any
-		_ = json.NewDecoder(r.Body).Decode(&body)
-		if body["model"] != OfficialDefaultModel {
-			t.Errorf("model=%v, want official default", body["model"])
-		}
-		_, _ = w.Write([]byte(`{}`))
-	}))
-	defer srv.Close()
-
-	// 官方形态：env 显式指向测试服务（等价官方：无自定义模型时的兜底逻辑）
-	env := map[string]string{"ANTHROPIC_AUTH_TOKEN": "sk"}
-	// OfficialBaseURL 常量不可注入 → 直接验证 defaultModelFor
-	if got := defaultModelFor(""); got != OfficialDefaultModel {
-		t.Errorf("defaultModelFor('')=%q, want %q", got, OfficialDefaultModel)
-	}
-	_ = srv
-	_ = env
 }
 
 func TestProbe_ErrorMessagesStripToken(t *testing.T) {

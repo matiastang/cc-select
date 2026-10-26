@@ -86,6 +86,10 @@ func Validate(data []byte) error {
 		if err := checkPlaceholders(p, i); err != nil {
 			return err
 		}
+		// 宪法 VI：预设决定 token 去向——env 模板里的 base URL 若非空必须 https。
+		if base := p.EnvTemplate["ANTHROPIC_BASE_URL"]; base != "" && !strings.HasPrefix(base, "https://") {
+			return fmt.Errorf("presets[%d] %q: envTemplate ANTHROPIC_BASE_URL must be https", i, p.ID)
+		}
 	}
 	return nil
 }

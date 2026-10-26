@@ -177,6 +177,8 @@ func (h *apiHandler) handleRemotePresets(w http.ResponseWriter, r *http.Request)
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
 		}
+		// contracts/api.md §2.2：开关在本进程内即时生效（关闭→回落 builtin）。
+		presets.SetRemoteDisabled(!*body.Enabled)
 		writeJSON(w, http.StatusOK, map[string]bool{"enabled": *body.Enabled})
 	default:
 		w.Header().Set("Allow", "GET, PUT")
@@ -268,6 +270,8 @@ func (h *apiHandler) handleUsage(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "read provider env: "+err.Error())
 		return
 	}
+	// 钥匙串开启时 env 真值是 $keychain: 占位——解析后再探测，否则必然 401。
+	env = profile.ResolveKeychainEnv(env)
 
 	adapter := usageSelect(env["ANTHROPIC_BASE_URL"])
 	queryEnv := env
