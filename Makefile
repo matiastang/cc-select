@@ -51,6 +51,9 @@ test:
 	go test ./internal/...
 
 # 集成测试（跨进程 shell 行为，仅 Unix）。
+# desktop（wails/darwin+linux）需要 CGO——本目标内局部放开（全局 export CGO_ENABLED=0
+# 的例外；CI 直接跑 go test 不经 make，不受影响。specs/004 T024 回归发现的既有缺口）。
+integration: export CGO_ENABLED=1
 integration:
 	go test -tags integration ./...
 
