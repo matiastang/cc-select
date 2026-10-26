@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "0.1.0"
+	},
+	"info": {
+		"0409": {
+			"ProductVersion": "0.1.0",
+			"CompanyName": "matiastang",
+			"FileDescription": "A CC Select application",
+			"LegalCopyright": "© 2026, matiastang",
+			"ProductName": "CC Select",
+			"Comments": "cc-select 桌面客户端"
+		}
+	}
+}

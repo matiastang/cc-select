@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=CC Select
+Comment=A CC Select application
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/CC Select %u
+Terminal=false
+Type=Application
+Icon=CC Select
+Categories=Utility;
+StartupWMClass=CC Select
+
+ 

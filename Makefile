@@ -156,7 +156,7 @@ desktop-package: desktop-build
 		echo "wails3 CLI not found. Install: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.34"; \
 		exit 1; \
 	fi
-	CGO_ENABLED=1 wails3 task -d desktop package
+	CGO_ENABLED=1 wails3 task -dir desktop package
 
 desktop-clean:
 	rm -rf bin/cc-select-desktop$(GOEXE) desktop/assets/cli/cc-select$(GOEXE) desktop/build/bin
