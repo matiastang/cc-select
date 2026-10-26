@@ -5,9 +5,12 @@
 package presets
 
 import (
+	_ "embed"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"sort"
+	"sync"
 )
 
 // APIFormat 表示 Claude Code 侧使用的请求协议格式。
@@ -58,263 +61,54 @@ const (
 // placeholder 匹配 ${VAR} 语法，用于模板中标记用户必填项。
 var placeholder = regexp.MustCompile(`\$\{([A-Za-z0-9_]+)\}`)
 
-// builtin 是编译进二进制的预设表。顺序即展示顺序。
-var builtin = []Preset{
-	{
-		ID:          "claude-official",
-		DisplayName: "Claude 官方",
-		Category:    CategoryOfficial,
-		WebsiteURL:  "https://claude.ai",
-		APIFormat:   APIFormatAnthropic,
-		EnvTemplate: map[string]string{},
-		OAuth:       true,
-	},
-	{
-		ID:          "deepseek",
-		DisplayName: "DeepSeek",
-		Category:    CategoryCNOfficial,
-		WebsiteURL:  "https://deepseek.com",
-		APIKeyURL:   "https://platform.deepseek.com",
-		APIFormat:   APIFormatAnthropic,
-		AuthField:   AuthFieldAuthToken,
-		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":             "https://api.deepseek.com/anthropic",
-			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
-			"ANTHROPIC_MODEL":                "deepseek-v4-pro",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "deepseek-v4-flash",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-pro",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "deepseek-v4-pro",
-		},
-		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
-		OptionalVars: []string{"ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL"},
-	},
-	{
-		ID:          "zhipu-glm",
-		DisplayName: "智谱 GLM",
-		Category:    CategoryCNOfficial,
-		WebsiteURL:  "https://open.bigmodel.cn",
-		APIKeyURL:   "https://open.bigmodel.cn/usercenter/apikey",
-		APIFormat:   APIFormatAnthropic,
-		AuthField:   AuthFieldAuthToken,
-		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":             "https://open.bigmodel.cn/api/anthropic",
-			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
-			"ANTHROPIC_MODEL":                "glm-5.1",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "glm-5.1",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5.1",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "glm-5.1",
-		},
-		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
-		OptionalVars: []string{"ANTHROPIC_MODEL"},
-	},
-	{
-		ID:          "zhipu-glm-en",
-		DisplayName: "Zhipu GLM (en)",
-		Category:    CategoryCNOfficial,
-		WebsiteURL:  "https://api.z.ai",
-		APIKeyURL:   "https://api.z.ai/settings",
-		APIFormat:   APIFormatAnthropic,
-		AuthField:   AuthFieldAuthToken,
-		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":             "https://api.z.ai/api/anthropic",
-			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
-			"ANTHROPIC_MODEL":                "glm-5.1",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "glm-5.1",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5.1",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "glm-5.1",
-		},
-		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
-		OptionalVars: []string{"ANTHROPIC_MODEL"},
-	},
-	{
-		ID:          "kimi",
-		DisplayName: "Kimi",
-		Category:    CategoryCNOfficial,
-		WebsiteURL:  "https://www.moonshot.cn",
-		APIKeyURL:   "https://platform.moonshot.cn/console/api-keys",
-		APIFormat:   APIFormatAnthropic,
-		AuthField:   AuthFieldAuthToken,
-		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":             "https://api.moonshot.cn/anthropic",
-			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
-			"ANTHROPIC_MODEL":                "kimi-k2.7-code",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "kimi-k2.7-code",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL": "kimi-k2.7-code",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "kimi-k2.7-code",
-		},
-		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
-		OptionalVars: []string{"ANTHROPIC_MODEL"},
-	},
-	{
-		ID:          "kimi-coding",
-		DisplayName: "Kimi For Coding",
-		Category:    CategoryCNOfficial,
-		WebsiteURL:  "https://www.moonshot.cn",
-		APIKeyURL:   "https://platform.moonshot.cn/console/api-keys",
-		APIFormat:   APIFormatAnthropic,
-		AuthField:   AuthFieldAuthToken,
-		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":             "https://api.kimi.com/coding/",
-			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
-			"ANTHROPIC_MODEL":                "kimi-k2.7-code",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "kimi-k2.7-code",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL": "kimi-k2.7-code",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "kimi-k2.7-code",
-		},
-		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
-		OptionalVars: []string{"ANTHROPIC_MODEL"},
-	},
-	{
-		ID:          "openrouter",
-		DisplayName: "OpenRouter",
-		Category:    CategoryAggregator,
-		WebsiteURL:  "https://openrouter.ai",
-		APIKeyURL:   "https://openrouter.ai/keys",
-		APIFormat:   APIFormatAnthropic,
-		AuthField:   AuthFieldAuthToken,
-		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":             "https://openrouter.ai/api",
-			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
-			"ANTHROPIC_MODEL":                "anthropic/claude-sonnet-5",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "anthropic/claude-haiku-4.5",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL": "anthropic/claude-sonnet-5",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "anthropic/claude-opus-4.8",
-		},
-		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
-		OptionalVars: []string{"ANTHROPIC_MODEL"},
-	},
-	{
-		ID:          "siliconflow",
-		DisplayName: "SiliconFlow",
-		Category:    CategoryAggregator,
-		WebsiteURL:  "https://siliconflow.cn",
-		APIKeyURL:   "https://cloud.siliconflow.cn/account/ak",
-		APIFormat:   APIFormatAnthropic,
-		AuthField:   AuthFieldAuthToken,
-		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":             "https://api.siliconflow.cn",
-			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
-			"ANTHROPIC_MODEL":                "Pro/MiniMaxAI/MiniMax-M2.7",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "Pro/MiniMaxAI/MiniMax-M2.7",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL": "Pro/MiniMaxAI/MiniMax-M2.7",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "Pro/MiniMaxAI/MiniMax-M2.7",
-		},
-		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
-		OptionalVars: []string{"ANTHROPIC_MODEL"},
-	},
-	{
-		ID:          "volcano-agentplan",
-		DisplayName: "火山 Agentplan",
-		Category:    CategoryCNOfficial,
-		WebsiteURL:  "https://www.volcengine.com/product/ark",
-		APIKeyURL:   "https://console.volcengine.com/ark/apiKey",
-		APIFormat:   APIFormatAnthropic,
-		AuthField:   AuthFieldAuthToken,
-		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":             "https://ark.cn-beijing.volces.com/api/coding",
-			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
-			"ANTHROPIC_MODEL":                "ark-code-latest",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "ark-code-latest",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL": "ark-code-latest",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "ark-code-latest",
-		},
-		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
-		OptionalVars: []string{"ANTHROPIC_MODEL"},
-	},
-	{
-		ID:          "aws-bedrock-aksk",
-		DisplayName: "AWS Bedrock (AKSK)",
-		Category:    CategoryCloud,
-		WebsiteURL:  "https://aws.amazon.com/bedrock",
-		APIFormat:   APIFormatAnthropic,
-		AuthField:   AuthFieldAuthToken,
-		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":             "https://bedrock-runtime.${AWS_REGION}.amazonaws.com",
-			"ANTHROPIC_AUTH_TOKEN":           "${API_KEY}",
-			"AWS_ACCESS_KEY_ID":              "${AWS_ACCESS_KEY_ID}",
-			"AWS_SECRET_ACCESS_KEY":          "${AWS_SECRET_ACCESS_KEY}",
-			"AWS_REGION":                     "${AWS_REGION}",
-			"ANTHROPIC_MODEL":                "global.anthropic.claude-opus-4-8",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "global.anthropic.claude-haiku-4.5-20251001-v1:0",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL": "global.anthropic.claude-sonnet-5",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "global.anthropic.claude-opus-4-8",
-			"CLAUDE_CODE_USE_BEDROCK":        "1",
-		},
-		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"},
-		OptionalVars: []string{"ANTHROPIC_MODEL", "AWS_REGION"},
-	},
-	{
-		ID:          "aws-bedrock-apikey",
-		DisplayName: "AWS Bedrock (API Key)",
-		Category:    CategoryCloud,
-		WebsiteURL:  "https://aws.amazon.com/bedrock",
-		APIFormat:   APIFormatAnthropic,
-		AuthField:   AuthFieldAPIKey,
-		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":             "https://bedrock-runtime.${AWS_REGION}.amazonaws.com",
-			"ANTHROPIC_API_KEY":              "${API_KEY}",
-			"AWS_REGION":                     "${AWS_REGION}",
-			"ANTHROPIC_MODEL":                "global.anthropic.claude-opus-4-8",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "global.anthropic.claude-haiku-4.5-20251001-v1:0",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL": "global.anthropic.claude-sonnet-5",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "global.anthropic.claude-opus-4-8",
-			"CLAUDE_CODE_USE_BEDROCK":        "1",
-		},
-		RequiredVars: []string{"ANTHROPIC_API_KEY", "AWS_REGION"},
-		OptionalVars: []string{"ANTHROPIC_MODEL", "AWS_REGION"},
-	},
-	{
-		ID:          "github-copilot",
-		DisplayName: "GitHub Copilot",
-		Category:    CategoryThirdParty,
-		WebsiteURL:  "https://github.com/copilot",
-		APIFormat:   APIFormatOpenAIChat,
-		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":             "https://api.githubcopilot.com",
-			"ANTHROPIC_MODEL":                "claude-sonnet-5",
-			"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "claude-haiku-4.5",
-			"ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-5",
-			"ANTHROPIC_DEFAULT_OPUS_MODEL":   "claude-sonnet-5",
-		},
-		OAuth:        true,
-		RequiredVars: []string{},
-	},
-	{
-		ID:          "custom",
-		DisplayName: "自定义配置",
-		Category:    CategoryCustom,
-		APIFormat:   APIFormatAnthropic,
-		AuthField:   AuthFieldAuthToken,
-		EnvTemplate: map[string]string{
-			"ANTHROPIC_BASE_URL":   "",
-			"ANTHROPIC_AUTH_TOKEN": "${API_KEY}",
-			"ANTHROPIC_MODEL":      "",
-		},
-		RequiredVars: []string{"ANTHROPIC_AUTH_TOKEN"},
-		OptionalVars: []string{"ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL"},
-	},
-}
+//go:embed presets.json
+var embeddedPresets []byte
 
-// byID 是 built-in 表的索引，init 时构建以保证查找性能。
-var byID map[string]Preset
+// store 是当前生效的预设表。进程启动时加载 embed 的 presets.json；
+// reloadStore 供远端预设（specs/004 US5）整包热替换——校验通过才可调用。
+var (
+	storeMu sync.RWMutex
+	store   []Preset
+	storeID map[string]Preset
+)
+
+func reloadStore(b Bundle) {
+	index := make(map[string]Preset, len(b.Presets))
+	for _, p := range b.Presets {
+		index[p.ID] = p
+	}
+	storeMu.Lock()
+	store = b.Presets
+	storeID = index
+	storeMu.Unlock()
+}
 
 func init() {
-	byID = make(map[string]Preset, len(builtin))
-	for _, p := range builtin {
-		byID[p.ID] = p
+	// embed 文件随仓库走 CI 校验（presets-lint）；不合法即编译期资产损坏，panic 最响亮。
+	if err := Validate(embeddedPresets); err != nil {
+		panic("presets: embedded presets.json invalid: " + err.Error())
 	}
+	var b Bundle
+	if err := json.Unmarshal(embeddedPresets, &b); err != nil {
+		panic("presets: embedded presets.json unparseable: " + err.Error())
+	}
+	reloadStore(b)
 }
 
-// All 返回所有内置 preset 的副本。顺序与内置表一致。
+// All 返回当前生效 preset 的副本（顺序即 bundle 内顺序）。
 func All() []Preset {
-	out := make([]Preset, len(builtin))
-	copy(out, builtin)
+	storeMu.RLock()
+	defer storeMu.RUnlock()
+	out := make([]Preset, len(store))
+	copy(out, store)
 	return out
 }
 
 // ByID 按 id 查找 preset。
 func ByID(id string) (Preset, bool) {
-	p, ok := byID[id]
+	storeMu.RLock()
+	defer storeMu.RUnlock()
+	p, ok := storeID[id]
 	return p, ok
 }
 
@@ -330,7 +124,7 @@ func Categories() []Category {
 		CategoryCustom,
 	}
 	seen := map[Category]struct{}{}
-	for _, p := range builtin {
+	for _, p := range All() {
 		seen[p.Category] = struct{}{}
 	}
 	out := make([]Category, 0, len(seen))
@@ -345,7 +139,7 @@ func Categories() []Category {
 // AllByCategory 按分类分组返回 preset。
 func AllByCategory() map[Category][]Preset {
 	out := make(map[Category][]Preset)
-	for _, p := range builtin {
+	for _, p := range All() {
 		out[p.Category] = append(out[p.Category], p)
 	}
 	return out
