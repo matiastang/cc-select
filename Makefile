@@ -58,9 +58,11 @@ integration:
 e2e:
 	cd internal/frontend && npm run test:e2e
 
-# 静态检查。
+# 静态检查。CGO 显式开回 1：desktop 依赖 wails，其 darwin/linux 平台文件需 cgo 才能通过
+# 类型检查（全局 CGO_ENABLED=0 会让 go vet 报 wails 内部 undefined 符号）。
+# Windows 上 wails 走 syscall 无 cgo 文件，无 C 工具链也不受影响；CLI 构建仍走全局 CGO=0。
 vet:
-	go vet ./...
+	CGO_ENABLED=1 go vet ./...
 
 # 安装脚本语法检查（shellcheck 优先，否则 sh -n；Windows 脚本用 PowerShell Tokenize 校验）。
 scripts-check:
