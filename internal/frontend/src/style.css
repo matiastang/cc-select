@@ -1,3 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+ * 设计 token 层（contracts/frontend §2）——唯一颜色/圆角/阴影真值。
+ * Tailwind 语义类经 tailwind.config.ts 映射消费；组件禁止裸色值。
+ * 既有过渡样式块（下方非 @layer 区）随基件重写逐步退役。
+ * ========================================================================== */
 :root {
   --bg: #f6f7f9;
   --card: #ffffff;
@@ -18,6 +27,10 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
   --focus-ring: 0 0 0 2px rgba(47, 111, 235, 0.3);
   --transition-fast: 120ms ease;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", sans-serif;
+  --font-mono: "SF Mono", "Cascadia Code", Consolas, monospace;
 }
 
 /* 用户未手动选择主题时，跟随系统偏好。 */
