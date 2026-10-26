@@ -9,6 +9,8 @@ import (
 	"context"
 	"errors"
 	"log"
+	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -41,13 +43,21 @@ func main() {
 	updaterRef := &updaterHolder{}     // app.Updater 是 application.New 的产物，handler 构造先于其存在，惰性绑定
 	autostartRef := &autostartHolder{} // AutostartManager 同理（US5）
 
+	// macOS 通知中心要求 bundle identifier——裸二进制（非 .app 内运行，如
+	// `./bin/cc-select-desktop`）注册通知服务会在启动期失败并整个退出。
+	// 该形态跳过注册，通知静默降级（SendNotification 的错误调用方均已忽略）。
+	var services []application.Service
+	if notificationsSupported() {
+		services = append(services, application.NewService(notifier))
+	}
+
 	var window *application.WebviewWindow
 	var tray *trayController
 
 	app := application.New(application.Options{
 		Name:        "CC Select",
 		Description: "cc-select 桌面客户端",
-		Services:    []application.Service{application.NewService(notifier)},
+		Services:    services,
 		Assets: application.AssetOptions{
 			Handler: newBridge(web.Handler(), newUpdateBridge(appVersion, updaterRef), newDesktopAPI(desktopAPIOptions{
 				AppVersion:         appVersion,
@@ -94,6 +104,19 @@ func main() {
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// notificationsSupported 报告当前运行形态能否初始化系统通知服务。
+// darwin 通知需 App bundle；Windows/Linux 无此约束。
+func notificationsSupported() bool {
+	if runtime.GOOS != "darwin" {
+		return true
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return false
+	}
+	return strings.Contains(exe, ".app/Contents/MacOS/")
 }
 
 // updaterHolder 让更新桥在 application.New 之前就能构造（svc 稍后绑定为 app.Updater）。
