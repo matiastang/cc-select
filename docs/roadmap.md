@@ -18,6 +18,7 @@
 | **6. key 安全** | key 迁入系统 Keychain（[R7](./requirements.md#隐含-派生需求)）。 | R7 | [engineering §5](./engineering-decisions.md#5-api-key-安全满足-r7) | [验收 - 安全](./acceptance-tests.md) | 🟡 部分完成：keychain 抽象与占位机制已实现，但 CLI/Web 写入路径仍为明文 |
 | **7. PS1 集成** | `init` 自动注入提示符 hook，显示当前 provider。 | R6 | [engineering §4](./engineering-decisions.md#4-提示符可视化满足-r6) | [验收 - 可视化](./acceptance-tests.md) | ⏳ 未开始 |
 | **8. 跨 shell** | 在 zsh/bash/PowerShell 基础上扩展 fish 的 wrapper（init 按 shell 分发）。 | R2（扩展） | [cli-design](./cli-design.md) | [验收 - 多 shell](./acceptance-tests.md) | 🟡 部分完成：zsh/bash 共用 emitter、PowerShell emitter 已实现；fish 未支持 |
+| **10. UI/UX 改版与快速上手（v0.1.1）** | 单一前端双形态重构：模块化导航 + shadcn/ui 设计系统；预设画廊 + 三步向导 + MiniMax/通义千问预设 + 远端热更新；连通性测试；R11 限额查询（5h/周窗口，仅手动刷新）。 | R11 / Q14–Q21 | [specs/004](../specs/004-ui-ux-redesign/) | [验收 - AC19](./acceptance-tests.md#ac19-uiux-改版与快速上手v011-r11specs-004-ui-ux-redesign) | ✅ 已完成 |
 | **9. 跨平台完善** | macOS/Linux/Windows 全覆盖；尤其 Windows 的环境变量隔离机制单独评估。 | Q6 | [architecture §3.1](./architecture.md#31-跨平台约束满足-q6macoslinuxwindows) | [验收 - 多 shell](./acceptance-tests.md) | 🟡 部分完成：PowerShell emitter、`$PROFILE` 写入（含 BOM/加载）与 CI 集成测试已实现；fish 未支持 |
 
 ---

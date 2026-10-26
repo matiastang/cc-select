@@ -27,6 +27,7 @@
 |---|---|
 | 桌面框架 | **Tauri 2**（Rust 后端 + Web 前端，单二进制打包，非 Electron） |
 | 前端 | React 18 + TypeScript，Vite 构建 |
+| 前端设计系统（Q14，2026-10-26） | **shadcn/ui 模式**：Radix 无头原语 + Tailwind CSS 3.4（Safari 15 基线，v4 待 webview 基线抬高再评估）+ lucide-react；组件源码自有于 `internal/frontend/src/components/ui/`；设计 token 单源于 CSS 变量层（specs/004 contracts/frontend） |
 | UI | Radix UI + Tailwind CSS + CodeMirror（JSON 配置编辑器） |
 | 数据/状态 | TanStack Query、Tauri plugin-store、plugin-updater（自动更新） |
 | 构建/测试 | pnpm + Vite + Vitest |

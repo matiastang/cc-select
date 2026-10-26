@@ -352,3 +352,22 @@
 
 **判定**：桌面开箱即配置（同数据同前端）；CLI 安装四态完整；更新一键完成且失败不损坏；托盘零状态变更（R1）；自启失败整体回滚；既有功能零回归。
 **已知限制**（非缺陷）：macOS 首发未签名（右键打开，A2）；`wails3 dev` 热重载模式下 Desktop 专属端点不可达（见 desktop/README.md 边界说明）；Windows/Linux 人工冒烟依赖 CI 产物。
+
+## AC19. UI/UX 改版与快速上手（v0.1.1 / R11：specs/004-ui-ux-redesign）
+
+> 需求见 [requirements.md v0.1.1](./requirements.md)；spec/契约见 [specs/004](../specs/004-ui-ux-redesign/)。
+> 双形态（`ccs gui` 与 Wails 桌面）同源验证；自动化 = Go 单测 + vitest + Playwright（19 用例）。
+
+| 步骤 | 预期 |
+|---|---|
+| 1. 打开 GUI（web/桌面两形态） | 侧边栏六模块导航（web 无「桌面端」）；窄于 880px 折叠为顶部 tab；深浅色三态无破色（US1/US2；自动化：navigation.spec + AppShell/overlay 用例） |
+| 2. 首页仅官方 provider | 空状态引导出现，CTA 打开预设画廊（FR-007；自动化：ui-extras.spec） |
+| 3. 画廊选 MiniMax → 填 API key → 保存 | ≤3 步建 provider，全程零 JSON；高级配置默认折叠（US3/SC-001；自动化：add-wizard vitest + providers.spec 画廊流） |
+| 4. 画廊/通用模块查看预设来源 | 徽标显示 内置/缓存/远端 与更新时间；「刷新预设」手动拉取，失败回落并提示（US5；自动化：source 四情形单测 + RemotePresetsCard 用例） |
+| 5. 通用模块关闭远端预设 | 立即回落内置且零网络请求；再开启按缓存复用（FR-014；自动化：开关单测 + prefs 往返） |
+| 6. 向导 Step1 点「测试连接」 | 未填 key 禁用；错 key 显示认证失败分类，成功显示延迟与模型回显（US6；自动化：probe 分类单测 + ProbeButton 用例） |
+| 7. provider 卡片「刷新用量」 | GLM 显示 5h 窗口百分比（percent-only）；Kimi 开放平台显示余额；无头服务商显示「不支持查询」占位；错误可重试（US7/R11；自动化：usage 适配器单测 + UsagePanel 用例） |
+| 8. 三平台桌面产物走查 | 六模块 + 深浅色 + 向导全流程正常（FR-022/023；quickstart §4 人工清单——发布门禁） |
+
+**判定**：导航模块化且 web/桌面同源；添加 ≤3 步；远端预设四情形（更新/不可达/损坏/禁用）行为正确；探测与限额查询仅手动触发、token 不出后端、错误脱敏；既有 12 条 v0.0.x 用例零回归。
+**已知限制**（非缺陷）：GLM/Kimi 配额端点无官方 SLA（spec 收缩条款）；usage 头探测对未透传限流头的服务商如实显示不支持。
