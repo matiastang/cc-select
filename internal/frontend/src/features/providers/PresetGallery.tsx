@@ -14,6 +14,7 @@ import {
   CUSTOM_PRESET_ID,
   Preset,
   PresetCategory,
+  PresetsMeta,
   fetchPresets,
   groupPresetsByCategory,
 } from "../../presets/presets";
@@ -30,6 +31,7 @@ export function PresetGallery({ open, onPick, onClose }: PresetGalleryProps) {
   const { t } = useTranslation("providers");
   const [presets, setPresets] = useState<Preset[]>([]);
   const [categories, setCategories] = useState<PresetCategory[]>([]);
+  const [meta, setMeta] = useState<PresetsMeta | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -41,6 +43,7 @@ export function PresetGallery({ open, onPick, onClose }: PresetGalleryProps) {
         if (cancelled) return;
         setPresets(r.presets);
         setCategories(r.categories);
+        setMeta(r.meta ?? null);
       })
       .catch(() => {
         if (!cancelled) {
@@ -62,7 +65,17 @@ export function PresetGallery({ open, onPick, onClose }: PresetGalleryProps) {
     <Dialog open={open} onOpenChange={(next) => (!next ? onClose() : undefined)}>
       <DialogContent className="w-[min(94vw,680px)]">
         <DialogHeader>
-          <DialogTitle>{t("gallery.title")}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            {t("gallery.title")}
+            {meta && (
+              <Badge
+                variant={meta.source === "remote" ? "success" : "muted"}
+                data-testid="presets-source-badge"
+              >
+                {t(`gallery.source.${meta.source}`)}
+              </Badge>
+            )}
+          </DialogTitle>
           <DialogDescription>{t("gallery.subtitle")}</DialogDescription>
         </DialogHeader>
 

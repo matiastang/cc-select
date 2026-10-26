@@ -108,7 +108,12 @@
     "subtitle": "Pick a provider — API key is usually the only thing you need.",
     "loading": "Loading presets…",
     "customName": "Custom configuration",
-    "customDesc": "Fill in everything manually (advanced)"
+    "customDesc": "Fill in everything manually (advanced)",
+    "source": {
+      "builtin": "built-in",
+      "cache": "cached",
+      "remote": "remote"
+    }
   },
   "wizard": {
     "basic": "Basic",

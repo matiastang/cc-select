@@ -9,8 +9,23 @@
     "helper": "CLI 与 GUI 的界面语言。"
   },
   "remotePresets": {
-    "title": "远端预设",
-    "helper": "从官方仓库拉取最新的服务商预设。",
-    "enabled": "启用远端预设"
+    "enabledOn": "远端预设已启用",
+    "enabledOff": "远端预设已关闭——使用内置预设",
+    "toggleFailed": "操作失败",
+    "refreshed": "预设已刷新",
+    "refresh": "刷新预设",
+    "refreshing": "刷新中…",
+    "fetchedAt": "更新于 {{time}}",
+    "neverFetched": "从未拉取远端",
+    "source": {
+      "builtin": "内置",
+      "cache": "缓存",
+      "remote": "远端"
+    },
+    "warning": {
+      "fetch_failed": "远端不可达——已回落本地预设",
+      "invalid_schema": "远端预设校验失败——已回落本地预设",
+      "disabled": "远端预设已关闭"
+    }
   }
 }
