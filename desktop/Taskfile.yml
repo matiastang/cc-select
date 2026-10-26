@@ -39,4 +39,4 @@ tasks:
   dev:
     summary: Runs the application in development mode（/api 经 vite 代理到 ccs gui，需另起 ccs gui）
     cmds:
-      - wails3 dev -d . -config ./build/config.yml -port {{.VITE_PORT}}
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}

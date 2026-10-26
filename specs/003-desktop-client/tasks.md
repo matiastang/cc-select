@@ -33,7 +33,7 @@ description: "Task list for feature implementation"
 - [x] T001 在 go.mod 引入并锁定 `github.com/wailsapp/wails/v3 v3.0.0-beta.34`（`go get`+`go mod tidy`，确认根 `main.go` CLI 构建不受影响）
 - [x] T002 [P] 创建 `desktop/` 包骨架（`package main` 占位 main.go、`assets/` 目录与 `.gitignore`（忽略构建期拷入的 CLI 二进制））per plan.md
 - [x] T003 [P] Makefile 新增 `desktop-build` / `desktop-package` / `desktop-clean` 目标（依赖链：frontend → CLI → 拷贝 `bin/cc-select-*` 至 `desktop/assets/cli/` → `wails3 build`；不污染既有 `build`）
-- [ ] T004 [P] 配置 `desktop/` 的 wails3 构建 Task 文件与图标资源（app icon / tray icon 占位）
+- [x] T004 [P] 配置 `desktop/` 的 wails3 构建 Task 文件与图标资源（app icon / tray icon 占位）
 
 ---
 
@@ -62,8 +62,8 @@ description: "Task list for feature implementation"
 
 - [x] T009 [US1] 实现 `desktop/main.go` 应用装配：`application.New`（窗口 + `AssetServer{Assets: internal/web.AssetsFS(), Handler: desktop.NewBridge(...)}` + 生命周期），版本经 ldflags 注入 `internal/version.Version`（research R1）
 - [x] T010 [US1] 单实例：v3 SingleInstance 配置，二次启动回调聚焦既有窗口（FR-011，research R6）
-- [ ] T011 [US1] `wails3 dev` 开发流打通（dev server 指向 vite；quickstart §1 命令实测可用，差异写入 desktop/README.md）
-- [ ] T012 [US1] 验证检查点：跑 quickstart §2 Story 1 手工脚本 + 全量回归（`make check && make test && make e2e`，FR-003/SC-003 零回归证明）
+- [x] T011 [US1] `wails3 dev` 开发流打通（dev server 指向 vite；quickstart §1 命令实测可用，差异写入 desktop/README.md）
+- [x] T012 [US1] 验证检查点：跑 quickstart §2 Story 1 手工脚本 + 全量回归（`make check && make test && make e2e`，FR-003/SC-003 零回归证明）
 
 **Checkpoint**: MVP 成立——桌面形态独立交付价值
 
