@@ -47,6 +47,33 @@ type Prefs struct {
 	// 产品决策 2026-08-29：不擅自改写用户设置的明文）。开启后：存量迁移 + 后续
 	// 保存路径自动占位化。
 	KeychainEnabled bool `json:"keychainEnabled,omitempty"`
+	// Desktop 是桌面端（Wails，v0.1.0）偏好；nil 表示「从未设置」，LoadDesktop 归一为默认。
+	// 旧版 CLI 读到该未知字段会忽略（encoding/json 行为），双向向后兼容。
+	Desktop *DesktopPrefs `json:"desktop,omitempty"`
+}
+
+// DesktopPrefs 是桌面端偏好（specs/003-desktop-client data-model §1.1）。
+// 三个布尔均显式落盘（不 omitempty）：非 nil 结构体即权威值，显式 false 必须可持久。
+type DesktopPrefs struct {
+	// TrayResident：关闭主窗口时驻留托盘（默认 true）；false = 关窗即退出。
+	TrayResident bool `json:"trayResident"`
+	// AutoStart：登录自启（默认 false）。
+	AutoStart bool `json:"autoStart"`
+	// AutoUpdateCheck：启动时静默检查更新（默认 true）。
+	AutoUpdateCheck bool `json:"autoUpdateCheck"`
+}
+
+// DefaultDesktopPrefs 返回桌面偏好的默认值。
+func DefaultDesktopPrefs() DesktopPrefs {
+	return DesktopPrefs{TrayResident: true, AutoStart: false, AutoUpdateCheck: true}
+}
+
+// LoadDesktop 返回归一化后的桌面偏好：Desktop==nil（未设置）时给默认值。
+func (p *Prefs) LoadDesktop() DesktopPrefs {
+	if p.Desktop == nil {
+		return DefaultDesktopPrefs()
+	}
+	return *p.Desktop
 }
 
 // NormalizeLanguage validates and normalizes the stored language preference.
