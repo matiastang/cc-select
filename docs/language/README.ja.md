@@ -182,6 +182,18 @@ claude --continue      # 完全なコンテキストで直近のセッション�
 
 **Mode P では終了すら不要です**：実行中のセッション内で `cc-select route switch <provider>` を実行するだけ（Claude Code 内では `!` プレフィックス）——以降のリクエストは新しいプロバイダー経由で、v0.0.7 からは `/model` リストも再起動なしで追従します。
 
+## Claude Code の `!` 内で `ccs` が使えないのはなぜ？
+
+`ccs` は `cc-select init` がシェルの起動ファイル（`.zshrc` / `.bashrc` / `$PROFILE`）に注入する**シェル関数**であり、それを読み込んだ対話シェルにしか存在しません。Claude Code の `!` プレフィックスのコマンドは**非対話の bash**（Windows では Git Bash）で実行され、起動ファイルを読み込みません。そのため `ccs: command not found` になります。これは本プロジェクトが wrapper 設計を採る理由と同じ Unix の制約です：子プロセスからシェルに関数を注入することはできません。
+
+Claude Code 内（および非対話シェル / スクリプト）では、バイナリを直接呼び出してください：
+
+```bash
+! cc-select route switch glm
+```
+
+`route` 系サブコマンドは wrapper なしでの動作を前提に設計されており、ルーティングテーブルを書き換えるだけで eval 文は出力しません。なお、この文脈では `cc-select use <id>` は export 文を表示するだけで効果がありません——起動済みの Claude Code プロセスの環境を後から変えることは設計上不可能です。セッション内での切り替えには Mode P の `route switch` を使ってください。
+
 ## セキュリティに関する注意
 
 API キーは現在、`~/.cc-select/profiles/<id>/settings.json` に**平文**で保存されています（ファイル権限 `0600`、ディレクトリ権限 `0700`）。リスクレベルは `~/.claude/settings.json` と同じです。例外：Mode P では profile ファイルにはローカルプロキシアドレスのみが入り——実トークンは `providers.json` にあり、ルーティング daemon が使用します（keychain プレースホルダー対応）。今後、システム Keychain への対応を予定しています。keychain プレースホルダー機構と `internal/secrets` パッケージはすでに実装済みで、CLI/Web の書き込みパスに接続する予定です。

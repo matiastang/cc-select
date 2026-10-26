@@ -182,6 +182,18 @@ claude --continue      # 带完整上下文继续最近一次会话
 
 **Mode P 下连退出都不用**：在运行中的会话里直接执行 `cc-select route switch <provider>`（在 Claude Code 内用 `!` 前缀）——后续请求即由新 provider 服务，v0.0.7 起 `/model` 列表也随之刷新、无需重启。
 
+## 为什么 Claude Code 的 `!` 里用不了 `ccs`？
+
+`ccs` 是 `cc-select init` 注入到 shell 启动文件（`.zshrc` / `.bashrc` / `$PROFILE`）里的**shell 函数**，只存在于加载过它的交互 shell 中。Claude Code 的 `!` 前缀命令由**非交互 bash**（Windows 上是 Git Bash）执行，不加载任何启动文件，因此报 `ccs: command not found`。这与本项目必须采用 wrapper 设计是同一条 Unix 约束：子进程无法向你的 shell 注入函数。
+
+在 Claude Code 内（以及任何非交互 shell / 脚本中），请直接调用二进制：
+
+```bash
+! cc-select route switch glm
+```
+
+`route` 系列子命令专为免 wrapper 场景设计：只写路由表，不输出 eval 语句。注意此上下文中 `cc-select use <id>` 只会打印 export 语句而不生效——已启动的 Claude Code 进程的环境无法事后改变（设计如此）；会话内切换请用 Mode P 的 `route switch`。
+
 ## 安全说明
 
 API key 目前以**明文**存储在 `~/.cc-select/profiles/<id>/settings.json` 中（文件权限 `0600`，目录权限 `0700`）。风险等级与 `~/.claude/settings.json` 相同。例外：Mode P 下 profile 文件只存本地代理地址——真实 token 在 `providers.json` 中，由路由 daemon 使用（支持 keychain 占位）。后续计划接入系统 Keychain；keychain 占位机制与 `internal/secrets` 包已实现，待接入 CLI/Web 写入路径。

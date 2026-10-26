@@ -182,6 +182,18 @@ This is the documented quota-rescue workflow. Note: it relies on Mode B's shared
 
 **In Mode P you don't even need to quit**: run `cc-select route switch <provider>` inside the running session (from Claude Code, prefix with `!`) — subsequent requests route to the new provider, and since v0.0.7 the `/model` list follows without a restart.
 
+## Why doesn't `ccs` work inside Claude Code's `!`?
+
+`ccs` is a **shell function** injected by `cc-select init` into your shell's startup file (`.zshrc` / `.bashrc` / `$PROFILE`), so it only exists in interactive shells that loaded it. Claude Code's `!` prefix runs commands in a **non-interactive bash** (on Windows: Git Bash), which loads no startup files — hence `ccs: command not found`. This is the same Unix constraint behind the wrapper design itself: a child process cannot inject a function into your shell.
+
+Inside Claude Code (or any non-interactive shell / script), call the binary directly:
+
+```bash
+! cc-select route switch glm
+```
+
+The `route` subcommands are designed to work without the wrapper — they only write the routing table and never emit `eval` statements. Note that `cc-select use <id>` merely prints export statements in this context: the environment of an already-running Claude Code process cannot be changed afterwards by design; for in-session switching use Mode P's `route switch`.
+
 ## Security note
 
 API keys are currently stored **in plaintext** inside `~/.cc-select/profiles/<id>/settings.json` (file permissions `0600`, directory `0700`). This is the same risk level as `~/.claude/settings.json`. Exception: in Mode P a profile file holds only the local proxy address — real tokens live in `providers.json` and are used by the routing daemon (keychain placeholders supported). A keychain-backed storage upgrade is planned; the placeholder mechanism and `internal/secrets` package are already in place.
