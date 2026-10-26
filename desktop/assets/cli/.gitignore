@@ -1,0 +1,3 @@
+# 构建期由 Makefile desktop-build 拷入的 CLI 二进制，不入库（T017 接入）。
+*
+!.gitignore
