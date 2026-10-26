@@ -131,5 +131,25 @@
       "network": "network error",
       "unknown": "unknown error"
     }
+  },
+  "usage": {
+    "title": "Usage limits",
+    "refresh": "Refresh",
+    "refreshing": "Querying…",
+    "unsupported": "This provider does not expose usage limits",
+    "error": "Query failed: {{message}}",
+    "fetchedAt": "at {{time}}",
+    "percentValue": "{{value}}%",
+    "value": "{{used}} / {{limit}}",
+    "resetAt": "resets at {{time}}",
+    "type": {
+      "5h": "5-hour window",
+      "week": "Weekly limit",
+      "day": "Daily limit",
+      "minute-requests": "Requests / min",
+      "minute-tokens": "Tokens / min",
+      "month-mcp": "MCP usage (monthly)",
+      "balance": "Balance"
+    }
   }
 }

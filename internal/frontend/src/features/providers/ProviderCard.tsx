@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Provider } from "../../types";
 import { OFFICIAL_ID } from "../../constants";
 import { Button } from "../../components/ui";
+import { UsagePanel } from "./UsagePanel";
 
 type ProviderCardProps = {
   provider: Provider;
@@ -67,6 +68,7 @@ export function ProviderCard({ provider, onEdit, onDelete }: ProviderCardProps) 
           </>
         )}
       </div>
+      {provider.id !== OFFICIAL_ID && <UsagePanel providerId={provider.id} />}
     </div>
   );
 }

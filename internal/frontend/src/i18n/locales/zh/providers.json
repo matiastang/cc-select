@@ -131,5 +131,25 @@
       "network": "网络错误",
       "unknown": "未知错误"
     }
+  },
+  "usage": {
+    "title": "用量限额",
+    "refresh": "刷新用量",
+    "refreshing": "查询中…",
+    "unsupported": "该服务商不支持限额查询",
+    "error": "查询失败：{{message}}",
+    "fetchedAt": "于 {{time}}",
+    "percentValue": "{{value}}%",
+    "value": "{{used}} / {{limit}}",
+    "resetAt": "{{time}} 重置",
+    "type": {
+      "5h": "5 小时窗口",
+      "week": "周限额",
+      "day": "日限额",
+      "minute-requests": "请求 / 分钟",
+      "minute-tokens": "Token / 分钟",
+      "month-mcp": "MCP 用量（月）",
+      "balance": "余额"
+    }
   }
 }
