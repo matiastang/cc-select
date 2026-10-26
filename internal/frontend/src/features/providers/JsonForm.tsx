@@ -15,6 +15,7 @@ import {
 } from "../../presets/presets";
 import { PresetSelect } from "./PresetSelect";
 import { EnvFieldEditor, EnvFieldValues } from "./EnvFieldEditor";
+import { ProbeButton } from "./ProbeButton";
 import {
   Button,
   Collapsible,
@@ -456,6 +457,23 @@ export function JsonForm(props: JsonFormProps) {
             </Button>
           </div>
         </FormField>
+      )}
+
+      {!loading && !oauth && (
+        <div className="flex items-end">
+          <ProbeButton
+            env={() => ({
+              ...(env as Record<string, string>),
+              [authField]: apiKey,
+              ...(presetDetail?.envTemplate?.ANTHROPIC_BASE_URL && !env.ANTHROPIC_BASE_URL
+                ? { ANTHROPIC_BASE_URL: presetDetail.envTemplate.ANTHROPIC_BASE_URL }
+                : {}),
+              ...(presetDetail?.envTemplate?.ANTHROPIC_MODEL && !env.ANTHROPIC_MODEL
+                ? { ANTHROPIC_MODEL: presetDetail.envTemplate.ANTHROPIC_MODEL }
+                : {}),
+            })}
+          />
+        </div>
       )}
 
       {/* 高级步骤（默认折叠，FR-009）：预设切换 / env 细项 / 隔离模式 / JSON */}

@@ -118,5 +118,18 @@
   "wizard": {
     "basic": "基础配置",
     "advanced": "高级配置"
+  },
+  "probe": {
+    "run": "测试连接",
+    "running": "测试中…",
+    "ok": "连通 · {{model}} · {{latency}}ms",
+    "error": "{{kind}}：{{message}}",
+    "kind": {
+      "auth": "认证失败",
+      "model": "模型不存在",
+      "server": "服务端错误",
+      "network": "网络错误",
+      "unknown": "未知错误"
+    }
   }
 }

@@ -118,5 +118,18 @@
   "wizard": {
     "basic": "Basic",
     "advanced": "Advanced"
+  },
+  "probe": {
+    "run": "Test connection",
+    "running": "Testing…",
+    "ok": "OK · {{model}} · {{latency}}ms",
+    "error": "{{kind}}: {{message}}",
+    "kind": {
+      "auth": "auth failed",
+      "model": "model not found",
+      "server": "server error",
+      "network": "network error",
+      "unknown": "unknown error"
+    }
   }
 }
