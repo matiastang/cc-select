@@ -10,7 +10,8 @@
 #      （不能用 $(OS)：git bash 也运行在 Windows，$(OS) 同为 Windows_NT，会误选 cmd 分支。）
 .PHONY: all build frontend dev test integration e2e vet scripts-check install clean \
   fmt fmt-check check mod-tidy-check \
-  frontend-typecheck frontend-lint frontend-format-check frontend-check
+  frontend-typecheck frontend-lint frontend-format-check frontend-check \
+  desktop-cli desktop-build desktop-package desktop-clean
 
 # 关闭 CGO（go-keyring 纯 Go 无需 CGO）：export 让所有 recipe 子进程继承，跨平台。
 export CGO_ENABLED := 0
@@ -129,6 +130,34 @@ check: fmt-check vet frontend-typecheck frontend-lint frontend-format-check scri
 # 安装到 GOPATH/bin：go install 跨平台编译并装入，无需 ln/copy。
 install:
 	go install -ldflags "-X github.com/cc-select/cc-select/internal/version.Version=$(VERSION)" .
+
+# ---------------------------------------------------------------------------
+# 桌面端（Wails v3）目标。契约：specs/003-desktop-client/contracts/release-assets.md
+# 前置：wails3 CLI（go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.34），
+#       打包阶段（desktop-package）才需要；desktop-build 仅需平台编译工具链。
+# 注意：Wails 在 macOS 需要 CGO 链接系统框架，与上方全局 CGO_ENABLED=0 相反，
+#       故 desktop 目标在 recipe 内显式置 1；目标面向开发者机器（sh 系 shell）。
+# ---------------------------------------------------------------------------
+
+# 第一步：把 CLI 二进制拷入 desktop/assets/cli/（go:embed 嵌入位，T017 接入 embed 指令后生效）。
+desktop-cli: build
+	-mkdir desktop/assets/cli
+	cp bin/cc-select$(GOEXE) desktop/assets/cli/cc-select$(GOEXE)
+
+# 构建桌面 App 本机可运行二进制（不做安装包）。
+desktop-build: frontend desktop-cli
+	CGO_ENABLED=1 go build -ldflags "-X github.com/cc-select/cc-select/internal/version.Version=$(VERSION)" -o bin/cc-select-desktop$(GOEXE) ./desktop
+
+# 打包三平台安装产物（.app/.exe/.AppImage，由 wails3 承担；产物命名遵循 contracts）。
+desktop-package: desktop-build
+	@if ! command -v wails3 >/dev/null 2>&1; then \
+		echo "wails3 CLI not found. Install: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.34"; \
+		exit 1; \
+	fi
+	CGO_ENABLED=1 wails3 task -d desktop package
+
+desktop-clean:
+	rm -rf bin/cc-select-desktop$(GOEXE) desktop/assets/cli/cc-select$(GOEXE) desktop/build/bin
 
 # 清理构建产物。
 clean:
