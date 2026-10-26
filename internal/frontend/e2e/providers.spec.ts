@@ -1,19 +1,29 @@
 import { test, expect } from "./fixtures";
 
+// v0.1.1 向导流：添加按钮 → 预设画廊 → 选 DeepSeek 进入向导（基础步）。
+async function openWizard(page: import("@playwright/test").Page, preset = "deepseek") {
+  await page.getByTestId("add-provider-button").click();
+  await page.getByTestId(`preset-gallery-item-${preset}`).click();
+}
+
+// 高级步（预设切换/env 细项/JSON）默认折叠——按需展开。
+async function expandAdvanced(page: import("@playwright/test").Page) {
+  await page.getByTestId("wizard-advanced-toggle").click();
+}
+
 // 端到端覆盖本次改造的 4 个 UI 行为（后端逻辑已由 internal/web/api_test.go 覆盖，
 // 这里专测浏览器里真实的交互——单测覆盖不到的部分）。
 
 test("添加 provider：通过 preset 下拉自动填充默认配置", async ({ page, server }) => {
   await page.goto(server.baseURL);
-  await page.getByTestId("add-provider-button").click();
+  await openWizard(page);
+  await expandAdvanced(page);
 
-  // 新设计：表单和 JSON 在同一视图。
   await expect(page.getByTestId("provider-json-textarea")).toBeVisible();
   await expect(page.getByTestId("preset-select")).toBeVisible();
   await expect(page.getByTestId("env-field-ANTHROPIC_BASE_URL")).toBeVisible();
 
   await page.getByTestId("provider-id-input").fill("e2e-preset");
-  await page.getByTestId("preset-select").selectOption("deepseek");
 
   // 选择 preset 后，baseURL、model、JSON 都应同步更新。
   await expect(page.getByTestId("env-field-ANTHROPIC_BASE_URL")).toHaveValue(
@@ -41,8 +51,9 @@ test("添加 provider：通过 preset 下拉自动填充默认配置", async ({ 
 
 test("表单和 JSON 双向同步", async ({ page, server }) => {
   await page.goto(server.baseURL);
-  await page.getByTestId("add-provider-button").click();
+  await openWizard(page, "custom");
   await page.getByTestId("provider-id-input").fill("e2e-sync");
+  await expandAdvanced(page);
 
   // 表单 -> JSON：修改 baseURL 后 JSON 应同步。
   await page.getByTestId("env-field-ANTHROPIC_BASE_URL").fill("https://form-sync.example.com");
@@ -90,6 +101,7 @@ test("编辑已有 provider：表单回填磁盘内容并可保存", async ({ pa
 
   await page.goto(server.baseURL);
   await page.getByTestId("edit-provider-e2e-edit").click();
+  await expandAdvanced(page);
 
   // 编辑页应回填已有值。
   await expect(page.getByTestId("env-field-ANTHROPIC_BASE_URL")).toHaveValue(
@@ -108,8 +120,9 @@ test("编辑已有 provider：表单回填磁盘内容并可保存", async ({ pa
 
 test("full 模式下非 env 字段随 JSON 一起落盘", async ({ page, server }) => {
   await page.goto(server.baseURL);
-  await page.getByTestId("add-provider-button").click();
+  await openWizard(page, "custom");
   await page.getByTestId("provider-id-input").fill("e2e-full");
+  await expandAdvanced(page);
   await page.getByTestId("provider-mode-select").selectOption("full");
 
   // 在 JSON 里加入 env 之外的字段，并保留必填的 API key。
@@ -146,8 +159,9 @@ test("官方 provider：不渲染编辑/删除按钮，显示专属文案", asyn
 
 test("添加：非法 JSON 被前端拦截，不会创建 provider", async ({ page, server }) => {
   await page.goto(server.baseURL);
-  await page.getByTestId("add-provider-button").click();
+  await openWizard(page, "custom");
   await page.getByTestId("provider-id-input").fill("e2e-bad");
+  await expandAdvanced(page);
 
   // 残缺 JSON：前端解析失败并提示。
   await page.getByTestId("provider-json-textarea").fill("{ not valid json");

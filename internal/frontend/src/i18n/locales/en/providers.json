@@ -52,7 +52,8 @@
     "defaultOption": "Default ({{value}})",
     "unsetOption": "(unset)",
     "jsonLabel": "settings.json (final submitted content)",
-    "loadingRealConfig": "Loading real config from disk…"
+    "loadingRealConfig": "Loading real config from disk…",
+    "oauthNotice": "Official Claude uses OAuth login — no API key needed. Run `ccs use claude-official` and follow the login flow."
   },
   "presetCategory": {
     "official": "Official",
@@ -101,5 +102,16 @@
   "toast": {
     "saved": "Provider saved",
     "deleted": "Provider deleted"
+  },
+  "gallery": {
+    "title": "Add provider",
+    "subtitle": "Pick a provider — API key is usually the only thing you need.",
+    "loading": "Loading presets…",
+    "customName": "Custom configuration",
+    "customDesc": "Fill in everything manually (advanced)"
+  },
+  "wizard": {
+    "basic": "Basic",
+    "advanced": "Advanced"
   }
 }

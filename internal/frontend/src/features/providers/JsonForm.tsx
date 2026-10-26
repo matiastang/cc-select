@@ -15,7 +15,15 @@ import {
 } from "../../presets/presets";
 import { PresetSelect } from "./PresetSelect";
 import { EnvFieldEditor, EnvFieldValues } from "./EnvFieldEditor";
-import { Button, FormField, Input, Select, Textarea } from "../../components/ui";
+import {
+  Button,
+  Collapsible,
+  FormField,
+  Input,
+  Select,
+  Stepper,
+  Textarea,
+} from "../../components/ui";
 
 const PROVIDERS_API = `${API_BASE}/providers`;
 
@@ -24,7 +32,13 @@ function emptySettings(): Record<string, unknown> {
 }
 
 type JsonFormProps =
-  | { mode: "create"; id?: undefined; onCancel: () => void; onSaved: () => void }
+  | {
+      mode: "create";
+      id?: undefined;
+      onCancel: () => void;
+      onSaved: () => void;
+      initialPresetId?: string; // 画廊选择后带入（US3：第一步只需 API key）
+    }
   | { mode: "edit"; id: string; onCancel: () => void; onSaved: () => void };
 
 export function JsonForm(props: JsonFormProps) {
@@ -38,7 +52,9 @@ export function JsonForm(props: JsonFormProps) {
 
   const [presets, setPresets] = useState<Preset[]>([]);
   const [categories, setCategories] = useState<PresetCategory[]>([]);
-  const [presetId, setPresetId] = useState<string>(CUSTOM_PRESET_ID);
+  const [presetId, setPresetId] = useState<string>(
+    props.mode === "create" && props.initialPresetId ? props.initialPresetId : CUSTOM_PRESET_ID,
+  );
   const [presetDetail, setPresetDetail] = useState<PresetDetail | null>(null);
 
   const [settings, setSettings] = useState<Record<string, unknown>>(emptySettings);
@@ -49,6 +65,8 @@ export function JsonForm(props: JsonFormProps) {
 
   const [loading, setLoading] = useState(isEdit);
   const [err, setErr] = useState("");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [showKey, setShowKey] = useState(false);
 
   const env = useMemo<EnvFieldValues>(() => {
     const s = settings.env;
@@ -69,6 +87,8 @@ export function JsonForm(props: JsonFormProps) {
   const apiFormat = useMemo(() => {
     return (env._api_format as string) || presetDetail?.apiFormat || "anthropic";
   }, [env, presetDetail]);
+
+  const oauth = presetDetail?.oauth ?? false;
 
   // 输入框里不显示 ${API_KEY} 这类模板占位符，只显示用户真正输入过的值。
   const apiKey = useMemo(() => {
@@ -356,9 +376,19 @@ export function JsonForm(props: JsonFormProps) {
   };
 
   return (
-    <div>
-      <h2>{isEdit ? t("editTitle", { id: props.id }) : t("addTitle")}</h2>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-base font-semibold">
+          {isEdit ? t("editTitle", { id: props.id }) : t("addTitle")}
+        </h2>
+        <Stepper
+          data-testid="wizard-stepper"
+          steps={[t("wizard.basic"), t("wizard.advanced")]}
+          current={advancedOpen ? 1 : 0}
+        />
+      </div>
 
+      {/* 基础步骤（US3）：ID + 名称 + API key——通常到这里就能保存 */}
       {!isEdit && (
         <FormField label={t("form.idLabel")} htmlFor="provider-id-input">
           <Input
@@ -381,24 +411,61 @@ export function JsonForm(props: JsonFormProps) {
         />
       </FormField>
 
-      <FormField label={t("form.modeLabel")} htmlFor={modeControlId}>
-        <Select
-          id={modeControlId}
-          data-testid="provider-mode-select"
-          value={isolationMode}
-          onChange={(e) => setIsolationMode(e.target.value as IsolationMode)}
-          aria-label={t("form.modeLabel")}
-        >
-          <option value="">{t("mode.inherit")}</option>
-          <option value="settings-only">{t("mode.settingsOnly")}</option>
-          <option value="full">{t("mode.full")}</option>
-        </Select>
-      </FormField>
-
       {loading ? (
-        <p className="muted">{t("form.loadingRealConfig")}</p>
+        <p className="text-sm text-muted">{t("form.loadingRealConfig")}</p>
+      ) : oauth ? (
+        <p className="text-sm text-muted">{t("form.oauthNotice")}</p>
       ) : (
-        <>
+        <FormField
+          label={t("form.apiKeyLabel", { field: authField })}
+          htmlFor="provider-api-key-input"
+          helper={
+            presetDetail?.apiKeyURL ? (
+              <a
+                href={presetDetail.apiKeyURL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs"
+              >
+                {t("form.getApiKeyLabel")}
+              </a>
+            ) : undefined
+          }
+        >
+          <div className="flex gap-2">
+            <Input
+              id="provider-api-key-input"
+              data-testid="provider-api-key-input"
+              type={showKey ? "text" : "password"}
+              value={apiKey}
+              onChange={(e) => handleApiKeyChange(e.target.value)}
+              placeholder={t("form.apiKeyPlaceholder")}
+              className="flex-1"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              icon={showKey ? "eyeOff" : "eye"}
+              onClick={() => setShowKey((v: boolean) => !v)}
+              data-testid="provider-api-key-toggle"
+              aria-pressed={showKey}
+              aria-label={showKey ? t("form.hideApiKey") : t("form.showApiKey")}
+            >
+              {showKey ? t("form.hideApiKey") : t("form.showApiKey")}
+            </Button>
+          </div>
+        </FormField>
+      )}
+
+      {/* 高级步骤（默认折叠，FR-009）：预设切换 / env 细项 / 隔离模式 / JSON */}
+      <Collapsible
+        title={t("wizard.advanced")}
+        open={advancedOpen}
+        onToggle={() => setAdvancedOpen((v: boolean) => !v)}
+        data-testid="wizard-advanced-toggle"
+      >
+        <div className="flex flex-col gap-3">
           <PresetSelect
             presets={presets}
             categories={categories}
@@ -417,16 +484,22 @@ export function JsonForm(props: JsonFormProps) {
             onApiFormatChange={handleApiFormatChange}
             authField={authField}
             onAuthFieldChange={handleAuthFieldChange}
+            hideApiKey
           />
 
-          <hr
-            style={{
-              margin: "1.5rem 0",
-              borderColor: "var(--border)",
-              borderStyle: "solid",
-              borderWidth: "1px 0 0",
-            }}
-          />
+          <FormField label={t("form.modeLabel")} htmlFor={modeControlId}>
+            <Select
+              id={modeControlId}
+              data-testid="provider-mode-select"
+              value={isolationMode}
+              onChange={(e) => setIsolationMode(e.target.value as IsolationMode)}
+              aria-label={t("form.modeLabel")}
+            >
+              <option value="">{t("mode.inherit")}</option>
+              <option value="settings-only">{t("mode.settingsOnly")}</option>
+              <option value="full">{t("mode.full")}</option>
+            </Select>
+          </FormField>
 
           <FormField label={t("form.jsonLabel")} htmlFor="provider-json-textarea">
             <Textarea
@@ -436,43 +509,29 @@ export function JsonForm(props: JsonFormProps) {
               onChange={(e) => handleJsonChange(e.target.value)}
               onBlur={() => {
                 jsonEditingRef.current = false;
-                // Normalize valid JSON on blur.
                 if (!jsonError) {
                   setJsonText(JSON.stringify(settings, null, 2));
                 }
               }}
               spellCheck={false}
-              rows={12}
-              style={{
-                fontFamily: "monospace",
-                fontSize: "0.85rem",
-              }}
+              rows={10}
             />
           </FormField>
-          {jsonError && (
-            <div style={{ color: "var(--danger)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
-              {jsonError}
-            </div>
-          )}
-        </>
-      )}
+          {jsonError && <p className="text-xs text-danger">{jsonError}</p>}
+        </div>
+      </Collapsible>
 
       {err && (
-        <div
-          role="alert"
-          data-testid="provider-form-error"
-          className="muted"
-          style={{ color: "var(--danger)", margin: "0.5rem 0" }}
-        >
+        <div role="alert" data-testid="provider-form-error" className="text-sm text-danger">
           {err}
         </div>
       )}
 
-      <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
+      <div className="flex gap-2">
         <Button data-testid="provider-save-button" onClick={submit} disabled={loading}>
           {t("save", { ns: "common" })}
         </Button>
-        <Button data-testid="provider-cancel-button" variant="secondary" onClick={props.onCancel}>
+        <Button variant="secondary" onClick={props.onCancel}>
           {t("cancel", { ns: "common" })}
         </Button>
       </div>

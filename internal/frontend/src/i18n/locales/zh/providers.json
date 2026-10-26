@@ -52,7 +52,8 @@
     "defaultOption": "默认（{{value}}）",
     "unsetOption": "（未设置）",
     "jsonLabel": "settings.json（最终提交的完整内容）",
-    "loadingRealConfig": "加载磁盘真实配置中…"
+    "loadingRealConfig": "加载磁盘真实配置中…",
+    "oauthNotice": "Claude 官方走 OAuth 登录——无需 API key。执行 `ccs use claude-official` 后按提示登录即可。"
   },
   "presetCategory": {
     "official": "官方",
@@ -101,5 +102,16 @@
   "toast": {
     "saved": "已保存",
     "deleted": "已删除"
+  },
+  "gallery": {
+    "title": "添加服务商",
+    "subtitle": "选一个服务商——通常只需填 API key 即可用。",
+    "loading": "预设加载中…",
+    "customName": "自定义配置",
+    "customDesc": "手动填写全部配置（高级）"
+  },
+  "wizard": {
+    "basic": "基础配置",
+    "advanced": "高级配置"
   }
 }

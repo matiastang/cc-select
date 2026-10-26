@@ -5,6 +5,8 @@ import { ShellIntegrationBanner } from "./ShellIntegrationBanner";
 import { IdPlaceholder } from "../../components/IdPlaceholder";
 import { ProviderList } from "./ProviderList";
 import { JsonForm } from "./JsonForm";
+import { PresetGallery } from "./PresetGallery";
+import { CUSTOM_PRESET_ID } from "../../presets/presets";
 import { Provider } from "../../types";
 import { API_BASE } from "../../constants";
 
@@ -18,6 +20,8 @@ export function ProvidersModule() {
   const [providers, setProviders] = useState<Record<string, Provider>>({});
   const [editing, setEditing] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [initialPreset, setInitialPreset] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string>("");
 
   const refresh = async () => {
@@ -72,28 +76,47 @@ export function ProvidersModule() {
           toast({ kind: "success", message: t("toast.saved") });
           refresh();
         }}
-        onAdd={() => setCreating(true)}
+        onAdd={() => setGalleryOpen(true)}
       />
 
-      <Card>
-        {creating ? (
+      {!creating && (
+        <Card>
+          <div className="row">
+            <Button data-testid="add-provider-button" onClick={() => setGalleryOpen(true)}>
+              {t("addButton")}
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {creating && (
+        <Card>
           <JsonForm
             mode="create"
-            onCancel={() => setCreating(false)}
+            initialPresetId={initialPreset}
+            onCancel={() => {
+              setCreating(false);
+              setInitialPreset(undefined);
+            }}
             onSaved={() => {
               setCreating(false);
+              setInitialPreset(undefined);
               toast({ kind: "success", message: t("toast.saved") });
               refresh();
             }}
           />
-        ) : (
-          <div className="row">
-            <Button data-testid="add-provider-button" onClick={() => setCreating(true)}>
-              {t("addButton")}
-            </Button>
-          </div>
-        )}
-      </Card>
+        </Card>
+      )}
+
+      <PresetGallery
+        open={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        onPick={(presetId) => {
+          setGalleryOpen(false);
+          setInitialPreset(presetId === CUSTOM_PRESET_ID ? undefined : presetId);
+          setCreating(true);
+        }}
+      />
     </div>
   );
 }

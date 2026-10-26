@@ -393,4 +393,28 @@ describe("JsonForm", () => {
     expect(body.settings.env.ANTHROPIC_AUTH_TOKEN).toBe("sk-ds");
     expect(body.settings.env.ANTHROPIC_BASE_URL).toBe("https://ds.example.com");
   });
+  it("向导三步保存（US3/SC-001）：画廊带入预设 → 填 id + key → 直接保存，不展开高级", async () => {
+    const onSaved = vi.fn();
+    renderWithI18n(
+      <JsonForm mode="create" initialPresetId="deepseek" onCancel={vi.fn()} onSaved={onSaved} />,
+    );
+    // 等 preset detail 加载完成（basic 区出现 key 输入框）
+    const apiKeyInput = await screen.findByTestId("provider-api-key-input");
+    const idInput = screen.getByTestId("provider-id-input");
+    await userEvent.type(idInput, "ds-wizard");
+    await userEvent.type(apiKeyInput, "sk-wizard");
+
+    // 高级区折叠：JSON/env 仍在 DOM 但不可见；保存按钮无需展开即可用
+    expect(screen.getByTestId("wizard-advanced-toggle")).toHaveAttribute("aria-expanded", "false");
+
+    await act(async () => {
+      await userEvent.click(screen.getByTestId("provider-save-button"));
+    });
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    const postCall = fetchCalls.find((c) => c.init?.method === "POST");
+    expect(postCall).toBeDefined();
+    const body = JSON.parse(postCall!.init!.body as string);
+    expect(body.preset).toBe("deepseek");
+    expect(body.apiKey).toBe("sk-wizard");
+  });
 });

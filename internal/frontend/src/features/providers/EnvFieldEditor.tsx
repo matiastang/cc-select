@@ -39,6 +39,8 @@ type EnvFieldEditorProps = {
   onApiFormatChange: (value: string) => void;
   authField: string;
   onAuthFieldChange: (value: string) => void;
+  // 向导模式：API key 已上提至基础步骤，此编辑器隐藏自身 key 输入（避免双输入框）。
+  hideApiKey?: boolean;
 };
 
 export function EnvFieldEditor({
@@ -51,6 +53,7 @@ export function EnvFieldEditor({
   onApiFormatChange,
   authField,
   onAuthFieldChange,
+  hideApiKey = false,
 }: EnvFieldEditorProps) {
   const { t } = useTranslation("providers");
   const [showKey, setShowKey] = useState(false);
@@ -131,7 +134,7 @@ export function EnvFieldEditor({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-      {!oauth && (
+      {!oauth && !hideApiKey && (
         <FormField
           label={t("form.apiKeyLabel", { field: authFieldName })}
           htmlFor="provider-api-key-input"
