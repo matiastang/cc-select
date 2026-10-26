@@ -166,6 +166,22 @@ func installEmbeddedCLI(opts installOptions) (installResult, *installConflict, e
 	return installResult{}, &installConflict{Kind: conflictPermission, Hint: permissionHint("")}, nil
 }
 
+// pathCliDetector 是 cliDetector 的真实实现：包装 detectInstalledCLI。
+// 外部/无法识别的二进制版本记为 "unknown"（前端据此展示覆盖确认，data-model §1.2）。
+type pathCliDetector struct{}
+
+func (pathCliDetector) Detect() (string, string, bool) {
+	p, v, kind := detectInstalledCLI()
+	switch kind {
+	case cliNone:
+		return "", "", false
+	case cliOurs:
+		return p, v, true
+	default:
+		return p, "unknown", true
+	}
+}
+
 func permissionHint(dir string) string {
 	if runtime.GOOS == "windows" {
 		return "cannot write to " + dir + "; check directory permissions"

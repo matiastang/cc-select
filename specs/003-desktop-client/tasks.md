@@ -77,16 +77,16 @@ description: "Task list for feature implementation"
 
 ### Tests for User Story 2 ⚠️（先写并确认 FAIL）
 
-- [ ] T013 [P] [US2] `desktop/cliinstall_test.go`：版本探测与安装四态测试（探测器/命令执行器接口 fake + `t.TempDir` 模拟 PATH 目录；覆盖 clean/reinstalled/upgraded/external-409/permission-fallback，契约 contracts §3.3）
-- [ ] T014 [P] [US2] `desktop/bridge_test.go` 增补：`POST /api/v1/desktop/cli/install` 契约测试（202 语义、`confirmOverwrite` 流转、错误结构）
+- [x] T013 [P] [US2] `desktop/cliinstall_test.go`：版本探测与安装四态测试（探测器/命令执行器接口 fake + `t.TempDir` 模拟 PATH 目录；覆盖 clean/reinstalled/upgraded/external-409/permission-fallback，契约 contracts §3.3）
+- [x] T014 [P] [US2] `desktop/bridge_test.go` 增补：`POST /api/v1/desktop/cli/install` 契约测试（202 语义、`confirmOverwrite` 流转、错误结构）
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] 实现 `desktop/cliinstall.go`：探测（`exec.LookPath`+`--version`）与安装（mac/linux `/usr/local/bin`→`~/.bin` 回落；win `%LOCALAPPDATA%\Programs\cc-select\` + HKCU Path 写入），使 T013 GREEN
-- [ ] T016 [US2] bridge 挂接 install 端点 + `info` 端点接入真实探测器（T008 的 fake 换真实现），使 T014 GREEN
-- [ ] T017 [US2] go:embed 内置 CLI 二进制 + `embeddedCliVersion` 注入（Makefile T003 链路贯通，缺失即构建失败，research R3）
-- [ ] T018 [P] [US2] 前端 `internal/frontend/src/components/DesktopSettings.tsx`：Desktop 设置区骨架（`/desktop/info` 探测 404→隐藏，FR-015 条件渲染）+ 安装按钮四态文案/确认弹窗，配 `DesktopSettings.test.tsx`（vitest）
-- [ ] T019 [US2] 验证检查点：quickstart §2 Story 2 四场景手工脚本
+- [x] T015 [US2] 实现 `desktop/cliinstall.go`：探测（`exec.LookPath`+`--version`）与安装（mac/linux `/usr/local/bin`→`~/.bin` 回落；win `%LOCALAPPDATA%\Programs\cc-select\` + HKCU Path 写入），使 T013 GREEN
+- [x] T016 [US2] bridge 挂接 install 端点 + `info` 端点接入真实探测器（T008 的 fake 换真实现），使 T014 GREEN
+- [x] T017 [US2] go:embed 内置 CLI 二进制 + `embeddedCliVersion` 注入（Makefile T003 链路贯通，缺失即构建失败，research R3）
+- [x] T018 [P] [US2] 前端 `internal/frontend/src/components/DesktopSettings.tsx`：Desktop 设置区骨架（`/desktop/info` 探测 404→隐藏，FR-015 条件渲染）+ 安装按钮四态文案/确认弹窗，配 `DesktopSettings.test.tsx`（vitest）
+- [x] T019 [US2] 验证检查点：quickstart §2 Story 2 四场景手工脚本
 
 **Checkpoint**: Stories 1+2 独立可用
 

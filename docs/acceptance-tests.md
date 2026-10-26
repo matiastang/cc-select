@@ -332,3 +332,23 @@
 
 **判定**：启动即见真实模型（Mode A/B/P 均注入）；热切后选择器不重启跟随刷新；`/model` 选择 100% 生效（代理清单内透传）；终端隔离零串扰；并发写入零字段丢失；刷新失败不阻断路由。
 **已知限制**（非缺陷）：`model` 字段是 CC 启动期键、不热重载——热切后本会话「当前模型」标记保持旧值直至用户在 `/model` 选择或重启（列表刷新不受影响）。
+
+## AC18. Wails v3 桌面客户端（v0.1.0 / Issue #12：desktop-client）
+
+> 需求见 [requirements.md v0.1.0](./requirements.md)；契约与验证脚本见 [specs/003](../specs/003-desktop-client/)（`spec.md` 五个 User Story、`contracts/`、`quickstart.md`）。
+> 前置：`make desktop-build`（或下载 Release 产物）；冒烟平台 macOS arm64（Windows/Linux 走 CI 产物验证）。
+
+| 步骤 | 预期 |
+|---|---|
+| 1. 双击启动桌面 App | 直接进入与 Web GUI 同源的配置界面，全程无终端/浏览器（US1；自动化：bridge/info 契约测试 + 桌面测试全绿证明内容层同构） |
+| 2. App 内新增 provider，另开终端 `ccs use <id>` | 切换成功——App 与 CLI 读写同一份 `~/.cc-select/`（US1；零回归：既有单测/集成/e2e 全绿） |
+| 3. Desktop 区点「安装 ccs 到 PATH」→ 新终端 `cc-select --version` | 版本与 App 内置一致；重复安装幂等；外部同名二进制需确认覆盖；无权限回落 `~/.bin` 并提示（US2；自动化：cliinstall 六用例 + install 端点五用例） |
+| 4. 构造 mock release（0.1.1 + SHA256SUMS）后启动 0.1.0 | 更新卡片出现；一键更新→校验→原子替换→提示重启→重启后为新版、数据无损；断网温和降级（US3；自动化：updatebridge 八用例；全流程冒烟走 Release 首发验证） |
+| 5. 关闭主窗口 | 默认驻留托盘（图标可重开窗口）；设置「关闭即退出」后关窗进程结束、托盘消失（US4；自动化：tray 契约 + settings 回滚用例） |
+| 6. 托盘点任意 provider | 剪贴板为 `ccs use <id>` + 系统通知；**双终端不同 provider 场景下各自 `ccs current` 不变**（R1 红线；自动化：tray 响应无切换动作字段断言） |
+| 7. 开启「登录自启」 | 注册 OS 自启（mac 登录项/win 注册表/linux XDG）；自启失败（如策略禁用）→ 开关回滚、prefs 不落盘（US5；自动化：autostart 两用例 + settings 503 回滚） |
+| 8. 重复双击 App | 单实例：第二进程退出，既有窗口聚焦（FR-011） |
+| 9. web 形态回归：`ccs gui` | 行为与 v0.0.7 完全一致；Desktop 设置区不渲染（info 404 探测，FR-015；自动化：前端 web 模式用例） |
+
+**判定**：桌面开箱即配置（同数据同前端）；CLI 安装四态完整；更新一键完成且失败不损坏；托盘零状态变更（R1）；自启失败整体回滚；既有功能零回归。
+**已知限制**（非缺陷）：macOS 首发未签名（右键打开，A2）；`wails3 dev` 热重载模式下 Desktop 专属端点不可达（见 desktop/README.md 边界说明）；Windows/Linux 人工冒烟依赖 CI 产物。

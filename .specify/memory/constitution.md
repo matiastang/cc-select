@@ -1,4 +1,15 @@
 <!--
+Sync Impact Report (v1.2.1, 2026-10-26)
+- Version change: 1.2.0 → 1.2.1 (PATCH: Technology Constraints 字段值修订，非原则变更)
+- Modified: Technology Constraints —— Go 版本 1.24 → 1.26（wails/v3 v3.0.0-beta.34 的
+  go 指令要求，go.mod 已于 T001 随依赖锁定同步；CI go-version 同步 1.26）。
+- 未动任何原则（I–VIII）。
+- Source: docs/requirements.md v0.1.0（用户确认的 Wails v3 最新版决策）+
+  specs/003-desktop-client T001。
+- Follow-up TODOs: none。
+-->
+
+<!--
 Sync Impact Report (v1.2.0, 2026-08-28)
 - Version change: 1.1.0 → 1.2.0 (MINOR: Principle II gains an opt-in proxy-mode carve-out)
 - Modified principles: II. CLAUDE_CONFIG_DIR 隔离机制 —— 新增 Mode P（proxy）条款；既有 Mode A/B 语义一字未动。
@@ -94,7 +105,7 @@ Sync Impact Report (v1.0.0, 2026-08-28)
 
 ## Technology Constraints（技术约束）
 
-- 语言/运行时：Go 1.24；依赖从简（cobra、zalando/go-keyring、标准库 `net/http` + `embed`、react-i18next 等，真值见 go.mod 与 docs/tech-stack.md）。
+- 语言/运行时：Go 1.26（v1.2.1：wails/v3 beta.34 要求；CLI 仍为无 CGO 单二进制）；依赖从简（cobra、zalando/go-keyring、标准库 `net/http` + `embed`、react-i18next 等，真值见 go.mod 与 docs/tech-stack.md）。
 - 简单性/YAGNI：标准库优先、单二进制、避免重依赖；引入复杂度 MUST 给出理由。
 - 构建/发布：Makefile + GoReleaser + GitHub Actions；dev build 与 release 均未签名，Smart App Control（SAC）限制是已记录的已知问题（docs/windows-support.md §7），不是待修 bug。
 - i18n 约定：根目录 `README.md` 为默认版本；翻译放 `docs/language/README.<lang>.md`；每次改 README MUST 同步更新各语言切换器相对路径。
@@ -118,4 +129,4 @@ Sync Impact Report (v1.0.0, 2026-08-28)
 - 合规审查：PR review 与 `/speckit-analyze` 检查宪法符合性；引入复杂度或偏离选型 MUST 在 PR 描述中给出理由。
 - 运行期开发指引：见仓库根 CLAUDE.md；文档治理规则：见 docs/README.md。
 
-**Version**: 1.2.0 | **Ratified**: 2026-08-28 | **Last Amended**: 2026-08-28
+**Version**: 1.2.1 | **Ratified**: 2026-08-28 | **Last Amended**: 2026-10-26

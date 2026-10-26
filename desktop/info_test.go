@@ -48,7 +48,7 @@ func TestDesktopInfo_ResponseShape(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			h := newDesktopAPI("0.1.0", "0.1.0", tc.det)
+			h := newDesktopAPI(desktopAPIOptions{AppVersion: "0.1.0", EmbeddedCliVersion: "0.1.0", Cli: tc.det})
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/desktop/info", nil)
 			rec := httptest.NewRecorder()
 			h.ServeHTTP(rec, req)
@@ -80,7 +80,7 @@ func TestDesktopInfo_ResponseShape(t *testing.T) {
 }
 
 func TestDesktopInfo_MethodNotAllowed(t *testing.T) {
-	h := newDesktopAPI("0.1.0", "0.1.0", &fakeCliDetector{})
+	h := newDesktopAPI(desktopAPIOptions{AppVersion: "0.1.0", EmbeddedCliVersion: "0.1.0", Cli: &fakeCliDetector{}})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/desktop/info", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)

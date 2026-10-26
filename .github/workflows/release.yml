@@ -18,7 +18,7 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version: "1.24"
+          go-version: "1.26"
 
       - uses: actions/setup-node@v5
         with:
@@ -38,3 +38,124 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # 用于向 Homebrew Tap / Scoop Bucket 仓库提交 manifest，默认 GITHUB_TOKEN 无法跨仓。
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+
+  # 桌面端（Wails v3）：三平台原生 runner 构建并上传契约命名资产
+  # （specs/003-desktop-client/contracts/release-assets.md）。
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14        # arm64（M 系列，spec FR-013）
+            platform: darwin_arm64
+          - os: windows-latest  # x64
+            platform: windows_x64
+          - os: ubuntu-latest   # x64，AppImage
+            platform: linux_x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Install wails3 CLI（锁定 beta.34）
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.34
+
+      - name: Linux build deps
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Windows NSIS
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
+      - name: Build frontend + CLI（嵌入同平台 CLI）
+        shell: bash
+        run: |
+          cd internal/frontend && npm ci && npm run build && cd ../..
+          make build VERSION="${GITHUB_REF_NAME#v}"
+          make desktop-cli
+
+      - name: Package（wails3）
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+        run: |
+          case "${{ matrix.platform }}" in
+            darwin_arm64) wails3 task -dir desktop package ;;
+            windows_x64)  wails3 task -dir desktop package ;;
+            linux_x64)    wails3 task -dir desktop linux:package:appimage ;;
+          esac
+
+      - name: Rename to contract assets + size gate（≤40MB，SC-004）
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER="${GITHUB_REF_NAME#v}"
+          OUT=desktop/dist && mkdir -p "$OUT"
+          case "${{ matrix.platform }}" in
+            darwin_arm64)
+              cd desktop/build/bin
+              ditto -c -k --keepParent "CC Select.app" "../../../desktop/dist/cc-select-desktop_${VER}_darwin_arm64.zip"
+              cd ../../../..
+              ;;
+            windows_x64)
+              # NSIS 产物为 *-installer.exe；同时附裸 exe 便携版入 zip。
+              cd desktop/build/bin
+              INSTALLER=$(ls *-installer.exe "*Installer.exe" 2>/dev/null | head -1 || true)
+              mkdir -p pkg && cp "CC Select.exe" pkg/
+              [ -n "$INSTALLER" ] && cp "$INSTALLER" pkg/ || echo "NSIS installer missing — portable exe only"
+              cd pkg && 7z a "../../../desktop/dist/cc-select-desktop_${VER}_windows_x64.zip" . || \
+                (command -v zip >/dev/null && zip "../../../desktop/dist/cc-select-desktop_${VER}_windows_x64.zip" .) || \
+                powershell -Command "Compress-Archive -Path * -DestinationPath ../../../desktop/dist/cc-select-desktop_${VER}_windows_x64.zip"
+              cd ../../../../..
+              ;;
+            linux_x64)
+              SRC=$(ls desktop/build/bin/*.AppImage | head -1)
+              cp "$SRC" "desktop/dist/cc-select-desktop_${VER}_linux_x64.AppImage"
+              chmod +x "desktop/dist/cc-select-desktop_${VER}_linux_x64.AppImage"
+              ;;
+          esac
+          for f in desktop/dist/cc-select-desktop_*; do
+            SIZE=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f")
+            if [ "$SIZE" -gt 41943040 ]; then echo "::error::$f is $SIZE bytes (>40MB)"; exit 1; fi
+          done
+          ls -lh desktop/dist/
+
+      - name: Checksums + manifest（updater 契约 §4）
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER="${GITHUB_REF_NAME#v}"
+          cd desktop/dist
+          sha256sum cc-select-desktop_* > SHA256SUMS
+          python3 - <<EOF || echo "{}" > cc-select-desktop_${VER}_manifest.json
+          import hashlib, json, glob, os
+          ver = "${VER}"
+          products = {}
+          for f in sorted(glob.glob("cc-select-desktop_*")):
+              if f == "SHA256SUMS" or f.endswith(".json"): continue
+              key = f.split("_", 2)[2].rsplit(".", 1)[0] if f.count("_") >= 2 else f
+              plat = f.split(f"_{ver}_")[-1].rsplit(".", 1)[0]
+              products[plat] = {"path": f, "sha256": hashlib.sha256(open(f,'rb').read()).hexdigest()}
+          json.dump({"version": ver, "products": products}, open(f"cc-select-desktop_{ver}_manifest.json", "w"), indent=2)
+          EOF
+          cat SHA256SUMS
+
+      - name: Upload to release（draft 兜底创建，避免与 goreleaser job 竞态）
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "${GITHUB_REF_NAME}" -R "$GITHUB_REPOSITORY" || \
+            gh release create "${GITHUB_REF_NAME}" -R "$GITHUB_REPOSITORY" --draft --title "${GITHUB_REF_NAME}" --generate-notes
+          gh release upload "${GITHUB_REF_NAME}" desktop/dist/cc-select-desktop_* desktop/dist/SHA256SUMS -R "$GITHUB_REPOSITORY" --clobber

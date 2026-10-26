@@ -91,6 +91,18 @@ cc-select update --dry-run  # download and verify but don't replace the binary
 
 After an update, already-running processes (including a running `cc-select gui`) keep the old version — restart them to pick up the new one. The Web GUI also shows an update button in the header when a new version is available.
 
+## Desktop app
+
+Besides the Web GUI (`cc-select gui`), a native desktop app built with [Wails v3](https://v3.wails.io) is available from GitHub Releases:
+
+- `cc-select-desktop_<version>_darwin_arm64.zip` — macOS (Apple Silicon; unsigned on first releases: right-click → Open)
+- `cc-select-desktop_<version>_windows_x64.zip` — Windows (SmartScreen may prompt on first run — "More info" → "Run anyway")
+- `cc-select-desktop_<version>_linux_x64.AppImage` — Linux
+
+The desktop app shares the exact same UI, data (`~/.cc-select/`), and language preferences as the CLI and Web GUI. Extras: system-tray menu (click a provider to copy `ccs use <id>` — switching still happens in your terminal, preserving per-shell isolation), one-click **Install ccs to PATH** in the app's Desktop section, in-app self-update (same GitHub Releases channel), optional launch-at-login and close-to-tray. All desktop preferences live in the same `prefs.json` and are toggled in the app.
+
+Build from source: `make desktop-build` (run `./bin/cc-select-desktop`) or `make desktop-package` (installable bundle). Dev workflow: [desktop/README.md](desktop/README.md).
+
 ## Quick start
 
 ### 1. Shell integration

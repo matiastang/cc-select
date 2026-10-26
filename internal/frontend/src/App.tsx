@@ -7,6 +7,7 @@ import { Header } from "./components/Header";
 import { GlobalModeCard } from "./components/GlobalModeCard";
 import { RoutesPanel } from "./components/RoutesPanel";
 import { KeychainCard } from "./components/KeychainCard";
+import { DesktopSettings } from "./components/DesktopSettings";
 import { ProviderList } from "./components/ProviderList";
 import { JsonForm } from "./components/JsonForm";
 import { Provider, IsolationMode } from "./types";
@@ -115,6 +116,8 @@ export default function App() {
       <RoutesPanel />
 
       <KeychainCard />
+
+      <DesktopSettings />
 
       <ProviderList
         providers={Object.values(providers)}

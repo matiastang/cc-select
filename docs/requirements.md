@@ -231,4 +231,5 @@
 | 2026-08-28 | 新增 v0.0.6 需求 R9：Claude Code 会话内切换 provider（限额救急；上下文延续 + 保持 shell 级隔离），含 P0/P1 分级与开放问题 Q8–Q10。 | 用户提出 |
 | 2026-08-29 | 新增 v0.0.7 需求 R10：Mode P 下在 Claude Code 内查看并切换当前 provider 真实模型（`modelPicker` 注入 / 热切跟随刷新 / 代理映射化改写），含开放问题 Q11–Q13；可行性经三轮探针实验定案（`modelPicker` 热重载、provider id 存活）。 | 用户提出 |
 | 2026-10-26 | 新增 v0.1.0 需求：Wails v3 桌面客户端（Issue #12），含 5 项已确认决策（内置 ccs 装 PATH / macOS 首发 unsigned / Linux 首发 AppImage / 沿用 GitHub Releases / 托盘+自启纳入）；Q2 决策更新为「Web + 桌面双形态并存」；spec 已建（`specs/003-desktop-client/`）。 | 用户确认 |
+| 2026-10-26 | **v0.1.0 实现完成**（specs/003 T001–T033 全勾）：US1 打开即配置 / US2 内置 CLI 安装 / US3 Wails Updater 桥接 / US4 托盘（复制命令语义，R1 红线）/ US5 登录自启；发布流水线（三平台 matrix）与 README×3、AC18 验收用例就绪。Go 工具链随 wails v3 beta.34 升至 1.26（宪法技术约束同步修订 v1.2.1）。回归零失败：单测/集成/Playwright e2e 全绿。 | 开发完成 |
 

@@ -303,5 +303,14 @@
     "refreshFailed": "切换成功，但选择器刷新失败（/model 列表可能未更新）: %s",
     "createJunction": "创建 junction %s: %s",
     "createSymlink": "创建符号链接 %s（需开发者模式/管理员）"
+  },
+  "desktop": {
+    "tray": {
+      "noProviders": "尚无 provider（打开应用配置）",
+      "copyHeader": "复制切换命令",
+      "copied": "已复制：%s",
+      "open": "打开 CC Select",
+      "quit": "退出"
+    }
   }
 }

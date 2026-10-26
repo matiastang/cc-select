@@ -91,6 +91,19 @@ cc-select update --dry-run  # ダウンロードと検証のみ（バイナリ�
 
 アップデート後、すでに起動しているプロセス（実行中の `cc-select gui` を含む）は古いバージョンのままです——新しいバージョンを使うには再起動してください。新しいバージョンがある場合、Web GUI のヘッダーにも更新ボタンが表示されます。
 
+## デスクトップアプリ
+
+Web GUI（`cc-select gui`）に加え、[Wails v3](https://v3.wails.io) 製のネイティブ・デスクトップアプリを GitHub Releases から提供しています：
+
+- `cc-select-desktop_<version>_darwin_arm64.zip` —— macOS（Apple Silicon。初期リリースは未署名：初回は「右クリック → 開く」）
+- `cc-select-desktop_<version>_windows_x64.zip` —— Windows（初回実行時に SmartScreen が表示される場合あり——「詳細情報 → 実行」）
+- `cc-select-desktop_<version>_linux_x64.AppImage` —— Linux
+
+デスクトップアプリは CLI・Web GUI と同じ UI・データ（`~/.cc-select/`）・言語設定を共有します。追加機能：システムトレイメニュー（プロバイダーをクリックで `ccs use <id>` をコピー——切り替えはターミナルで行うためシェル単位の分離を維持）、アプリ内の「ccs を PATH にインストール」ワンクリック実行、アプリ内セルフアップデート（CLI と同じ GitHub Releases チャンネル）、ログイン時起動とトレイ常駐（任意）。デスクトップ設定は同じ `prefs.json` に保存され、アプリ内で切り替えられます。
+
+ソースからビルド：`make desktop-build`（`./bin/cc-select-desktop` を実行）または `make desktop-package`（インストーラを生成）。開発フローは [desktop/README.md](../../desktop/README.md)。
+
+
 ## クイックスタート
 
 ### 1. shell 統合

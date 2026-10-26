@@ -90,6 +90,18 @@ cc-select update --dry-run  # 下载并校验，但不替换二进制
 ```
 
 更新后，已在运行的进程（包括正在运行的 `cc-select gui`）仍是旧版本——重启它们以使用新版本。当有新版本可用时，Web 配置页的页头也会显示更新按钮。
+## 桌面客户端
+
+除 Web 配置页（`cc-select gui`）外，还提供基于 [Wails v3](https://v3.wails.io) 的原生桌面客户端，可从 GitHub Releases 下载：
+
+- `cc-select-desktop_<version>_darwin_arm64.zip` —— macOS（Apple Silicon；首发未签名，首次打开请「右键 → 打开」）
+- `cc-select-desktop_<version>_windows_x64.zip` —— Windows（首次运行可能有 SmartScreen 提示——「更多信息 → 仍要运行」）
+- `cc-select-desktop_<version>_linux_x64.AppImage` —— Linux
+
+桌面客户端与 CLI、Web 配置页共享同一份界面、数据（`~/.cc-select/`）与语言偏好。额外能力：系统托盘菜单（点击 provider 即复制 `ccs use <id>`——切换仍发生在你的终端里，保持 shell 级隔离）、应用内一键「安装 ccs 到 PATH」、应用内自更新（与 CLI 同一 GitHub Releases 渠道）、可选的登录自启与关窗驻留托盘。桌面偏好与 CLI 存于同一份 `prefs.json`，在应用内即可切换。
+
+源码构建：`make desktop-build`（直接运行 `./bin/cc-select-desktop`）或 `make desktop-package`（产出可安装包）。开发流程见 [desktop/README.md](../../desktop/README.md)。
+
 
 ## 快速开始
 
