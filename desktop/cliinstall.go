@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 // 内置 CLI 安装器（US2，FR-004/FR-005；契约 contracts/desktop-api.md §3.3）。
@@ -78,13 +80,16 @@ func parseOurVersion(out string) (string, bool) {
 }
 
 // probeCliVersion 执行 <bin> --version 并返回首行去换行输出。
+// 带超时：PATH 上若是挂起的损坏 shim，不能拖死 HTTP handler（评审 MED-1）。
 func probeCliVersion(bin string) (string, error) {
-	out, err := exec.Command(bin, "--version").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, bin, "--version").Output()
 	if err != nil {
 		return "", err
 	}
 	line := bytes.SplitN(bytes.TrimSpace(out), []byte("\n"), 2)[0]
-	return string(line), nil
+	return string(bytes.TrimRight(line, "\r")), nil // Windows \r\n 兼容
 }
 
 // detectInstalledCLI 探测 PATH 上的 cc-select 状态。
@@ -181,8 +186,10 @@ func installEmbeddedCLI(opts installOptions) (installResult, *installConflict, e
 		default: // cliExternal + confirmed
 			res.Action = "overwritten"
 		}
+		// 二进制已就位是既成事实；PATH 注册（Windows）失败降级为提示而非 500——
+		// 避免状态与事实相反（评审 MED-2：重试仍在同一步失败）。
 		if err := afterInstall(dir); err != nil {
-			return installResult{}, nil, fmt.Errorf("post-install: %w", err)
+			res.Hint = fmt.Sprintf("installed to %s, but PATH registration failed: %v", dir, err)
 		}
 		return res, nil, nil
 	}

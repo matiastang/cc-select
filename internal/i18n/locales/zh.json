@@ -311,6 +311,9 @@
       "copied": "已复制：%s",
       "open": "打开 CC Select",
       "quit": "退出"
+    },
+    "update": {
+      "available": "新版本 v%s 可用——打开应用完成更新"
     }
   }
 }

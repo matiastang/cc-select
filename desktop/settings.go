@@ -31,10 +31,6 @@ func (a *desktopAPI) handleSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *desktopAPI) handleSettingsGet(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	p, err := a.LoadPrefs()
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
@@ -44,12 +40,11 @@ func (a *desktopAPI) handleSettingsGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *desktopAPI) handleSettingsPut(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	var body settingsBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil ||
+	// DisallowUnknownFields：未知字段 400（契约 §3.2），防拼写错误被静默吞掉。
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&body); err != nil ||
 		body.TrayResident == nil || body.AutoStart == nil || body.AutoUpdateCheck == nil {
 		writeJSONError(w, http.StatusBadRequest, "invalid settings body: all three fields required")
 		return

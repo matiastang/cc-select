@@ -130,7 +130,8 @@ func (tc *trayController) rebuildMenu() {
 // 否则退出整个 App（进程结束、托盘消失，spec Story 4 验收 4）。
 func (tc *trayController) onWindowClosing(e *application.WindowEvent) {
 	p, err := prefs.Load()
-	if err == nil && p.LoadDesktop().TrayResident {
+	// prefs 读取失败时 fail-open 驻留（默认语义）：误退出比误驻留更伤用户数据面。
+	if err != nil || p.LoadDesktop().TrayResident {
 		tc.window.Hide()
 		e.Cancel()
 		tc.rebuildMenu() // 驻留时机刷新菜单（覆盖窗口打开期间的配置变更）

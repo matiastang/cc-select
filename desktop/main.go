@@ -7,6 +7,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"strings"
 	"time"
@@ -101,11 +102,20 @@ type updaterHolder struct {
 }
 
 func (h *updaterHolder) Check(ctx context.Context) (*updater.Release, error) {
+	if h.svc == nil {
+		return nil, errUpdaterNotReady
+	}
 	return h.svc.Check(ctx)
 }
 func (h *updaterHolder) DownloadAndInstall(ctx context.Context) error {
+	if h.svc == nil {
+		return errUpdaterNotReady
+	}
 	return h.svc.DownloadAndInstall(ctx)
 }
+
+// errUpdaterNotReady 覆盖"绑定前被调用"的理论窗口（与 autostartHolder 一致）。
+var errUpdaterNotReady = errors.New("updater not ready")
 
 // initUpdater 配置 Wails Updater：GitHub provider + 桌面资产匹配 + SHA256SUMS 摘要校验。
 func initUpdater(app *application.App, appVersion string) {
@@ -169,6 +179,6 @@ func startupUpdateCheck(app *application.App, notifier *notifications.Notificati
 	_ = notifier.SendNotification(notifications.NotificationOptions{
 		ID:    "update-available",
 		Title: "CC Select",
-		Body:  "v" + rel.Version + " available — open the app to update",
+		Body:  i18n.T("desktop.update.available", rel.Version),
 	})
 }

@@ -7,9 +7,13 @@ import (
 	"path/filepath"
 )
 
-// defaultInstallDirs unix 候选目录：/usr/local/bin 优先，无权限回落 ~/.bin
+// defaultInstallDirs unix 候选目录：CC_SELECT_INSTALL_DIR 显式覆盖优先（无权限
+// 场景的用户出路，permissionHint 指引于此），默认 /usr/local/bin → ~/.bin 回落
 // （data-model §1.2 / contracts §3.3）。
 func defaultInstallDirs() []string {
+	if d := os.Getenv("CC_SELECT_INSTALL_DIR"); d != "" {
+		return []string{d}
+	}
 	dirs := []string{"/usr/local/bin"}
 	if home, err := os.UserHomeDir(); err == nil && home != "" {
 		dirs = append(dirs, filepath.Join(home, ".bin"))

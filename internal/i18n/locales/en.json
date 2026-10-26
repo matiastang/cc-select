@@ -311,6 +311,9 @@
       "copied": "Copied: %s",
       "open": "Open CC Select",
       "quit": "Quit"
+    },
+    "update": {
+      "available": "v%s available — open the app to update"
     }
   }
 }

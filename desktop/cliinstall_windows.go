@@ -10,8 +10,12 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-// defaultInstallDirs windows 候选目录：用户级程序目录（无需管理员）。
+// defaultInstallDirs windows 候选目录：CC_SELECT_INSTALL_DIR 显式覆盖优先，
+// 默认用户级程序目录（无需管理员）。
 func defaultInstallDirs() []string {
+	if d := os.Getenv("CC_SELECT_INSTALL_DIR"); d != "" {
+		return []string{d}
+	}
 	base := os.Getenv("LOCALAPPDATA")
 	if base == "" {
 		if home, err := os.UserHomeDir(); err == nil {
@@ -19,7 +23,7 @@ func defaultInstallDirs() []string {
 		}
 	}
 	if base == "" {
-		return nil
+		return []string{filepath.Join(os.TempDir(), "cc-select-install")}
 	}
 	return []string{filepath.Join(base, "Programs", "cc-select")}
 }
@@ -47,5 +51,7 @@ func afterInstall(dir string) error {
 		newVal += ";"
 	}
 	newVal += dir
-	return k.SetStringValue("Path", newVal)
+	// 必须 REG_EXPAND_SZ：HKCU\Environment\Path 原生展开类型；SetStringValue 写
+	// REG_SZ 会让既有 %VAR% 条目在下次登录不再展开（评审 MED-4）。
+	return k.SetExpandStringValue("Path", newVal)
 }

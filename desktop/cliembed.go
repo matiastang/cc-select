@@ -19,14 +19,15 @@ func extractEmbeddedCli(dest string) error {
 	if err != nil {
 		return fmt.Errorf("read embedded cli: %w", err)
 	}
-	name := ""
+	name := cliFileName() // 精确匹配，避免混入文件被误装（评审 LOW）
+	found := false
 	for _, e := range entries {
-		if e.Type().IsRegular() && e.Name()[0] != '.' {
-			name = e.Name()
+		if e.Name() == name {
+			found = true
 			break
 		}
 	}
-	if name == "" {
+	if !found {
 		return fmt.Errorf("embedded CLI missing: run `make desktop-build` (desktop-cli step) before building desktop app")
 	}
 	data, err := embeddedCliFS.ReadFile("assets/cli/" + name)
