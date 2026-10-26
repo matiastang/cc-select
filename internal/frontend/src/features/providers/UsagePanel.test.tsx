@@ -26,6 +26,7 @@ describe("UsagePanel（US7 / R11）", () => {
   it("手动刷新后展示窗口用量（5h 百分比 + resetAt）", async () => {
     mockUsage({
       supported: true,
+      fetchedAt: "2026-10-26T12:00:00Z",
       windows: [
         { type: "5h", percent: 63.5, resetAt: "2026-10-26T15:00:00Z" },
         { type: "week", used: 612, limit: 2400 },
