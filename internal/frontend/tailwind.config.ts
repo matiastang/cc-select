@@ -18,10 +18,12 @@ export default {
         accent: {
           DEFAULT: "var(--accent)",
           hover: "var(--accent-hover)",
+          contrast: "var(--accent-contrast)",
         },
         danger: {
           DEFAULT: "var(--danger)",
           hover: "var(--danger-hover)",
+          contrast: "var(--danger-contrast)",
         },
         input: "var(--input-bg)",
         notice: "var(--notice-bg)",
