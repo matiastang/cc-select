@@ -100,16 +100,16 @@ description: "Task list for feature implementation"
 
 ### Tests for User Story 3 ⚠️（先写并确认 FAIL）
 
-- [ ] T020 [P] [US3] `desktop/updatebridge_test.go`：check 响应与 web 端点字段同构映射（fake updater service）、POST 202/409（进行中锁）/422（校验失败）、失败降级不 5xx（契约 contracts §2）
-- [ ] T021 [P] [US3] `desktop/settings_test.go`：`GET/PUT /api/v1/desktop/settings` 契约（204 幂等、400 非法字段、503 自启不可用回滚不落盘，契约 contracts §3.2；服务同步用回调注册 fake）
+- [x] T020 [P] [US3] `desktop/updatebridge_test.go`：check 响应与 web 端点字段同构映射（fake updater service）、POST 202/409（进行中锁）/422（校验失败）、失败降级不 5xx（契约 contracts §2）
+- [x] T021 [P] [US3] `desktop/settings_test.go`：`GET/PUT /api/v1/desktop/settings` 契约（204 幂等、400 非法字段、503 自启不可用回滚不落盘，契约 contracts §3.2；服务同步用回调注册 fake）
 
 ### Implementation for User Story 3
 
-- [ ] T022 [US3] 实现 `desktop/updatebridge.go`：拦截 `/api/v1/update*` → Wails Updater（GitHub provider、CurrentVersion、`ChecksumAsset:"SHA256SUMS"`、headless），使 T020 GREEN；**红线断言**：不调用 `internal/updater` 替换逻辑（research R2）
-- [ ] T023 [US3] 实现设置端点 `desktop/settings.go`（prefs 落盘 + 服务回调注册机制：本故事挂 autoUpdateCheck 回调，US4/US5 后续注册托盘/自启），使 T021 GREEN
-- [ ] T024 [US3] 启动时按 `autoUpdateCheck` 静默检查 + 发现新版经通知服务提醒（FR-006）
-- [ ] T025 [P] [US3] 前端 DesktopSettings 增「自动检查更新」开关（PUT settings；沿用既有 CheckUpdateButton/更新卡片，零改动验证），配 vitest
-- [ ] T026 [US3] 验证检查点：quickstart §2 Story 3 全脚本（含断网与中断恢复）
+- [x] T022 [US3] 实现 `desktop/updatebridge.go`：拦截 `/api/v1/update*` → Wails Updater（GitHub provider、CurrentVersion、`ChecksumAsset:"SHA256SUMS"`、headless），使 T020 GREEN；**红线断言**：不调用 `internal/updater` 替换逻辑（research R2）
+- [x] T023 [US3] 实现设置端点 `desktop/settings.go`（prefs 落盘 + 服务回调注册机制：本故事挂 autoUpdateCheck 回调，US4/US5 后续注册托盘/自启），使 T021 GREEN
+- [x] T024 [US3] 启动时按 `autoUpdateCheck` 静默检查 + 发现新版经通知服务提醒（FR-006）
+- [x] T025 [P] [US3] 前端 DesktopSettings 增「自动检查更新」开关（PUT settings；沿用既有 CheckUpdateButton/更新卡片，零改动验证），配 vitest
+- [x] T026 [US3] 验证检查点：quickstart §2 Story 3 全脚本（含断网与中断恢复）
 
 **Checkpoint**: Stories 1–3 独立可用
 
@@ -123,13 +123,13 @@ description: "Task list for feature implementation"
 
 ### Tests for User Story 4 ⚠️（先写并确认 FAIL）
 
-- [ ] T027 [P] [US4] `desktop/tray_test.go`：`GET /api/v1/desktop/tray/commands` 数据契约测试（来自 providers 配置、含 copyCommand、**无任何执行切换动作**——FR-009 契约层锁定，contracts §3.4）
+- [x] T027 [P] [US4] `desktop/tray_test.go`：`GET /api/v1/desktop/tray/commands` 数据契约测试（来自 providers 配置、含 copyCommand、**无任何执行切换动作**——FR-009 契约层锁定，contracts §3.4）
 
 ### Implementation for User Story 4
 
-- [ ] T028 [US4] 实现 `desktop/tray.go`：菜单装配（providers→复制命令+系统通知、打开切换面板、状态、退出）+ `trayResident` 行为（关窗驻留 vs 退出，经 settings 回调注册）+ 无托盘环境优雅降级，使 T027 GREEN
-- [ ] T029 [P] [US4] 前端 DesktopSettings 增「关闭窗口时驻留托盘」开关 + providers 列表随配置变更刷新（读时拉取，Edge Case「运行中变更可见」），配 vitest
-- [ ] T030 [US4] 验证检查点：quickstart §2 Story 4 手工脚本（**含 R1 红线双终端验证**）
+- [x] T028 [US4] 实现 `desktop/tray.go`：菜单装配（providers→复制命令+系统通知、打开切换面板、状态、退出）+ `trayResident` 行为（关窗驻留 vs 退出，经 settings 回调注册）+ 无托盘环境优雅降级，使 T027 GREEN
+- [x] T029 [P] [US4] 前端 DesktopSettings 增「关闭窗口时驻留托盘」开关 + providers 列表随配置变更刷新（读时拉取，Edge Case「运行中变更可见」），配 vitest
+- [x] T030 [US4] 验证检查点：quickstart §2 Story 4 手工脚本（**含 R1 红线双终端验证**）
 
 **Checkpoint**: Stories 1–4 独立可用
 
@@ -143,9 +143,9 @@ description: "Task list for feature implementation"
 
 ### Implementation for User Story 5
 
-- [ ] T031 [US5] TDD + 实现：`desktop/autostart_test.go`（失败回滚：fake autostart 服务返回错误→prefs 不落盘已改字段）→ 接入 v3 `app.Autostart` 服务与 settings 回调（research R6）
-- [ ] T032 [P] [US5] 前端 DesktopSettings 增「登录自启」开关，配 vitest
-- [ ] T033 [US5] 验证检查点：quickstart §2 Story 5 手工脚本
+- [x] T031 [US5] TDD + 实现：`desktop/autostart_test.go`（失败回滚：fake autostart 服务返回错误→prefs 不落盘已改字段）→ 接入 v3 `app.Autostart` 服务与 settings 回调（research R6）
+- [x] T032 [P] [US5] 前端 DesktopSettings 增「登录自启」开关，配 vitest
+- [x] T033 [US5] 验证检查点：quickstart §2 Story 5 手工脚本
 
 **Checkpoint**: 全部 stories 独立可用
 
@@ -155,11 +155,11 @@ description: "Task list for feature implementation"
 
 **Purpose**: 发布流水线、文档、回归与评审（跨全部 stories）
 
-- [ ] T034 [P] 发布流水线：`.github/workflows/` 扩展三平台 matrix（macos-arm64/windows-x64/ubuntu），产物命名/SHA256SUMS/manifest 生成与 CI 断言（体积 ≤40MB、命名正则、sha256 一致，contracts/release-assets.md §2/§4/§6）
-- [ ] T035 [P] 文档：README（桌面端安装/使用 + macOS「右键打开」+ Windows SmartScreen 指引）+ `docs/language/README.*.md` 各语言同步（宪法 i18n 约定）+ `desktop/README.md` 开发指南
-- [ ] T036 全量回归 + 三平台冒烟：`make check && make test && make e2e` + quickstart §3 矩阵全项
-- [ ] T037 循环 code review 并修复**中等严重及以上**问题直至清零（宪法 Development Workflow；含 `/speckit-analyze` 交叉校验）
-- [ ] T038 宪法 VII 回流：验收结论回填 docs/（acceptance-tests.md 桌面用例、requirements.md 变更记录、tech-stack.md 状态、roadmap 如涉及）
+- [x] T034 [P] 发布流水线：`.github/workflows/` 扩展三平台 matrix（macos-arm64/windows-x64/ubuntu），产物命名/SHA256SUMS/manifest 生成与 CI 断言（体积 ≤40MB、命名正则、sha256 一致，contracts/release-assets.md §2/§4/§6）
+- [x] T035 [P] 文档：README（桌面端安装/使用 + macOS「右键打开」+ Windows SmartScreen 指引）+ `docs/language/README.*.md` 各语言同步（宪法 i18n 约定）+ `desktop/README.md` 开发指南
+- [x] T036 全量回归 + 三平台冒烟：`make check && make test && make e2e` + quickstart §3 矩阵全项
+- [x] T037 循环 code review 并修复**中等严重及以上**问题直至清零（宪法 Development Workflow；含 `/speckit-analyze` 交叉校验）
+- [x] T038 宪法 VII 回流：验收结论回填 docs/（acceptance-tests.md 桌面用例、requirements.md 变更记录、tech-stack.md 状态、roadmap 如涉及）
 
 ---
 
