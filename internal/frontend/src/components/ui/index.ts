@@ -12,3 +12,4 @@ export { SegmentedControl } from "./SegmentedControl";
 export { Select } from "./Select";
 export { Spinner } from "./Spinner";
 export { Textarea } from "./Textarea";
+export * from "./overlay";
