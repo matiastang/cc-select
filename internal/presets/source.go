@@ -197,12 +197,17 @@ func EnsureResolved(ctx context.Context, opts *ResolveOptions) SourceMeta {
 	meta := resolve(ctx, o)
 	resolveState.mu.Lock()
 	if resolveState.forced {
-		// 解析在飞期间用户关闭了远端（NEW-3 竞态）：丢弃结果，保持 builtin。
+		// 解析在飞期间用户关闭了远端（NEW-3 竞态）：丢弃结果并回滚 store——
+		// disable 可能落在 resolve 内部 reloadStore(remote) 之后，必须恢复 builtin。
 		meta = SourceMeta{Source: SourceBuiltin}
 	}
 	resolveState.done = true
 	resolveState.result = meta
+	forced := resolveState.forced
 	resolveState.mu.Unlock()
+	if forced {
+		reloadBuiltin()
+	}
 	return meta
 }
 
@@ -211,13 +216,11 @@ func EnsureResolved(ctx context.Context, opts *ResolveOptions) SourceMeta {
 func Refresh(ctx context.Context, opts *ResolveOptions) (SourceMeta, string) {
 	o := defaultResolveOptions(opts)
 
-	if resolveState.mu.Lock(); resolveState.forced || o.Disabled {
-		resolveState.mu.Unlock()
-		reloadBuiltin()
-		return SourceMeta{Source: SourceBuiltin}, "disabled"
-	}
-	resolveState.mu.Unlock()
-	if o.Disabled {
+	if func() bool {
+		resolveState.mu.Lock()
+		defer resolveState.mu.Unlock()
+		return resolveState.forced
+	}() || o.Disabled {
 		reloadBuiltin()
 		return SourceMeta{Source: SourceBuiltin}, "disabled"
 	}
@@ -232,14 +235,22 @@ func Refresh(ctx context.Context, opts *ResolveOptions) (SourceMeta, string) {
 
 	now := o.Now().UTC()
 	b := bundleFrom(data, now)
-	reloadStore(b.Bundle)
-	writeCache(o, b)
 
-	meta := SourceMeta{Source: SourceRemote, FetchedAt: &now}
+	// 提交前锁内复查 forced（NEW-3a）：刷新期间用户可能已关闭远端——
+	// 此时不得 reloadStore(remote)/写 meta，回落 builtin 并报 disabled。
 	resolveState.mu.Lock()
+	if resolveState.forced {
+		resolveState.mu.Unlock()
+		reloadBuiltin()
+		return SourceMeta{Source: SourceBuiltin}, "disabled"
+	}
+	reloadStore(b.Bundle)
+	meta := SourceMeta{Source: SourceRemote, FetchedAt: &now}
 	resolveState.done = true
 	resolveState.result = meta
 	resolveState.mu.Unlock()
+
+	writeCache(o, b)
 	return meta, ""
 }
 

@@ -182,7 +182,8 @@ func (h *apiHandler) handleRemotePresets(w http.ResponseWriter, r *http.Request)
 		// 重新开启时后台补一次解析（NEW-4：避免等重启/手动刷新才恢复远端）。
 		presets.SetRemoteDisabled(!*body.Enabled)
 		if *body.Enabled {
-			go presets.EnsureResolved(context.Background(), presets.DefaultOptions())
+			// 走注入点保持测试 hermetic（与 handlePresetsRefresh 同一选项源）。
+			go presets.EnsureResolved(context.Background(), h.resolveOpts())
 		}
 		writeJSON(w, http.StatusOK, map[string]bool{"enabled": *body.Enabled})
 	default:

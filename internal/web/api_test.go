@@ -1314,26 +1314,17 @@ func TestRemotePresetsToggle(t *testing.T) {
 		t.Error("GET should report enabled=false after PUT false")
 	}
 
-	// PUT false 后 /presets meta 立即翻为 builtin（H2 即时生效，hermetic 注入同上）
-	old := usageSelect
-	_ = old
-	h := newAPIHandler()
-	h.presetOpts = func() *presets.ResolveOptions {
-		return &presets.ResolveOptions{Disabled: true, RemoteURL: "http://127.0.0.1:1/p.json"}
-	}
-	srv2 := httptest.NewServer(h.routes())
-	defer srv2.Close()
-	respMeta, _ := http.Post(srv2.URL+"/api/v1/presets/refresh", "", nil)
-	var body struct {
+	// PUT false 后 /presets meta 立即翻为 builtin（H2 即时生效——同进程验证）。
+	rp, _ := http.Get(srv.URL + "/api/v1/presets")
+	var plist struct {
 		Meta struct {
 			Source string `json:"source"`
 		} `json:"meta"`
-		Warning string `json:"warning"`
 	}
-	_ = json.NewDecoder(respMeta.Body).Decode(&body)
-	respMeta.Body.Close()
-	if body.Meta.Source != "builtin" || body.Warning != "disabled" {
-		t.Fatalf("disabled refresh = %+v", body)
+	_ = json.NewDecoder(rp.Body).Decode(&plist)
+	rp.Body.Close()
+	if plist.Meta.Source != "builtin" {
+		t.Fatalf("after PUT false, /presets meta=%s, want builtin", plist.Meta.Source)
 	}
 
 	// 非法 body 400

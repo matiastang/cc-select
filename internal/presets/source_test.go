@@ -52,6 +52,7 @@ func newTestOpts(t *testing.T, url string) testOpts {
 		resolveState.mu.Lock()
 		resolveState.done = false
 		resolveState.result = SourceMeta{}
+		resolveState.forced = false
 		resolveState.mu.Unlock()
 	})
 	dir := t.TempDir()
@@ -278,5 +279,31 @@ func TestRefresh_FailureReportsCurrentSourceNotBuiltin(t *testing.T) {
 	}
 	if meta.Source != SourceRemote {
 		t.Fatalf("failure meta=%s, want remote (current effective)", meta.Source)
+	}
+}
+
+func TestRefresh_DisabledDuringInFlightFetchLandsBuiltin(t *testing.T) {
+	// NEW-3a 回归：刷新在飞期间关闭开关 → 收尾不得落远端（store/meta 双 builtin）。
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(300 * time.Millisecond)
+		_, _ = w.Write(remoteBundleJSON(t))
+	}))
+	defer srv.Close()
+
+	to := newTestOpts(t, srv.URL)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, _ = Refresh(context.Background(), &to.opts)
+	}()
+	time.Sleep(100 * time.Millisecond) // 等 fetch 进入在飞状态
+	SetRemoteDisabled(true)
+	<-done
+
+	if meta := Meta(); meta.Source != SourceBuiltin {
+		t.Fatalf("meta=%s, want builtin (disable wins over in-flight refresh)", meta.Source)
+	}
+	if _, ok := ByID("remote-marker"); ok {
+		t.Fatal("remote preset must not land after disable")
 	}
 }

@@ -139,5 +139,8 @@ func checkHTTPS(field, raw string) error {
 	if u.Scheme != "https" {
 		return fmt.Errorf("%s %q must be https", field, raw)
 	}
+	if u.Host == "" {
+		return fmt.Errorf("%s %q has empty host", field, raw)
+	}
 	return nil
 }

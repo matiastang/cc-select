@@ -162,7 +162,8 @@ func indexOf(s, sub string) int {
 
 func TestProbe_SanitizeAcrossTruncateBoundary(t *testing.T) {
 	// token 跨第 200 rune 边界：先脱敏再截断，任何残段不得泄露。
-	long := strings.Repeat("x", 195)
+	// 起点取 180——旧实现（先截断）会泄出完整可检测前缀，本用例对其有判别力。
+	long := strings.Repeat("x", 180)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(400)
 		_, _ = w.Write([]byte(long + "sk-boundary-token-abcdefghijklmnop"))
@@ -175,6 +176,9 @@ func TestProbe_SanitizeAcrossTruncateBoundary(t *testing.T) {
 	}
 	if strings.Contains(res.Error.Message, "sk-boundary") || strings.Contains(res.Error.Message, "boundary-token") {
 		t.Fatalf("token fragment leaked: %q", res.Error.Message)
+	}
+	if !strings.Contains(res.Error.Message, "***") {
+		t.Fatalf("sanitized marker missing: %q", res.Error.Message)
 	}
 }
 
