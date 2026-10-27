@@ -132,7 +132,8 @@ tasks:
     vars:
       # 安装器元数据版本:git describe 去 v 前缀(NSIS VIProductVersion 需纯数字)。
       NSIS_VERSION:
-        sh: 'echo "${VERSION#v}" | cut -d- -f1'
+        # {{.VERSION}} 走 Task 模板插值（sh 内 ${VERSION} 拿不到 Task 变量，曾致空值）。
+        sh: 'echo "{{.VERSION}}" | sed "s/^v//" | cut -d- -f1'
       ARCH: '{{.ARCH | default ARCH}}'
       ARG_FLAG: '{{if eq .ARCH "amd64"}}AMD64{{else}}ARM64{{end}}'
       INSTALL_SCOPE: '{{.INSTALL_SCOPE | default "machine"}}'
