@@ -26,6 +26,9 @@ func setTempCfg(t *testing.T) {
 	t.Setenv("CC_SELECT_CLAUDE_HOME", t.TempDir())
 	// 测试默认使用英文输出，避免受运行环境语言影响。
 	t.Setenv("CC_SELECT_LANGUAGE", "en")
+	// 隔离后台预设解析：避免 goroutine 在测试结束后仍向本临时目录写缓存
+	// （TempDir 清理竞态 flake）；add 命令的远端解析行为由 presets 包自测覆盖。
+	resolvePresetsInBackground = func() {}
 }
 
 // resetFlags 清掉 add/edit/use/init/remove 的全局 flag 变量，
