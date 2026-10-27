@@ -179,7 +179,6 @@ tasks:
       # appimagetool 要求 .desktop 的 Icon 与 AppDir 内图标文件同名）。
       EXEC: 'cc-select'
       ICON: 'cc-select'
-      ICON: '{{.APP_NAME}}'
       CATEGORIES: 'Development;'
       OUTPUTFILE: '{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop'
 
