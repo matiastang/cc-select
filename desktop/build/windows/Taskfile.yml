@@ -114,10 +114,6 @@ tasks:
 
   create:nsis:installer:
     summary: Creates an NSIS installer
-    vars:
-      # 安装器元数据版本:git describe 去 v 前缀(NSIS VIProductVersion 需纯数字)。
-      NSIS_VERSION:
-        sh: 'echo "${VERSION#v}" | cut -d- -f1' 
     dir: build/windows/nsis
     deps:
       - task: build
@@ -134,6 +130,9 @@ tasks:
         makensis {{if eq .INSTALL_SCOPE "user"}}-DWAILS_INSTALL_SCOPE=user -DREQUEST_EXECUTION_LEVEL=user {{end}}-DINFO_PRODUCTVERSION="{{.NSIS_VERSION}}" -DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}.exe" project.nsi
         {{end}}
     vars:
+      # 安装器元数据版本:git describe 去 v 前缀(NSIS VIProductVersion 需纯数字)。
+      NSIS_VERSION:
+        sh: 'echo "${VERSION#v}" | cut -d- -f1'
       ARCH: '{{.ARCH | default ARCH}}'
       ARG_FLAG: '{{if eq .ARCH "amd64"}}AMD64{{else}}ARM64{{end}}'
       INSTALL_SCOPE: '{{.INSTALL_SCOPE | default "machine"}}'

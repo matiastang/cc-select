@@ -53,6 +53,7 @@ jobs:
           - os: ubuntu-latest   # x64，AppImage
             platform: linux_x64
     runs-on: ${{ matrix.os }}
+    needs: release  # 先让 goreleaser 建好草稿，桌面 job 只上传不创建（消除草稿资产竞态）
     steps:
       - uses: actions/checkout@v5
         with:
