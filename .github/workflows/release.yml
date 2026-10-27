@@ -99,6 +99,14 @@ jobs:
           # wails3 模板产物落点：NSIS OutFile 与 AppImage OUTPUT_DIR 均为 desktop/bin
           # （首发实跑暴露：目录不存在时 NSIS "Can't open output file"；任务名 linux:package）。
           mkdir -p desktop/bin
+          # windows：choco 的 NSIS 安装路径不定——动态定位 makensis 并注入 PATH
+          # （GITHUB_PATH 固定路径在实跑中未命中，二次 127）。
+          if [ "${{ matrix.platform }}" = "windows_x64" ]; then
+            for d in "/c/Program Files (x86)/NSIS" "/c/Program Files/NSIS"; do
+              [ -f "$d/makensis.exe" ] && export PATH="$d:$PATH" && break
+            done
+            command -v makensis >/dev/null 2>&1 || { echo "::error::makensis not found"; exit 1; }
+          fi
           case "${{ matrix.platform }}" in
             darwin_arm64) wails3 task -dir desktop package ;;
             windows_x64)  wails3 task -dir desktop package ;;
