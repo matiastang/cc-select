@@ -175,8 +175,10 @@ tasks:
       - wails3 generate .desktop -name "{{.APP_NAME}}" -exec "{{.EXEC}}" -icon "{{.ICON}}" -outputfile "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" -categories "{{.CATEGORIES}}"
     vars:
       APP_NAME: '{{.APP_NAME}}'
-      # AppImage 内部二进制为无空格名 cc-select（见 create:appimage 注释）。
+      # AppImage 内部二进制与图标均为无空格名 cc-select（见 create:appimage 注释；
+      # appimagetool 要求 .desktop 的 Icon 与 AppDir 内图标文件同名）。
       EXEC: 'cc-select'
+      ICON: 'cc-select'
       ICON: '{{.APP_NAME}}'
       CATEGORIES: 'Development;'
       OUTPUTFILE: '{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop'
