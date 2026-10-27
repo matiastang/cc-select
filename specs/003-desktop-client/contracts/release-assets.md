@@ -60,5 +60,9 @@ Wails Updater 的 provider 消费结构（发布时由 CI 生成，字段以锁�
 
 1. tag 构建产物名逐一匹配 §2 正则；SHA256SUMS 行数 = 资产数。
 2. manifest 的每个 path 在同 Release 中存在且 sha256 一致。
-3. 资产总体积 ≤ 40MB/平台（SC-004），超限构建失败。
+3. 资产体积门（SC-004，v0.1.1 实测修订）：zip 类产物 ≤40MB；AppImage ≤100MB。
+   依据：桌面二进制本体 25MB（darwin zip 13.9MB / windows zip 28.4MB 为对照）；
+   AppImage 89MB = 二进制 + wails3 打包器随附的 WebKitGTK/GTK4 运行时
+   （WebKitWebProcess/NetworkProcess/GPUProcess 等，保证未装 webkit 的系统可运行，
+   见 wails v3 internal/commands/appimage.go）——为可移植性设计行为，非冗余。
 4. macOS zip 解包顶层为 `.app`；AppImage 可执行位存在。
