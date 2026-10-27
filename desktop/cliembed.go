@@ -8,7 +8,9 @@ import (
 
 // 内置 CLI（T017）：desktop/assets/cli/ 由 Makefile desktop-cli 目标在构建期拷入
 // 与桌面端同 GOOS/GOARCH 的 cc-select 二进制，经 go:embed 嵌入 App。
-// 未跑 desktop-cli 时目录只有 .gitignore——embed 仍成立，提取时给出明确错误。
+// 全新检出时目录只有占位 README.md（go:embed 不匹配 . 开头文件，故占位不可
+// 是 .gitignore）——embed 模式成立、包可构建；提取按文件名找不到二进制时
+// 给出「先跑 make desktop-build」的明确错误。
 
 //go:embed assets/cli
 var embeddedCliFS embed.FS
