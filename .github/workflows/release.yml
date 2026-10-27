@@ -96,10 +96,13 @@ jobs:
         env:
           CGO_ENABLED: "1"
         run: |
+          # wails3 模板产物落点：NSIS OutFile 与 AppImage OUTPUT_DIR 均为 desktop/bin
+          # （首发实跑暴露：目录不存在时 NSIS "Can't open output file"；任务名 linux:package）。
+          mkdir -p desktop/bin
           case "${{ matrix.platform }}" in
             darwin_arm64) wails3 task -dir desktop package ;;
             windows_x64)  wails3 task -dir desktop package ;;
-            linux_x64)    wails3 task -dir desktop linux:package:appimage ;;
+            linux_x64)    wails3 task -dir desktop linux:package ;;
           esac
 
       - name: Rename to contract assets + size gate（≤40MB，SC-004）
@@ -115,18 +118,19 @@ jobs:
               cd ../../..
               ;;
             windows_x64)
-              # NSIS 产物为 *-installer.exe；同时附裸 exe 便携版入 zip。
-              cd desktop/build/bin
-              INSTALLER=$(ls *-installer.exe "*Installer.exe" 2>/dev/null | head -1 || true)
-              mkdir -p pkg && cp "CC Select.exe" pkg/
+              # NSIS 安装器落 desktop/bin（wails3 模板 OutFile）；裸 exe 在 desktop/build/bin。
+              EXE=$(ls desktop/build/bin/*.exe | head -1)
+              INSTALLER=$(ls desktop/bin/*-installer.exe 2>/dev/null | head -1 || true)
+              mkdir -p pkg && cp "$EXE" pkg/
               [ -n "$INSTALLER" ] && cp "$INSTALLER" pkg/ || echo "NSIS installer missing — portable exe only"
+              cd desktop/build/bin
               cd pkg && 7z a "../../../desktop/dist/cc-select-desktop_${VER}_windows_x64.zip" . || \
                 (command -v zip >/dev/null && zip "../../../desktop/dist/cc-select-desktop_${VER}_windows_x64.zip" .) || \
                 powershell -Command "Compress-Archive -Path * -DestinationPath ../../../desktop/dist/cc-select-desktop_${VER}_windows_x64.zip"
               cd ../../../../..
               ;;
             linux_x64)
-              SRC=$(ls desktop/build/bin/*.AppImage | head -1)
+              SRC=$(ls desktop/bin/*.AppImage | head -1)
               cp "$SRC" "desktop/dist/cc-select-desktop_${VER}_linux_x64.AppImage"
               chmod +x "desktop/dist/cc-select-desktop_${VER}_linux_x64.AppImage"
               ;;
@@ -143,7 +147,12 @@ jobs:
           set -euo pipefail
           VER="${GITHUB_REF_NAME#v}"
           cd desktop/dist
-          sha256sum cc-select-desktop_* > SHA256SUMS
+          # macOS 无 sha256sum（首发实跑 exit 127）——shasum 输出同格式。
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum cc-select-desktop_* > SHA256SUMS
+          else
+            shasum -a 256 cc-select-desktop_* > SHA256SUMS
+          fi
           python3 - <<EOF || echo "{}" > cc-select-desktop_${VER}_manifest.json
           import hashlib, json, glob, os
           ver = "${VER}"
