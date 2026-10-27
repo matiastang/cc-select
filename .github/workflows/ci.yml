@@ -41,13 +41,16 @@ jobs:
         with:
           go-version: "1.26"
 
+      # 范围说明：desktop（Wails）需要 CGO + 各平台 webkit 系统依赖，属发布流水线
+      # （release 工作流三平台 matrix，specs/003 contracts/release-assets.md）与本地
+      # `make integration`（目标内已置 CGO=1）的职责；PR CI 覆盖 CLI + internal 包。
       - name: Build
         env:
           CGO_ENABLED: 0
-        run: go build ./...
+        run: go build ./internal/... .
 
       - name: Vet
-        run: go vet ./...
+        run: go vet ./internal/... .
 
       - name: Test
         run: go test ./internal/...
@@ -55,7 +58,7 @@ jobs:
       # 集成测试（跨进程 shell 行为），仅 Unix 跑（Windows PowerShell 集成另配）。
       - name: Integration tests
         if: runner.os != 'Windows'
-        run: go test -tags integration ./...
+        run: go test -tags integration ./internal/... .
 
       # Windows PowerShell 集成：实跑升级链路（Install → 写 $PROFILE），断言带 UTF-8 BOM
       # 且 PS 5.1/7 能加载并定义 ccs。防「PS 5.1 按 GBK 读无 BOM 中文注释破坏语法」回归。
