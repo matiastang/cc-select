@@ -109,7 +109,17 @@ jobs:
           fi
           case "${{ matrix.platform }}" in
             darwin_arm64) wails3 task -dir desktop package ;;
-            windows_x64)  wails3 task -dir desktop package ;;
+            windows_x64)
+              # 裸 exe 在 desktop/build/bin；NSIS 安装器落 desktop/bin（wails3 模板 OutFile）。
+              EXE=$(ls desktop/build/bin/*.exe | head -1)
+              INSTALLER=$(ls desktop/bin/*-installer.exe 2>/dev/null | head -1 || true)
+              mkdir -p desktop/dist
+              mkdir -p pkg && cp "$EXE" pkg/
+              [ -n "$INSTALLER" ] && cp "$INSTALLER" pkg/ || echo "NSIS installer missing — portable exe only"
+              (cd pkg && 7z a "../desktop/dist/cc-select-desktop_${VER}_windows_x64.zip" . || \
+                powershell -Command "Compress-Archive -Path * -DestinationPath ../desktop/dist/cc-select-desktop_${VER}_windows_x64.zip")
+              rm -rf pkg
+              ;;
             linux_x64)    wails3 task -dir desktop linux:package ;;
           esac
 
@@ -143,8 +153,10 @@ jobs:
               chmod +x "desktop/dist/cc-select-desktop_${VER}_linux_x64.AppImage"
               ;;
           esac
+          # wc -c 全平台可移植（stat -c/-f 语法在 windows git-bash 上不通用）
           for f in desktop/dist/cc-select-desktop_*; do
-            SIZE=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f")
+            [ -e "$f" ] || continue
+            SIZE=$(wc -c < "$f")
             if [ "$SIZE" -gt 41943040 ]; then echo "::error::$f is $SIZE bytes (>40MB)"; exit 1; fi
           done
           ls -lh desktop/dist/
