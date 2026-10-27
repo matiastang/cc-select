@@ -103,23 +103,13 @@ jobs:
           # （GITHUB_PATH 固定路径在实跑中未命中，二次 127）。
           if [ "${{ matrix.platform }}" = "windows_x64" ]; then
             MK=$(find "/c/Program Files (x86)" "/c/Program Files" "/c/ProgramData/chocolatey" \
-              -name makensis.exe 2>/dev/null | head -1 || true)
+              -maxdepth 3 -name makensis.exe 2>/dev/null | head -1 || true)
             [ -n "$MK" ] || { echo "::error::makensis.exe not found anywhere"; exit 1; }
             export PATH="$(dirname "$MK"):$PATH"
           fi
           case "${{ matrix.platform }}" in
             darwin_arm64) wails3 task -dir desktop package ;;
-            windows_x64)
-              # 裸 exe 在 desktop/build/bin；NSIS 安装器落 desktop/bin（wails3 模板 OutFile）。
-              EXE=$(ls desktop/build/bin/*.exe | head -1)
-              INSTALLER=$(ls desktop/bin/*-installer.exe 2>/dev/null | head -1 || true)
-              mkdir -p desktop/dist
-              mkdir -p pkg && cp "$EXE" pkg/
-              [ -n "$INSTALLER" ] && cp "$INSTALLER" pkg/ || echo "NSIS installer missing — portable exe only"
-              (cd pkg && 7z a "../desktop/dist/cc-select-desktop_${VER}_windows_x64.zip" . || \
-                powershell -Command "Compress-Archive -Path * -DestinationPath ../desktop/dist/cc-select-desktop_${VER}_windows_x64.zip")
-              rm -rf pkg
-              ;;
+            windows_x64)  wails3 task -dir desktop package ;;
             linux_x64)    wails3 task -dir desktop linux:package ;;
           esac
 
@@ -136,16 +126,15 @@ jobs:
               cd ../../..
               ;;
             windows_x64)
-              # NSIS 安装器落 desktop/bin（wails3 模板 OutFile）；裸 exe 在 desktop/build/bin。
+              # 裸 exe 在 desktop/build/bin；NSIS 安装器落 desktop/bin（wails3 模板 OutFile）。
               EXE=$(ls desktop/build/bin/*.exe | head -1)
               INSTALLER=$(ls desktop/bin/*-installer.exe 2>/dev/null | head -1 || true)
+              mkdir -p desktop/dist
               mkdir -p pkg && cp "$EXE" pkg/
               [ -n "$INSTALLER" ] && cp "$INSTALLER" pkg/ || echo "NSIS installer missing — portable exe only"
-              cd desktop/build/bin
-              cd pkg && 7z a "../../../desktop/dist/cc-select-desktop_${VER}_windows_x64.zip" . || \
-                (command -v zip >/dev/null && zip "../../../desktop/dist/cc-select-desktop_${VER}_windows_x64.zip" .) || \
-                powershell -Command "Compress-Archive -Path * -DestinationPath ../../../desktop/dist/cc-select-desktop_${VER}_windows_x64.zip"
-              cd ../../../../..
+              (cd pkg && 7z a "../desktop/dist/cc-select-desktop_${VER}_windows_x64.zip" . || \
+                powershell -Command "Compress-Archive -Path * -DestinationPath ../desktop/dist/cc-select-desktop_${VER}_windows_x64.zip")
+              rm -rf pkg
               ;;
             linux_x64)
               SRC=$(ls desktop/bin/*.AppImage | head -1)
