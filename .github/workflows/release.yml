@@ -110,7 +110,9 @@ jobs:
           case "${{ matrix.platform }}" in
             darwin_arm64) wails3 task -dir desktop package ;;
             windows_x64)  wails3 task -dir desktop package ;;
-            linux_x64)    wails3 task -dir desktop linux:package ;;
+            # 首发契约（specs/003 决策 3）：Linux 只发 AppImage——单任务调用,
+            # 跳过 deb/rpm/aur(nfpm 模板路径与产物不符,亦非本期范围)。
+            linux_x64)    wails3 task -dir desktop linux:create:appimage ;;
           esac
 
       - name: Rename to contract assets + size gate（≤40MB，SC-004）
@@ -137,7 +139,7 @@ jobs:
               rm -rf pkg
               ;;
             linux_x64)
-              SRC=$(ls desktop/bin/*.AppImage | head -1)
+              SRC=$(ls desktop/build/bin/*.AppImage | head -1)
               cp "$SRC" "desktop/dist/cc-select-desktop_${VER}_linux_x64.AppImage"
               chmod +x "desktop/dist/cc-select-desktop_${VER}_linux_x64.AppImage"
               ;;
