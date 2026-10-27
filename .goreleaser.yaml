@@ -62,6 +62,9 @@ release:
   # 显式写错 owner（如硬编码 "cc-select"）会导致发布到不存在的仓库而失败。
   draft: true
   prerelease: auto
+  # keep-existing：桌面 job 经 gh CLI 向同一草稿上传资产——goreleaser 不得清理/替换
+  # 非自有资产（v0.1.1 首发实跑曾出现桌面资产被清空的竞态）。
+  mode: keep-existing
 
 # Homebrew Tap：macOS / Linux 一键安装。
 # 目标仓库：https://github.com/matiastang/homebrew-cc-select
