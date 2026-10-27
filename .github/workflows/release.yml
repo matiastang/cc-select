@@ -102,10 +102,10 @@ jobs:
           # windows：choco 的 NSIS 安装路径不定——动态定位 makensis 并注入 PATH
           # （GITHUB_PATH 固定路径在实跑中未命中，二次 127）。
           if [ "${{ matrix.platform }}" = "windows_x64" ]; then
-            for d in "/c/Program Files (x86)/NSIS" "/c/Program Files/NSIS"; do
-              [ -f "$d/makensis.exe" ] && export PATH="$d:$PATH" && break
-            done
-            command -v makensis >/dev/null 2>&1 || { echo "::error::makensis not found"; exit 1; }
+            MK=$(find "/c/Program Files (x86)" "/c/Program Files" "/c/ProgramData/chocolatey" \
+              -name makensis.exe 2>/dev/null | head -1 || true)
+            [ -n "$MK" ] || { echo "::error::makensis.exe not found anywhere"; exit 1; }
+            export PATH="$(dirname "$MK"):$PATH"
           fi
           case "${{ matrix.platform }}" in
             darwin_arm64) wails3 task -dir desktop package ;;
