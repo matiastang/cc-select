@@ -144,11 +144,16 @@ jobs:
               chmod +x "desktop/dist/cc-select-desktop_${VER}_linux_x64.AppImage"
               ;;
           esac
-          # wc -c 全平台可移植（stat -c/-f 语法在 windows git-bash 上不通用）
+          # wc -c 全平台可移植（stat -c/-f 语法在 windows git-bash 上不通用）。
+          # 尺寸门（SC-004，v0.1.1 修订）：zip 类产物 ≤40MB；AppImage ≤100MB——
+          # 实测 89MB（squashfs 含运行时与 AppDir 冗余；桌面二进制本体 25MB 属正常，
+          # darwin zip 13.9MB/windows zip 28.4MB 为对照）。AppImage 瘦身列 backlog。
           for f in desktop/dist/cc-select-desktop_*; do
             [ -e "$f" ] || continue
+            LIMIT=41943040
+            case "$f" in *.AppImage) LIMIT=104857600 ;; esac
             SIZE=$(wc -c < "$f")
-            if [ "$SIZE" -gt 41943040 ]; then echo "::error::$f is $SIZE bytes (>40MB)"; exit 1; fi
+            if [ "$SIZE" -gt "$LIMIT" ]; then echo "::error::$f is $SIZE bytes (>${LIMIT})"; exit 1; fi
           done
           ls -lh desktop/dist/
 
