@@ -66,17 +66,23 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Install wails3 CLI（锁定 beta.34）
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.34
-
+      # Linux 依赖必须先于 wails3 安装：wails3 CLI 自身编译即需 gtk4/webkitgtk 头
+      # （linux_x64 首发实跑暴露：internal/operatingsystem 走 pkg-config）。
       - name: Linux build deps
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
 
+      - name: Install wails3 CLI（锁定 beta.34）
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.34
+
       - name: Windows NSIS
         if: runner.os == 'Windows'
         shell: pwsh
-        run: choco install nsis -y --no-progress
+        # choco 不把 NSIS 加进 PATH；追加 GITHUB_PATH 使后续 bash 步骤可调 makensis
+        # （wails3 windows package 依赖 makensis，首发实跑 127 暴露）。
+        run: |
+          choco install nsis -y --no-progress
+          Add-Content $env:GITHUB_PATH "C:\Program Files (x86)\NSIS"
 
       - name: Build frontend + CLI（嵌入同平台 CLI）
         shell: bash
@@ -106,7 +112,7 @@ jobs:
             darwin_arm64)
               cd desktop/build/bin
               ditto -c -k --keepParent "CC Select.app" "../../../desktop/dist/cc-select-desktop_${VER}_darwin_arm64.zip"
-              cd ../../../..
+              cd ../../..
               ;;
             windows_x64)
               # NSIS 产物为 *-installer.exe；同时附裸 exe 便携版入 zip。
