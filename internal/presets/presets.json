@@ -1,0 +1,282 @@
+{
+  "schemaVersion": 1,
+  "presets": [
+    {
+      "id": "claude-official",
+      "displayName": "Claude 官方",
+      "category": "official",
+      "websiteURL": "https://claude.ai",
+      "apiFormat": "anthropic",
+      "envTemplate": {},
+      "oauth": true,
+      "requiredVars": []
+    },
+    {
+      "id": "deepseek",
+      "displayName": "DeepSeek",
+      "category": "cn_official",
+      "websiteURL": "https://deepseek.com",
+      "apiKeyURL": "https://platform.deepseek.com",
+      "apiFormat": "anthropic",
+      "authField": "ANTHROPIC_AUTH_TOKEN",
+      "envTemplate": {
+        "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
+        "ANTHROPIC_AUTH_TOKEN": "${API_KEY}",
+        "ANTHROPIC_MODEL": "deepseek-v4-pro",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-flash",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-pro",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-v4-pro"
+      },
+      "requiredVars": ["ANTHROPIC_AUTH_TOKEN"],
+      "optionalVars": ["ANTHROPIC_MODEL"]
+    },
+    {
+      "id": "zhipu-glm",
+      "displayName": "智谱 GLM",
+      "category": "cn_official",
+      "websiteURL": "https://open.bigmodel.cn",
+      "apiKeyURL": "https://open.bigmodel.cn/usercenter/apikey",
+      "apiFormat": "anthropic",
+      "authField": "ANTHROPIC_AUTH_TOKEN",
+      "envTemplate": {
+        "ANTHROPIC_BASE_URL": "https://open.bigmodel.cn/api/anthropic",
+        "ANTHROPIC_AUTH_TOKEN": "${API_KEY}",
+        "ANTHROPIC_MODEL": "glm-5.3",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-5.3-flash",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5.3",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.3"
+      },
+      "requiredVars": ["ANTHROPIC_AUTH_TOKEN"],
+      "optionalVars": ["ANTHROPIC_MODEL"]
+    },
+    {
+      "id": "zhipu-glm-en",
+      "displayName": "Zhipu GLM (en)",
+      "category": "cn_official",
+      "websiteURL": "https://api.z.ai",
+      "apiKeyURL": "https://api.z.ai/settings",
+      "apiFormat": "anthropic",
+      "authField": "ANTHROPIC_AUTH_TOKEN",
+      "envTemplate": {
+        "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+        "ANTHROPIC_AUTH_TOKEN": "${API_KEY}",
+        "ANTHROPIC_MODEL": "glm-5.3",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-5.3-flash",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5.3",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.3"
+      },
+      "requiredVars": ["ANTHROPIC_AUTH_TOKEN"],
+      "optionalVars": ["ANTHROPIC_MODEL"]
+    },
+    {
+      "id": "minimax",
+      "displayName": "MiniMax",
+      "category": "cn_official",
+      "websiteURL": "https://minimax.io",
+      "apiKeyURL": "https://platform.minimax.io",
+      "apiFormat": "anthropic",
+      "authField": "ANTHROPIC_AUTH_TOKEN",
+      "envTemplate": {
+        "ANTHROPIC_BASE_URL": "https://api.minimax.io/anthropic",
+        "ANTHROPIC_AUTH_TOKEN": "${API_KEY}",
+        "ANTHROPIC_MODEL": "MiniMax-M3",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "MiniMax-M3.1-Flash",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "MiniMax-M3",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "MiniMax-M3"
+      },
+      "requiredVars": ["ANTHROPIC_AUTH_TOKEN"],
+      "optionalVars": ["ANTHROPIC_MODEL"]
+    },
+    {
+      "id": "qwen-coding",
+      "displayName": "通义千问 Coding Plan",
+      "category": "cn_official",
+      "websiteURL": "https://www.aliyun.com/product/bailian",
+      "apiKeyURL": "https://bailian.console.aliyun.com",
+      "apiFormat": "anthropic",
+      "authField": "ANTHROPIC_AUTH_TOKEN",
+      "envTemplate": {
+        "ANTHROPIC_BASE_URL": "https://coding.dashscope.aliyuncs.com/apps/anthropic",
+        "ANTHROPIC_AUTH_TOKEN": "${API_KEY}",
+        "ANTHROPIC_MODEL": "qwen3.7-plus",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "qwen3.7-plus",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "qwen3.7-plus",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "qwen3.7-plus"
+      },
+      "requiredVars": ["ANTHROPIC_AUTH_TOKEN"],
+      "optionalVars": ["ANTHROPIC_MODEL"]
+    },
+    {
+      "id": "kimi",
+      "displayName": "Kimi",
+      "category": "cn_official",
+      "websiteURL": "https://www.moonshot.cn",
+      "apiKeyURL": "https://platform.moonshot.cn/console/api-keys",
+      "apiFormat": "anthropic",
+      "authField": "ANTHROPIC_AUTH_TOKEN",
+      "envTemplate": {
+        "ANTHROPIC_BASE_URL": "https://api.moonshot.cn/anthropic",
+        "ANTHROPIC_AUTH_TOKEN": "${API_KEY}",
+        "ANTHROPIC_MODEL": "kimi-k2.7-code",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "kimi-k2.7-code",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "kimi-k2.7-code",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "kimi-k2.7-code"
+      },
+      "requiredVars": ["ANTHROPIC_AUTH_TOKEN"],
+      "optionalVars": ["ANTHROPIC_MODEL"]
+    },
+    {
+      "id": "kimi-coding",
+      "displayName": "Kimi For Coding",
+      "category": "cn_official",
+      "websiteURL": "https://www.moonshot.cn",
+      "apiKeyURL": "https://platform.moonshot.cn/console/api-keys",
+      "apiFormat": "anthropic",
+      "authField": "ANTHROPIC_AUTH_TOKEN",
+      "envTemplate": {
+        "ANTHROPIC_BASE_URL": "https://api.kimi.com/coding/",
+        "ANTHROPIC_AUTH_TOKEN": "${API_KEY}",
+        "ANTHROPIC_MODEL": "kimi-k2.7-code",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "kimi-k2.7-code",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "kimi-k2.7-code",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "kimi-k2.7-code"
+      },
+      "requiredVars": ["ANTHROPIC_AUTH_TOKEN"],
+      "optionalVars": ["ANTHROPIC_MODEL"]
+    },
+    {
+      "id": "openrouter",
+      "displayName": "OpenRouter",
+      "category": "aggregator",
+      "websiteURL": "https://openrouter.ai",
+      "apiKeyURL": "https://openrouter.ai/keys",
+      "apiFormat": "anthropic",
+      "authField": "ANTHROPIC_AUTH_TOKEN",
+      "envTemplate": {
+        "ANTHROPIC_BASE_URL": "https://openrouter.ai/api",
+        "ANTHROPIC_AUTH_TOKEN": "${API_KEY}",
+        "ANTHROPIC_MODEL": "anthropic/claude-sonnet-5",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "anthropic/claude-haiku-4.5",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "anthropic/claude-sonnet-5",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "anthropic/claude-opus-4.8"
+      },
+      "requiredVars": ["ANTHROPIC_AUTH_TOKEN"],
+      "optionalVars": ["ANTHROPIC_MODEL"]
+    },
+    {
+      "id": "siliconflow",
+      "displayName": "SiliconFlow",
+      "category": "aggregator",
+      "websiteURL": "https://siliconflow.cn",
+      "apiKeyURL": "https://cloud.siliconflow.cn/account/ak",
+      "apiFormat": "anthropic",
+      "authField": "ANTHROPIC_AUTH_TOKEN",
+      "envTemplate": {
+        "ANTHROPIC_BASE_URL": "https://api.siliconflow.cn",
+        "ANTHROPIC_AUTH_TOKEN": "${API_KEY}",
+        "ANTHROPIC_MODEL": "Pro/MiniMaxAI/MiniMax-M2.7",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "Pro/MiniMaxAI/MiniMax-M2.7",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "Pro/MiniMaxAI/MiniMax-M2.7",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "Pro/MiniMaxAI/MiniMax-M2.7"
+      },
+      "requiredVars": ["ANTHROPIC_AUTH_TOKEN"],
+      "optionalVars": ["ANTHROPIC_MODEL"]
+    },
+    {
+      "id": "volcano-agentplan",
+      "displayName": "火山 Agentplan",
+      "category": "cn_official",
+      "websiteURL": "https://www.volcengine.com/product/ark",
+      "apiKeyURL": "https://console.volcengine.com/ark/apiKey",
+      "apiFormat": "anthropic",
+      "authField": "ANTHROPIC_AUTH_TOKEN",
+      "envTemplate": {
+        "ANTHROPIC_BASE_URL": "https://ark.cn-beijing.volces.com/api/coding",
+        "ANTHROPIC_AUTH_TOKEN": "${API_KEY}",
+        "ANTHROPIC_MODEL": "ark-code-latest",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "ark-code-latest",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "ark-code-latest",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "ark-code-latest"
+      },
+      "requiredVars": ["ANTHROPIC_AUTH_TOKEN"],
+      "optionalVars": ["ANTHROPIC_MODEL"]
+    },
+    {
+      "id": "aws-bedrock-aksk",
+      "displayName": "AWS Bedrock (AKSK)",
+      "category": "cloud_provider",
+      "websiteURL": "https://aws.amazon.com/bedrock",
+      "apiFormat": "anthropic",
+      "authField": "ANTHROPIC_AUTH_TOKEN",
+      "envTemplate": {
+        "ANTHROPIC_BASE_URL": "https://bedrock-runtime.${AWS_REGION}.amazonaws.com",
+        "ANTHROPIC_AUTH_TOKEN": "${API_KEY}",
+        "AWS_ACCESS_KEY_ID": "${AWS_ACCESS_KEY_ID}",
+        "AWS_SECRET_ACCESS_KEY": "${AWS_SECRET_ACCESS_KEY}",
+        "AWS_REGION": "${AWS_REGION}",
+        "ANTHROPIC_MODEL": "global.anthropic.claude-opus-4-8",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "global.anthropic.claude-haiku-4.5-20251001-v1:0",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "global.anthropic.claude-sonnet-5",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "global.anthropic.claude-opus-4-8",
+        "CLAUDE_CODE_USE_BEDROCK": "1"
+      },
+      "requiredVars": [
+        "ANTHROPIC_AUTH_TOKEN",
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_REGION"
+      ],
+      "optionalVars": ["ANTHROPIC_MODEL", "AWS_REGION"]
+    },
+    {
+      "id": "aws-bedrock-apikey",
+      "displayName": "AWS Bedrock (API Key)",
+      "category": "cloud_provider",
+      "websiteURL": "https://aws.amazon.com/bedrock",
+      "apiFormat": "anthropic",
+      "authField": "ANTHROPIC_API_KEY",
+      "envTemplate": {
+        "ANTHROPIC_BASE_URL": "https://bedrock-runtime.${AWS_REGION}.amazonaws.com",
+        "ANTHROPIC_API_KEY": "${API_KEY}",
+        "AWS_REGION": "${AWS_REGION}",
+        "ANTHROPIC_MODEL": "global.anthropic.claude-opus-4-8",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "global.anthropic.claude-haiku-4.5-20251001-v1:0",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "global.anthropic.claude-sonnet-5",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "global.anthropic.claude-opus-4-8",
+        "CLAUDE_CODE_USE_BEDROCK": "1"
+      },
+      "requiredVars": ["ANTHROPIC_API_KEY", "AWS_REGION"],
+      "optionalVars": ["ANTHROPIC_MODEL", "AWS_REGION"]
+    },
+    {
+      "id": "github-copilot",
+      "displayName": "GitHub Copilot",
+      "category": "third_party",
+      "websiteURL": "https://github.com/copilot",
+      "apiFormat": "openai_chat",
+      "envTemplate": {
+        "ANTHROPIC_BASE_URL": "https://api.githubcopilot.com",
+        "ANTHROPIC_MODEL": "claude-sonnet-5",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4.5",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-5",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-sonnet-5"
+      },
+      "oauth": true,
+      "requiredVars": []
+    },
+    {
+      "id": "custom",
+      "displayName": "自定义配置",
+      "category": "custom",
+      "apiFormat": "anthropic",
+      "authField": "ANTHROPIC_AUTH_TOKEN",
+      "envTemplate": {
+        "ANTHROPIC_BASE_URL": "",
+        "ANTHROPIC_AUTH_TOKEN": "${API_KEY}",
+        "ANTHROPIC_MODEL": ""
+      },
+      "requiredVars": ["ANTHROPIC_AUTH_TOKEN"],
+      "optionalVars": ["ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL"]
+    }
+  ]
+}

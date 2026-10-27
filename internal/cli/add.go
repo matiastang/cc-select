@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -39,6 +40,10 @@ var addCmd = &cobra.Command{
 	Use:  "add <id>",
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// 远端预设（specs/004 US5/FR-015）：后台解析不阻塞交互——离线机器
+		// 不吃 5s 超时；成功后缓存 24h，下次 add 即见最新清单。
+		go presets.EnsureResolved(context.Background(), presets.DefaultOptions())
+
 		a, err := app.New()
 		if err != nil {
 			return err

@@ -52,7 +52,8 @@
     "defaultOption": "默认（{{value}}）",
     "unsetOption": "（未设置）",
     "jsonLabel": "settings.json（最终提交的完整内容）",
-    "loadingRealConfig": "加载磁盘真实配置中…"
+    "loadingRealConfig": "加载磁盘真实配置中…",
+    "oauthNotice": "Claude 官方走 OAuth 登录——无需 API key。执行 `ccs use claude-official` 后按提示登录即可。"
   },
   "presetCategory": {
     "official": "官方",
@@ -92,5 +93,63 @@
     "migrated": "已开启：{{n}} 条存量密钥迁入钥匙串。",
     "loadFailed": "钥匙串设置读取失败",
     "saveFailed": "钥匙串设置保存失败"
+  },
+  "empty": {
+    "title": "还没有服务商",
+    "description": "从预设画廊选择一个服务商——通常只需填 API key 即可用。",
+    "action": "添加服务商"
+  },
+  "toast": {
+    "saved": "已保存",
+    "deleted": "已删除"
+  },
+  "gallery": {
+    "title": "添加服务商",
+    "subtitle": "选一个服务商——通常只需填 API key 即可用。",
+    "loading": "预设加载中…",
+    "customName": "自定义配置",
+    "customDesc": "手动填写全部配置（高级）",
+    "source": {
+      "builtin": "内置",
+      "cache": "缓存",
+      "remote": "远端"
+    }
+  },
+  "wizard": {
+    "basic": "基础配置",
+    "advanced": "高级配置"
+  },
+  "probe": {
+    "run": "测试连接",
+    "running": "测试中…",
+    "ok": "连通 · {{model}} · {{latency}}ms",
+    "error": "{{kind}}：{{message}}",
+    "kind": {
+      "auth": "认证失败",
+      "model": "模型不存在",
+      "server": "服务端错误",
+      "network": "网络错误",
+      "unknown": "未知错误"
+    }
+  },
+  "usage": {
+    "title": "用量限额",
+    "refresh": "刷新用量",
+    "refreshing": "查询中…",
+    "unsupported": "该服务商不支持限额查询",
+    "error": "查询失败：{{message}}",
+    "fetchedAt": "于 {{time}}",
+    "percentValue": "{{value}}%",
+    "value": "{{used}} / {{limit}}",
+    "resetAt": "{{time}} 重置",
+    "type": {
+      "5h": "5 小时窗口",
+      "week": "周限额",
+      "day": "日限额",
+      "minute-requests": "请求 / 分钟",
+      "minute-tokens": "Token / 分钟",
+      "month-mcp": "MCP 用量（月）",
+      "balance": "余额"
+    }
   }
 }

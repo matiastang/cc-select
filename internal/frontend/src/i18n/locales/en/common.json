@@ -13,5 +13,15 @@
     "system": "Auto",
     "light": "Light",
     "dark": "Dark"
-  }
+  },
+  "nav": {
+    "providers": "Providers",
+    "modeRoutes": "Mode & Routes",
+    "security": "Security",
+    "desktop": "Desktop",
+    "general": "General",
+    "about": "About",
+    "label": "Modules"
+  },
+  "aboutTitle": "About cc-select"
 }

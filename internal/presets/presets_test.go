@@ -244,7 +244,7 @@ func TestBuildEnv_OAuthNoKeyNeeded(t *testing.T) {
 }
 
 func TestAllBuiltin_HaveRequiredMetadata(t *testing.T) {
-	for _, p := range builtin {
+	for _, p := range All() {
 		if p.ID == "" {
 			t.Errorf("preset has empty id: %+v", p)
 		}
@@ -274,7 +274,7 @@ func TestAllBuiltin_HaveRequiredMetadata(t *testing.T) {
 
 func TestAllBuiltin_UniqueIDs(t *testing.T) {
 	seen := map[string]struct{}{}
-	for _, p := range builtin {
+	for _, p := range All() {
 		if _, ok := seen[p.ID]; ok {
 			t.Errorf("duplicate preset id %q", p.ID)
 		}

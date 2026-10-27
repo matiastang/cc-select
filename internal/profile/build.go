@@ -197,6 +197,13 @@ func defaultSecretGetter(service string) (string, error) {
 	return secrets.New().Get(service)
 }
 
+// ResolveKeychainEnv 是 resolvePlaceholders 的导出包装：限额查询等需要真实
+// token 的消费方使用；解析失败保留占位（消费方会得到明确 auth 错误而非静默）。
+func ResolveKeychainEnv(env map[string]string) map[string]string {
+	out, _ := resolvePlaceholders(env)
+	return out
+}
+
 // resolvePlaceholders 把 env 中的 $keychain: 占位解析为真值。
 // 单条失败不中断：保留占位并产出 warning（claude 会因无效 token 明确报错，
 // 好过静默丢字段）。env 为 nil 时原样返回。

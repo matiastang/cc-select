@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/cc-select/cc-select/internal/i18n"
+	"github.com/cc-select/cc-select/internal/presets"
 	"github.com/cc-select/cc-select/internal/web"
 	"github.com/spf13/cobra"
 )
@@ -24,6 +25,10 @@ var guiCmd = &cobra.Command{
 
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
+
+		// 远端预设（specs/004 US5）：启动后台解析，首屏不被 5s 拉取超时拖住；
+		// 失败静默回落 builtin（画廊 meta 徽标呈现来源）。
+		go presets.EnsureResolved(ctx, presets.DefaultOptions())
 
 		go func() {
 			if err := srv.Start(ctx, func(port int) {

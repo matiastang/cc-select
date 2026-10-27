@@ -1,0 +1,67 @@
+version: '3'
+
+# cc-select 桌面端构建任务（由 wails3 task -d desktop 调用，Makefile desktop-* 为入口）。
+# 与 wails3 官方脚手架的差异：本仓库前端在 ../internal/frontend（构建产物经
+# internal/web 的 go:embed 嵌入，与 Web GUI 共用），CLI 由仓库 Makefile 构建——
+# 因此 frontend/bindings/tidy 相关 common 任务全部改为 no-op，平台 Taskfile 的
+# 引用保持原样解析。
+
+tasks:
+  # go.mod 位于仓库根，由仓库 Makefile（mod-tidy-check）统一管理，不在桌面任务内变更。
+  go:mod:tidy:
+    summary: no-op（go.mod 在仓库根，由 Makefile 管理）
+    internal: true
+    run: once
+    cmds:
+      - 'echo "skip: go mod tidy managed by repo Makefile"'
+
+  # 前端由 `make frontend` 构建（vite 产物 → internal/web/assets → go:embed），
+  # desktop-package 的 Makefile 依赖链（desktop-build）已保证先于打包执行。
+  install:frontend:deps:
+    summary: no-op（前端依赖由 make frontend 的 npm install 处理）
+    run: once
+    cmds:
+      - 'echo "skip: frontend deps installed by make frontend"'
+
+  build:frontend:
+    label: "build:frontend (no-op: repo Makefile)"
+    summary: "no-op（前端经 internal/web embed，见仓库 Makefile frontend 目标）"
+    run: once
+    cmds:
+      - 'echo "skip: frontend built into internal/web/assets by make frontend"'
+
+  # 前端走 HTTP API（fetch /api/v1/*），不使用 wails bindings 代码生成。
+  generate:bindings:
+    summary: no-op（数据层为 HTTP 契约，无 wails bindings）
+    run: once
+    cmds:
+      - 'echo "skip: no wails bindings (HTTP API via internal/web)"'
+
+  # 图标生成保留官方实现：appicon.png → darwin/icons.icns + windows/icon.ico。
+  generate:icons:
+    summary: Generates Windows `.ico` and Mac `.icns` from appicon.png
+    run: once
+    dir: build
+    sources:
+      - "appicon.png"
+    generates:
+      - "darwin/icons.icns"
+      - "windows/icon.ico"
+    cmds:
+      - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
+
+  # dev 流（wails3 dev -d desktop 的 config.yml 引用）：
+  # 在 ../internal/frontend 起 vite，/api 经 vite 代理打到本地 ccs gui（默认 7799）。
+  # 已知边界：此模式下 desktop 专属端点（/api/v1/desktop/*）不可达（代理目标是
+  # ccs gui），Desktop 设置区不渲染；全保真验证用 `make desktop-build` 直跑二进制。
+  dev:frontend:
+    summary: Runs the repo frontend (internal/frontend) in dev mode
+    cmds:
+      - task: frontend:dev:npm
+
+  frontend:dev:npm:
+    dir: ../internal/frontend
+    env:
+      FRONTEND_DEVSERVER_URL: "http://localhost:{{.VITE_PORT | default 9245}}"
+    cmds:
+      - npm run dev -- --port {{.VITE_PORT | default 9245}} --strictPort

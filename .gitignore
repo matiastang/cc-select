@@ -32,3 +32,6 @@ internal/frontend/.playwright/
 
 # 前端测试覆盖率（vitest）
 internal/frontend/coverage/
+
+# 桌面端 wails3 打包输出（构建产物不入库）
+desktop/build/bin/

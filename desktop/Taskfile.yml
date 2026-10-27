@@ -1,0 +1,42 @@
+version: '3'
+
+# cc-select 桌面端 wails3 任务入口（Makefile desktop-* 是统一入口，此文件供
+# `wails3 task -d desktop <task>` 与 `wails3 dev -d desktop` 使用）。
+# 仓库布局差异见 desktop/build/Taskfile.yml 头部注释。
+
+vars:
+  APP_NAME: "CC Select"
+  BIN_DIR: "build/bin"
+  PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
+  VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+  GOOS: '{{.GOOS | default OS}}'
+  # 版本注入（与 CLI 同源）：传递给各平台 build 任务的 ldflags。
+  VERSION:
+    sh: git describe --tags --always --dirty || echo dev
+
+includes:
+  common: ./build/Taskfile.yml
+  windows: ./build/windows/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+  linux: ./build/linux/Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds the application
+    cmds:
+      - task: "{{.GOOS}}:build"
+
+  package:
+    summary: Packages a production build of the application
+    cmds:
+      - task: "{{.GOOS}}:package"
+
+  run:
+    summary: Runs the application
+    cmds:
+      - task: "{{.GOOS}}:run"
+
+  dev:
+    summary: Runs the application in development mode（/api 经 vite 代理到 ccs gui，需另起 ccs gui）
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}

@@ -52,7 +52,8 @@
     "defaultOption": "Default ({{value}})",
     "unsetOption": "(unset)",
     "jsonLabel": "settings.json (final submitted content)",
-    "loadingRealConfig": "Loading real config from disk…"
+    "loadingRealConfig": "Loading real config from disk…",
+    "oauthNotice": "Official Claude uses OAuth login — no API key needed. Run `ccs use claude-official` and follow the login flow."
   },
   "presetCategory": {
     "official": "Official",
@@ -92,5 +93,63 @@
     "migrated": "Enabled: {{n}} existing secret(s) migrated to the keychain.",
     "loadFailed": "failed to load the keychain setting",
     "saveFailed": "failed to save the keychain setting"
+  },
+  "empty": {
+    "title": "No providers yet",
+    "description": "Pick a provider from the preset gallery — API key is usually the only thing you need.",
+    "action": "Add provider"
+  },
+  "toast": {
+    "saved": "Provider saved",
+    "deleted": "Provider deleted"
+  },
+  "gallery": {
+    "title": "Add provider",
+    "subtitle": "Pick a provider — API key is usually the only thing you need.",
+    "loading": "Loading presets…",
+    "customName": "Custom configuration",
+    "customDesc": "Fill in everything manually (advanced)",
+    "source": {
+      "builtin": "built-in",
+      "cache": "cached",
+      "remote": "remote"
+    }
+  },
+  "wizard": {
+    "basic": "Basic",
+    "advanced": "Advanced"
+  },
+  "probe": {
+    "run": "Test connection",
+    "running": "Testing…",
+    "ok": "OK · {{model}} · {{latency}}ms",
+    "error": "{{kind}}: {{message}}",
+    "kind": {
+      "auth": "auth failed",
+      "model": "model not found",
+      "server": "server error",
+      "network": "network error",
+      "unknown": "unknown error"
+    }
+  },
+  "usage": {
+    "title": "Usage limits",
+    "refresh": "Refresh",
+    "refreshing": "Querying…",
+    "unsupported": "This provider does not expose usage limits",
+    "error": "Query failed: {{message}}",
+    "fetchedAt": "at {{time}}",
+    "percentValue": "{{value}}%",
+    "value": "{{used}} / {{limit}}",
+    "resetAt": "resets at {{time}}",
+    "type": {
+      "5h": "5-hour window",
+      "week": "Weekly limit",
+      "day": "Daily limit",
+      "minute-requests": "Requests / min",
+      "minute-tokens": "Tokens / min",
+      "month-mcp": "MCP usage (monthly)",
+      "balance": "Balance"
+    }
   }
 }

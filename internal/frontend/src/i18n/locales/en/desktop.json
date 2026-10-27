@@ -1,0 +1,26 @@
+{
+  "title": "Desktop",
+  "cliHint": "Install the bundled cc-select CLI (ccs) into your PATH so terminals can use it directly; same version as this app.",
+  "cli": {
+    "install": "Install ccs to PATH",
+    "reinstall": "Reinstall",
+    "upgrade": "Upgrade to v{{version}}",
+    "notInstalled": "Not installed",
+    "installedAt": "Installed: {{path}} (v{{version}})",
+    "embedded": "Bundled version v{{version}}",
+    "installedOk": "Done: {{action}} → {{path}}",
+    "externalConflict": "An unrecognized binary was found at {{path}}. Overwriting will replace it with the CC Select bundled CLI.",
+    "overwrite": "Overwrite",
+    "permissionHint": "Install directory is not writable: {{hint}}",
+    "fallbackHint": "Hint: {{hint}}",
+    "installFailed": "Install failed",
+    "loadFailed": "Failed to load desktop info"
+  },
+  "settings": {
+    "autoUpdateCheck": "Check for updates on launch",
+    "saveFailed": "Save failed",
+    "syncFailed": "System service sync failed (e.g. autostart disabled by policy); previous state kept",
+    "trayResident": "Keep running in tray when window closes",
+    "autoStart": "Launch at login"
+  }
+}

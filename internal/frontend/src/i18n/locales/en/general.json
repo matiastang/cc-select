@@ -1,0 +1,32 @@
+{
+  "title": "General",
+  "theme": {
+    "label": "Theme",
+    "helper": "Follow system, light, or dark appearance."
+  },
+  "language": {
+    "label": "Language",
+    "helper": "Interface language for CLI and GUI."
+  },
+  "remotePresets": {
+    "enabledOn": "Remote presets enabled",
+    "enabledOff": "Remote presets disabled — using built-in presets",
+    "toggleFailed": "Operation failed",
+    "refreshed": "Presets refreshed",
+    "refresh": "Refresh presets",
+    "refreshing": "Refreshing…",
+    "fetchedAt": "Updated at {{time}}",
+    "neverFetched": "Never fetched from remote",
+    "source": {
+      "builtin": "built-in",
+      "cache": "cached",
+      "remote": "remote"
+    },
+    "warning": {
+      "fetch_failed": "Remote unreachable — using local presets",
+      "invalid_schema": "Remote presets invalid — using local presets",
+      "disabled": "Remote presets disabled"
+    },
+    "refreshFailed": "Refresh failed — check network"
+  }
+}

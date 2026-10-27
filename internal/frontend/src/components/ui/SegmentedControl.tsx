@@ -1,4 +1,5 @@
 import React, { useCallback, useRef } from "react";
+import { cn } from "../../lib/cn";
 
 type SegmentOption<T extends string> = {
   value: T;
@@ -63,7 +64,7 @@ export function SegmentedControl<T extends string>({
   return (
     <div
       id={id}
-      className="ui-segmented-control"
+      className="ui-segmented-control inline-flex overflow-hidden rounded-md border border-border bg-card"
       role="radiogroup"
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
@@ -82,12 +83,15 @@ export function SegmentedControl<T extends string>({
             aria-checked={active}
             tabIndex={active ? 0 : -1}
             data-value={option.value}
-            className={[
+            className={cn(
               "ui-segmented-control__option",
-              active ? "ui-segmented-control__option--active" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
+              active && "ui-segmented-control__option--active",
+              "px-3 py-1.5 text-sm transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:-outline-offset-2",
+              active
+                ? "bg-accent text-accent-contrast"
+                : "bg-card text-muted hover:bg-bg hover:text-text",
+            )}
             onClick={() => onChange(option.value)}
             onKeyDown={handleKeyDown}
           >

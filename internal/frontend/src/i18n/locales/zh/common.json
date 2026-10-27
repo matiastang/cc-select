@@ -13,5 +13,15 @@
     "system": "自动",
     "light": "浅色",
     "dark": "深色"
-  }
+  },
+  "nav": {
+    "providers": "服务商",
+    "modeRoutes": "模式与路由",
+    "security": "安全",
+    "desktop": "桌面端",
+    "general": "外观与通用",
+    "about": "关于",
+    "label": "模块"
+  },
+  "aboutTitle": "关于 cc-select"
 }

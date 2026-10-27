@@ -118,3 +118,26 @@ func TestResolveMode_ProxyTiers(t *testing.T) {
 		})
 	}
 }
+
+func TestRemotePresetsDisabledDefaultFalse(t *testing.T) {
+	// 远端预设默认启用（Q19 决策）：显式 true 才关闭。
+	p := &Prefs{}
+	if p.RemotePresetsDisabled {
+		t.Error("RemotePresetsDisabled should default to false")
+	}
+}
+
+func TestRemotePresetsDisabledRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("CC_SELECT_CONFIG", filepath.Join(dir, "providers.json"))
+	if err := Save(&Prefs{RemotePresetsDisabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.RemotePresetsDisabled {
+		t.Error("RemotePresetsDisabled should persist true")
+	}
+}

@@ -10,7 +10,8 @@
 #      （不能用 $(OS)：git bash 也运行在 Windows，$(OS) 同为 Windows_NT，会误选 cmd 分支。）
 .PHONY: all build frontend dev test integration e2e vet scripts-check install clean \
   fmt fmt-check check mod-tidy-check \
-  frontend-typecheck frontend-lint frontend-format-check frontend-check
+  frontend-typecheck frontend-lint frontend-format-check frontend-check \
+  desktop-cli desktop-build desktop-package desktop-clean
 
 # 关闭 CGO（go-keyring 纯 Go 无需 CGO）：export 让所有 recipe 子进程继承，跨平台。
 export CGO_ENABLED := 0
@@ -50,6 +51,9 @@ test:
 	go test ./internal/...
 
 # 集成测试（跨进程 shell 行为，仅 Unix）。
+# desktop（wails/darwin+linux）需要 CGO——本目标内局部放开（全局 export CGO_ENABLED=0
+# 的例外；CI 直接跑 go test 不经 make，不受影响。specs/004 T024 回归发现的既有缺口）。
+integration: export CGO_ENABLED=1
 integration:
 	go test -tags integration ./...
 
@@ -57,9 +61,11 @@ integration:
 e2e:
 	cd internal/frontend && npm run test:e2e
 
-# 静态检查。
+# 静态检查。CGO 显式开回 1：desktop 依赖 wails，其 darwin/linux 平台文件需 cgo 才能通过
+# 类型检查（全局 CGO_ENABLED=0 会让 go vet 报 wails 内部 undefined 符号）。
+# Windows 上 wails 走 syscall 无 cgo 文件，无 C 工具链也不受影响；CLI 构建仍走全局 CGO=0。
 vet:
-	go vet ./...
+	CGO_ENABLED=1 go vet ./...
 
 # 安装脚本语法检查（shellcheck 优先，否则 sh -n；Windows 脚本用 PowerShell Tokenize 校验）。
 scripts-check:
@@ -124,11 +130,44 @@ frontend-lint:
 frontend-check: frontend-typecheck frontend-lint frontend-format-check
 
 # 统一静态检查入口（本地和 CI 都使用）
-check: fmt-check vet frontend-typecheck frontend-lint frontend-format-check scripts-check mod-tidy-check
+# presets-lint（specs/004 T011）：用与运行时同一校验器检查仓库内 presets.json，
+# 改坏预设无法过 CI/本地检查。
+presets-lint:
+	go test ./internal/presets/ -run 'TestEmbeddedBundlePassesValidation|TestPresetCatalogContents' -count=1
+
+check: fmt-check vet frontend-typecheck frontend-lint frontend-format-check scripts-check mod-tidy-check presets-lint
 
 # 安装到 GOPATH/bin：go install 跨平台编译并装入，无需 ln/copy。
 install:
 	go install -ldflags "-X github.com/cc-select/cc-select/internal/version.Version=$(VERSION)" .
+
+# ---------------------------------------------------------------------------
+# 桌面端（Wails v3）目标。契约：specs/003-desktop-client/contracts/release-assets.md
+# 前置：wails3 CLI（go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.34），
+#       打包阶段（desktop-package）才需要；desktop-build 仅需平台编译工具链。
+# 注意：Wails 在 macOS 需要 CGO 链接系统框架，与上方全局 CGO_ENABLED=0 相反，
+#       故 desktop 目标在 recipe 内显式置 1；目标面向开发者机器（sh 系 shell）。
+# ---------------------------------------------------------------------------
+
+# 第一步：把 CLI 二进制拷入 desktop/assets/cli/（go:embed 嵌入位，T017 接入 embed 指令后生效）。
+desktop-cli: build
+	-mkdir desktop/assets/cli
+	cp bin/cc-select$(GOEXE) desktop/assets/cli/cc-select$(GOEXE)
+
+# 构建桌面 App 本机可运行二进制（不做安装包）。
+desktop-build: frontend desktop-cli
+	CGO_ENABLED=1 go build -ldflags "-X github.com/cc-select/cc-select/internal/version.Version=$(VERSION)" -o bin/cc-select-desktop$(GOEXE) ./desktop
+
+# 打包三平台安装产物（.app/.exe/.AppImage，由 wails3 承担；产物命名遵循 contracts）。
+desktop-package: desktop-build
+	@if ! command -v wails3 >/dev/null 2>&1; then \
+		echo "wails3 CLI not found. Install: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.34"; \
+		exit 1; \
+	fi
+	CGO_ENABLED=1 wails3 task -dir desktop package
+
+desktop-clean:
+	rm -rf bin/cc-select-desktop$(GOEXE) desktop/assets/cli/cc-select$(GOEXE) desktop/build/bin
 
 # 清理构建产物。
 clean:

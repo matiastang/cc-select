@@ -9,7 +9,7 @@
 
 | 项 | 决策 | 状态 | 备选 |
 |---|---|---|---|
-| GUI 形态（[Q2](./requirements.md#待用户确认的开放问题含已定决策)） | **本地 Web 服务 + 浏览器** | ✅ 已定 | 桌面 App（Tauri/Electron/Wails） |
+| GUI 形态（[Q2](./requirements.md#待用户确认的开放问题含已定决策)） | **双形态并存：本地 Web 服务 + Wails v3 桌面 App**（2026-10-26 起） | ✅ 已定 | Tauri / Electron |
 | 存储格式（[Q3](./requirements.md#待用户确认的开放问题含已定决策)） | **单个 JSON 文件**（原子写）+ key 走 Keychain | ✅ 已定 | SQLite / 多文件拆分 |
 | 目标 shell（[Q5](./requirements.md#待用户确认的开放问题含已定决策)） | **zsh / bash / PowerShell**（fish 后续接入） | ✅ 已定 | fish |
 | 目标 OS（[Q6](./requirements.md#待用户确认的开放问题含已定决策)） | **macOS / Linux / Windows** | ✅ 已定 | — |
@@ -27,6 +27,7 @@
 |---|---|
 | 桌面框架 | **Tauri 2**（Rust 后端 + Web 前端，单二进制打包，非 Electron） |
 | 前端 | React 18 + TypeScript，Vite 构建 |
+| 前端设计系统（Q14，2026-10-26） | **shadcn/ui 模式**：Radix 无头原语 + Tailwind CSS 3.4（Safari 15 基线，v4 待 webview 基线抬高再评估）+ lucide-react；组件源码自有于 `internal/frontend/src/components/ui/`；设计 token 单源于 CSS 变量层（specs/004 contracts/frontend） |
 | UI | Radix UI + Tailwind CSS + CodeMirror（JSON 配置编辑器） |
 | 数据/状态 | TanStack Query、Tauri plugin-store、plugin-updater（自动更新） |
 | 构建/测试 | pnpm + Vite + Vitest |
@@ -75,18 +76,19 @@ GUI 已定 Web 路线，与语言解耦，故语言按 **MVP 关键动作**权�
 
 ---
 
-## 3. GUI 形态：已定 Web 服务（Q2）
+## 3. GUI 形态：双形态并存——Web 服务 + 桌面 App（Q2）
 
-**选定：本地 Web 服务 + 浏览器**。`cc-select gui` 起本地 HTTP 服务，自动开浏览器访问配置页，通过 HTTP API 读写共享 JSON。
+**选定：本地 Web 服务与 Wails v3 桌面 App 双形态并存**（2026-10-26 决策，v0.1.0 起生效）。
+`cc-select gui` 起本地 HTTP 服务、自动开浏览器（保留，零回归）；桌面 App 由 Wails v3（Go）打包同一前端，直接打开即配置。两形态共享同一前端源码与同一份 `~/.cc-select/` JSON 数据。
 
 | 方案 | 状态 | 优点 | 缺点 |
 |---|---|---|---|
-| **本地 Web 服务** | ✅ 选定 | 无需打包、跨平台天然、与语言解耦、UI 迭代快 | 非常驻，每次 `cc-select gui` 起服务 |
-| 桌面 App（Tauri+React） | 🔁 备选 | 体验最好、可常驻托盘 | 需打包，体积较大 |
-| 桌面 App（Electron） | 🔁 备选 | 生态熟 | 体积大 |
-| 桌面 App（Wails/Go） | 🔁 备选 | Go 单二进制 | 与 CLI 同语言才合适 |
+| **本地 Web 服务** | ✅ 选定（保留） | 无需打包、跨平台天然、与语言解耦、UI 迭代快 | 非常驻，每次 `cc-select gui` 起服务 |
+| **桌面 App（Wails v3 / Go）** | ✅ 选定（v0.1.0 新增） | Go 同栈复用 `internal/*`、系统 WebView 轻量、官方 updater/托盘、App 内置 CLI 可装 PATH | Beta 框架跟进成本；三平台打包与分发配套（签名/公证） |
+| 桌面 App（Tauri+React） | 🔁 备选 | 体验最好、可常驻托盘、生态更大 | 需 Rust 壳 + Go sidecar 双进程，业务逻辑无法同进程复用 |
+| 桌面 App（Electron） | 🔁 备选 | 生态熟 | 体积大，与轻量定位冲突 |
 
-> 切换路径：日后若改桌面 App，因配置存储是共享 JSON（见 §4），GUI 形态可平滑替换，对 CLI 与存储零影响。
+> 切换路径：因配置存储是共享 JSON（见 §4），两种 GUI 形态平滑并存，对 CLI 与存储零影响。spec 细节见 `specs/003-desktop-client/`。
 
 ---
 

@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 
 	"github.com/cc-select/cc-select/internal/prefs"
+	"github.com/cc-select/cc-select/internal/presets"
+	"github.com/cc-select/cc-select/internal/usage"
 
 	"github.com/cc-select/cc-select/internal/secrets"
 
@@ -1263,5 +1265,298 @@ func TestSave_PrefsCorruptFailsClosed(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusInternalServerError {
 		t.Fatalf("prefs 损坏时保存应 fail-closed(500)，got %d", resp.StatusCode)
+	}
+}
+
+func TestRemotePresetsToggle(t *testing.T) {
+	srv, cfg := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+	// PUT 会全局切换进程内预设源——结束恢复，避免污染其他用例。
+	t.Cleanup(presets.ResetForTest)
+
+	// 默认启用
+	r, err := http.Get(srv.URL + "/api/v1/remote-presets")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]bool
+	_ = json.NewDecoder(r.Body).Decode(&got)
+	r.Body.Close()
+	if r.StatusCode != 200 || !got["enabled"] {
+		t.Fatalf("default enabled=true, got %d %v", r.StatusCode, got)
+	}
+
+	// PUT false → 落盘 prefs
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/remote-presets", bytes.NewBufferString(`{"enabled":false}`))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("PUT status=%d", resp.StatusCode)
+	}
+	p, err := prefs.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.RemotePresetsDisabled {
+		t.Error("PUT enabled=false should persist remotePresetsDisabled=true")
+	}
+
+	// GET 反映关闭
+	r2, _ := http.Get(srv.URL + "/api/v1/remote-presets")
+	var got2 map[string]bool
+	_ = json.NewDecoder(r2.Body).Decode(&got2)
+	r2.Body.Close()
+	if got2["enabled"] {
+		t.Error("GET should report enabled=false after PUT false")
+	}
+
+	// PUT false 后 /presets meta 立即翻为 builtin（H2 即时生效——同进程验证）。
+	rp, _ := http.Get(srv.URL + "/api/v1/presets")
+	var plist struct {
+		Meta struct {
+			Source string `json:"source"`
+		} `json:"meta"`
+	}
+	_ = json.NewDecoder(rp.Body).Decode(&plist)
+	rp.Body.Close()
+	if plist.Meta.Source != "builtin" {
+		t.Fatalf("after PUT false, /presets meta=%s, want builtin", plist.Meta.Source)
+	}
+
+	// 非法 body 400
+	req3, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/remote-presets", bytes.NewBufferString(`{bad`))
+	resp3, _ := http.DefaultClient.Do(req3)
+	resp3.Body.Close()
+	if resp3.StatusCode != 400 {
+		t.Fatalf("invalid body status=%d, want 400", resp3.StatusCode)
+	}
+	_ = cfg
+}
+
+func TestPresetsMetaFieldAndRefresh(t *testing.T) {
+	srv, _ := newTestServerWithPresetOpts(t, func() *presets.ResolveOptions {
+		return &presets.ResolveOptions{RemoteURL: unreachableURL(t), CachePath: filepath.Join(t.TempDir(), "c.json")}
+	})
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	// /presets 响应含 meta（hermetic：未解析 → builtin）
+	r, _ := http.Get(srv.URL + "/api/v1/presets")
+	var list struct {
+		Meta struct {
+			Source string `json:"source"`
+		} `json:"meta"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&list)
+	r.Body.Close()
+	if list.Meta.Source != "builtin" {
+		t.Fatalf("meta.source=%s, want builtin (unresolved)", list.Meta.Source)
+	}
+
+	// refresh：远端不可达 → 200 + warning=fetch_failed + builtin meta
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/presets/refresh", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body struct {
+		Meta struct {
+			Source string `json:"source"`
+		} `json:"meta"`
+		Warning string `json:"warning"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || body.Warning != "fetch_failed" || body.Meta.Source != "builtin" {
+		t.Fatalf("refresh = %d %+v", resp.StatusCode, body)
+	}
+}
+
+func TestPresetsRefresh_SwapsStoreFromRemote(t *testing.T) {
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"schemaVersion":1,"presets":[` + minimaxPresetJSON + `]}`))
+	}))
+	defer remote.Close()
+
+	srv, _ := newTestServerWithPresetOpts(t, func() *presets.ResolveOptions {
+		return &presets.ResolveOptions{RemoteURL: remote.URL, CachePath: filepath.Join(t.TempDir(), "c.json")}
+	})
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/presets/refresh", nil)
+	resp, _ := http.DefaultClient.Do(req)
+	var body struct {
+		Meta struct {
+			Source string `json:"source"`
+		} `json:"meta"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	resp.Body.Close()
+	if body.Meta.Source != "remote" {
+		t.Fatalf("meta.source=%s, want remote", body.Meta.Source)
+	}
+
+	// 列表随之热替换（新增 marker 可见）
+	r2, _ := http.Get(srv.URL + "/api/v1/presets")
+	var list struct {
+		Presets []struct {
+			ID string `json:"id"`
+		} `json:"presets"`
+	}
+	_ = json.NewDecoder(r2.Body).Decode(&list)
+	r2.Body.Close()
+	found := false
+	for _, p := range list.Presets {
+		if p.ID == "minimax" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("remote preset should appear in list after refresh")
+	}
+}
+
+// unreachableURL 返回一个立刻连接失败的地址。
+func unreachableURL(t *testing.T) string {
+	t.Helper()
+	return "http://127.0.0.1:1/presets.json"
+}
+
+const minimaxPresetJSON = `{"id":"minimax","displayName":"MiniMax","category":"cn_official","apiFormat":"anthropic","authField":"ANTHROPIC_AUTH_TOKEN","envTemplate":{"ANTHROPIC_BASE_URL":"https://api.minimax.io/anthropic","ANTHROPIC_AUTH_TOKEN":"${API_KEY}","ANTHROPIC_MODEL":"MiniMax-M3"},"requiredVars":["ANTHROPIC_AUTH_TOKEN"],"oauth":false}`
+
+// newTestServerWithPresetOpts 建注入预设源选项的测试服务。
+func newTestServerWithPresetOpts(t *testing.T, opts func() *presets.ResolveOptions) (*httptest.Server, string) {
+	t.Helper()
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "providers.json")
+	os.Setenv("CC_SELECT_CONFIG", cfg)
+	_ = os.WriteFile(cfg, []byte(`{"providers":{}}`), 0o600)
+
+	h := newAPIHandler()
+	h.presetOpts = opts
+	// 隔离：结束恢复内置预设与解析状态（远端热替换会污染全局 store）
+	t.Cleanup(func() {
+		presets.ResetForTest()
+	})
+	srv := httptest.NewServer(h.routes())
+	return srv, cfg
+}
+
+func TestProvidersProbe(t *testing.T) {
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(401)
+		_, _ = w.Write([]byte(`invalid api key`))
+	}))
+	defer target.Close()
+
+	// 注入探测目标：把 probe 指向本地 httptest（生产不可达外网环境也能确定性测试）
+	old := probeTargetOverride
+	probeTargetOverride = map[string]string{"https://probe.example.com": target.URL}
+	defer func() { probeTargetOverride = old }()
+
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	// 成功路径：探测目标 401 → ok=false + kind=auth
+	body := `{"env":{"ANTHROPIC_BASE_URL":"https://probe.example.com","ANTHROPIC_AUTH_TOKEN":"sk-x","ANTHROPIC_MODEL":"m"}}`
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/providers/probe", strings.NewReader(body))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out struct {
+		OK    bool `json:"ok"`
+		Error struct {
+			Kind string `json:"kind"`
+		} `json:"error"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&out)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || out.OK || out.Error.Kind != "auth" {
+		t.Fatalf("probe = %d ok=%v kind=%s", resp.StatusCode, out.OK, out.Error.Kind)
+	}
+
+	// 缺认证 → 400
+	req2, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/providers/probe", strings.NewReader(`{"env":{"ANTHROPIC_BASE_URL":"https://x"}}`))
+	resp2, _ := http.DefaultClient.Do(req2)
+	resp2.Body.Close()
+	if resp2.StatusCode != 400 {
+		t.Fatalf("missing auth status=%d, want 400", resp2.StatusCode)
+	}
+
+	// 自定义 base 无模型 → 400
+	req3, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/providers/probe", strings.NewReader(`{"env":{"ANTHROPIC_BASE_URL":"https://x","ANTHROPIC_AUTH_TOKEN":"sk"}}`))
+	resp3, _ := http.DefaultClient.Do(req3)
+	resp3.Body.Close()
+	if resp3.StatusCode != 400 {
+		t.Fatalf("missing model status=%d, want 400", resp3.StatusCode)
+	}
+}
+
+func TestUsageEndpoint(t *testing.T) {
+	quota := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "tok-glm" {
+			t.Errorf("Authorization=%q", r.Header.Get("Authorization"))
+		}
+		_, _ = w.Write([]byte(`{"data":{"limits":[{"type":"TOKENS_LIMIT","percentage":42}]}}`))
+	}))
+	defer quota.Close()
+
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+	defer os.Unsetenv("CC_SELECT_CONFIG")
+
+	// 注入：适配器固定 GLM + env 的 base URL 重写指向本地（hermetic）
+	oldSel, oldEnv := usageSelect, usageEnvOverride
+	usageSelect = func(string) usage.Adapter { return usage.GLMAdapter }
+	usageEnvOverride = func(env map[string]string) map[string]string {
+		e := map[string]string{}
+		for k, v := range env {
+			e[k] = v
+		}
+		e["ANTHROPIC_BASE_URL"] = quota.URL
+		return e
+	}
+	defer func() { usageSelect, usageEnvOverride = oldSel, oldEnv }()
+
+	profile.Ensure("glm", map[string]string{
+		"ANTHROPIC_BASE_URL":   "https://open.bigmodel.cn/api/anthropic",
+		"ANTHROPIC_AUTH_TOKEN": "tok-glm",
+	})
+
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/usage/glm", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out struct {
+		Supported  bool   `json:"supported"`
+		ProviderID string `json:"providerId"`
+		Windows    []struct {
+			Type    string   `json:"type"`
+			Percent *float64 `json:"percent"`
+		} `json:"windows"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&out)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || !out.Supported || out.ProviderID != "glm" || len(out.Windows) != 1 || out.Windows[0].Type != "5h" {
+		t.Fatalf("usage = %d %+v", resp.StatusCode, out)
+	}
+	if out.Windows[0].Percent == nil || *out.Windows[0].Percent != 42 {
+		t.Fatalf("5h percent = %+v", out.Windows[0])
+	}
+
+	// 不存在的 provider → 404
+	req404, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/usage/nope", nil)
+	resp404, _ := http.DefaultClient.Do(req404)
+	resp404.Body.Close()
+	if resp404.StatusCode != 404 {
+		t.Fatalf("missing provider status=%d, want 404", resp404.StatusCode)
 	}
 }

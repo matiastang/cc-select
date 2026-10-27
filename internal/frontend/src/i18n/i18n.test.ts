@@ -22,7 +22,7 @@ describe("i18n setup", () => {
   });
 
   it("has the same keys in every locale namespace", () => {
-    for (const ns of ["common", "providers", "shell"] as const) {
+    for (const ns of ["common", "providers", "shell", "update", "desktop", "general"] as const) {
       const baseKeys = collectKeys(resources[DEFAULT_LOCALE][ns]);
       for (const lng of SUPPORTED_LOCALES) {
         if (lng === DEFAULT_LOCALE) continue;

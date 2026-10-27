@@ -1,4 +1,6 @@
 import React, { useId } from "react";
+import { cn } from "../../lib/cn";
+import { Label } from "./Label";
 
 type FormFieldProps = {
   label: React.ReactNode;
@@ -8,7 +10,7 @@ type FormFieldProps = {
   className?: string;
 };
 
-export function FormField({ label, htmlFor, helper, children, className = "" }: FormFieldProps) {
+export function FormField({ label, htmlFor, helper, children, className }: FormFieldProps) {
   const helperId = useId();
   const child = React.isValidElement(children)
     ? React.cloneElement(children, {
@@ -17,13 +19,11 @@ export function FormField({ label, htmlFor, helper, children, className = "" }: 
     : children;
 
   return (
-    <div className={`ui-form-field ${className}`.trim()}>
-      <label className="ui-label" htmlFor={htmlFor}>
-        {label}
-      </label>
+    <div className={cn("ui-form-field", "flex flex-col gap-1.5", className)}>
+      <Label htmlFor={htmlFor}>{label}</Label>
       {child}
       {helper && (
-        <span id={helperId} className="ui-form-field__helper">
+        <span id={helperId} className="ui-form-field__helper text-xs text-muted">
           {helper}
         </span>
       )}

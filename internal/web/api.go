@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,12 +15,14 @@ import (
 	"github.com/cc-select/cc-select/internal/i18n"
 	"github.com/cc-select/cc-select/internal/prefs"
 	"github.com/cc-select/cc-select/internal/presets"
+	"github.com/cc-select/cc-select/internal/probe"
 	"github.com/cc-select/cc-select/internal/profile"
 	"github.com/cc-select/cc-select/internal/rcinteg"
 	"github.com/cc-select/cc-select/internal/router"
 	"github.com/cc-select/cc-select/internal/routes"
 	"github.com/cc-select/cc-select/internal/secrets"
 	"github.com/cc-select/cc-select/internal/updater"
+	"github.com/cc-select/cc-select/internal/usage"
 	"github.com/cc-select/cc-select/internal/version"
 )
 
@@ -69,9 +72,20 @@ type presetDetailDTO struct {
 }
 
 // apiHandler 持有依赖，处理 /api/v1/* 路由。
-type apiHandler struct{}
+type apiHandler struct {
+	// presetOpts 是预设源解析的注入点：生产 nil（DefaultOptions：锁定远端地址），
+	// 测试注入 httptest 地址（hermetic，不触网）。
+	presetOpts func() *presets.ResolveOptions
+}
 
 func newAPIHandler() *apiHandler { return &apiHandler{} }
+
+func (h *apiHandler) resolveOpts() *presets.ResolveOptions {
+	if h.presetOpts != nil {
+		return h.presetOpts()
+	}
+	return presets.DefaultOptions()
+}
 
 // migrateSecretsFn 是存量批量迁移的注入点：生产用系统 keychain，测试换 FakeStore。
 var migrateSecretsFn = func(cfg *config.Config) (int, []string) {
@@ -86,9 +100,13 @@ var migrateSecretsEnvFn = func(providerID string, env map[string]string) (int, [
 func (h *apiHandler) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/providers", h.handleProvidersCollection)
+	mux.HandleFunc("/api/v1/providers/probe", h.handleProvidersProbe)
+	mux.HandleFunc("/api/v1/usage/", h.handleUsage)
 	mux.HandleFunc("/api/v1/providers/", h.handleProviderItem)
 	mux.HandleFunc("/api/v1/presets", h.handlePresetsCollection)
+	mux.HandleFunc("/api/v1/remote-presets", h.handleRemotePresets)
 	mux.HandleFunc("/api/v1/presets/", h.handlePresetItem)
+	mux.HandleFunc("/api/v1/presets/refresh", h.handlePresetsRefresh)
 	mux.HandleFunc("/api/v1/mode", h.handleMode)
 	mux.HandleFunc("/api/v1/language", h.handleLanguage)
 	mux.HandleFunc("/api/v1/shell-integration", h.handleShellIntegration)
@@ -132,6 +150,161 @@ func (h *apiHandler) handleProviderItem(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// handleRemotePresets 处理 GET|PUT /api/v1/remote-presets（specs/004 T012）。
+// GET → {enabled}；PUT 全量 {enabled} → prefs.RemotePresetsDisabled 反义。
+func (h *apiHandler) handleRemotePresets(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		p, err := prefs.Load()
+		enabled := true
+		if err == nil {
+			enabled = !p.RemotePresetsDisabled
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"enabled": enabled})
+	case http.MethodPut:
+		var body struct {
+			Enabled *bool `json:"enabled"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Enabled == nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid body: expect enabled(bool)"})
+			return
+		}
+		p, err := prefs.Load()
+		if err != nil {
+			p = &prefs.Prefs{}
+		}
+		p.RemotePresetsDisabled = !*body.Enabled
+		if err := prefs.Save(p); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		// contracts/api.md §2.2：开关在本进程内即时生效（关闭→回落 builtin）；
+		// 重新开启时后台补一次解析（NEW-4：避免等重启/手动刷新才恢复远端）。
+		presets.SetRemoteDisabled(!*body.Enabled)
+		if *body.Enabled {
+			// 走注入点保持测试 hermetic（与 handlePresetsRefresh 同一选项源）。
+			go presets.EnsureResolved(context.Background(), h.resolveOpts())
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"enabled": *body.Enabled})
+	default:
+		w.Header().Set("Allow", "GET, PUT")
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+	}
+}
+
+// probeTargetOverride 测试注入点：base URL → 实际探测地址（hermetic）。
+// 生产为 nil——探测始终发往用户配置的服务商地址。
+var probeTargetOverride map[string]string
+
+// handleProvidersProbe 处理 POST /api/v1/providers/probe（specs/004 T016 / FR-016-017）。
+// 表单未保存也可测：body 即最终 env。仅手动触发，后端不做任何自动调用。
+func (h *apiHandler) handleProvidersProbe(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var body struct {
+		Env map[string]string `json:"env"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Env == nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid body: expect env object"})
+		return
+	}
+
+	env := body.Env
+	if t, ok := probeTargetOverride[env["ANTHROPIC_BASE_URL"]]; ok {
+		env = cloneEnvWithBase(env, t)
+	}
+
+	// 前置校验（contracts/api.md §2.3）：缺认证/缺模型语义 → 400（对齐 probe 的 invalid 分类）
+	hasAuth := env["ANTHROPIC_AUTH_TOKEN"] != "" || env["ANTHROPIC_API_KEY"] != ""
+	if !hasAuth {
+		writeError(w, http.StatusBadRequest, "missing_auth")
+		return
+	}
+	if env["ANTHROPIC_BASE_URL"] != "" && env["ANTHROPIC_MODEL"] == "" {
+		writeError(w, http.StatusBadRequest, "missing_model")
+		return
+	}
+
+	res := probe.Probe(r.Context(), env, nil)
+	writeJSON(w, http.StatusOK, res)
+}
+
+func cloneEnvWithBase(env map[string]string, baseURL string) map[string]string {
+	out := make(map[string]string, len(env))
+	for k, v := range env {
+		out[k] = v
+	}
+	out["ANTHROPIC_BASE_URL"] = baseURL
+	return out
+}
+
+// usageSelect / usageEnvOverride 是限额查询的测试注入点（hermetic）。
+// 生产：usageSelect = usage.Select（按 base URL host 匹配），env 不改写。
+var (
+	usageSelect      = usage.Select
+	usageEnvOverride func(env map[string]string) map[string]string
+)
+
+// handleUsage 处理 POST /api/v1/usage/{providerId}（specs/004 T020 / FR-018-020）。
+// 每次调用即实时查询（仅手动刷新，无服务端缓存）；适配器网络失败 → 200 + error 字段
+// （前端呈现错误与重试），provider 缺失才是 404（contracts/api.md §2.4）。
+func (h *apiHandler) handleUsage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	id := strings.TrimPrefix(r.URL.Path, "/api/v1/usage/")
+	if id == "" || strings.Contains(id, "/") {
+		writeError(w, http.StatusNotFound, "provider not found")
+		return
+	}
+
+	a, err := app.New()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if _, ok := a.Config.Providers[id]; !ok {
+		writeError(w, http.StatusNotFound, "provider not found")
+		return
+	}
+
+	env, err := profile.ReadEnv(id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "read provider env: "+err.Error())
+		return
+	}
+	// 钥匙串开启时 env 真值是 $keychain: 占位——解析后再探测，否则必然 401。
+	env = profile.ResolveKeychainEnv(env)
+
+	adapter := usageSelect(env["ANTHROPIC_BASE_URL"])
+	queryEnv := env
+	if usageEnvOverride != nil {
+		queryEnv = usageEnvOverride(env)
+	}
+
+	if adapter == nil {
+		writeJSON(w, http.StatusOK, usage.Report{Supported: false, FetchedAt: timeNowUTC(), Reason: "no_public_endpoint"})
+		return
+	}
+	rep, qerr := usage.QueryWith(r.Context(), queryEnv, adapter)
+	if qerr != nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"supported":  false,
+			"providerId": id,
+			"fetchedAt":  timeNowUTC(),
+			"error":      qerr.Error(),
+		})
+		return
+	}
+	rep.ProviderID = id
+	writeJSON(w, http.StatusOK, rep)
+}
+
+func timeNowUTC() time.Time { return time.Now().UTC() }
+
 // handlePresetItem 处理 GET /presets/<id>。
 func (h *apiHandler) handlePresetItem(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, "/api/v1/presets/")
@@ -158,6 +331,7 @@ func (h *apiHandler) handlePresetsCollection(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	all := presets.All()
+	meta := presets.Meta()
 	out := make([]presetDTO, len(all))
 	for i, p := range all {
 		out[i] = toPresetDTO(p)
@@ -165,7 +339,24 @@ func (h *apiHandler) handlePresetsCollection(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, http.StatusOK, map[string]any{
 		"presets":    out,
 		"categories": presets.Categories(),
+		"meta":       meta, // v0.1.1：预设来源与拉取时间（向后兼容的增补字段）
 	})
+}
+
+// handlePresetsRefresh 处理 POST /api/v1/presets/refresh（specs/004 T013）：
+// 用户手动刷新远端预设。永远 200——网络/校验失败不是服务端错误，
+// 以 warning 表达回落状态（contracts/api.md §2.1）。
+func (h *apiHandler) handlePresetsRefresh(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	meta, warning := presets.Refresh(r.Context(), h.resolveOpts())
+	body := map[string]any{"meta": meta}
+	if warning != "" {
+		body["warning"] = warning
+	}
+	writeJSON(w, http.StatusOK, body)
 }
 
 func toPresetDTO(p presets.Preset) presetDTO {

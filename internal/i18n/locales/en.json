@@ -303,5 +303,17 @@
     "refreshFailed": "switch succeeded, but picker refresh failed (/model list may be stale): %s",
     "createJunction": "create junction %s: %s",
     "createSymlink": "create symbolic link %s (requires Developer Mode / admin)"
+  },
+  "desktop": {
+    "tray": {
+      "noProviders": "No providers yet (open app to configure)",
+      "copyHeader": "Copy switch command",
+      "copied": "Copied: %s",
+      "open": "Open CC Select",
+      "quit": "Quit"
+    },
+    "update": {
+      "available": "v%s available — open the app to update"
+    }
   }
 }

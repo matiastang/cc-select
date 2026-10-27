@@ -1,0 +1,26 @@
+{
+  "title": "桌面端",
+  "cliHint": "把内置的 cc-select 命令行（ccs）安装到 PATH，终端即可直接使用；与桌面应用同版本。",
+  "cli": {
+    "install": "安装 ccs 到 PATH",
+    "reinstall": "重新安装",
+    "upgrade": "升级到 v{{version}}",
+    "notInstalled": "未安装",
+    "installedAt": "已安装：{{path}}（v{{version}}）",
+    "embedded": "内置版本 v{{version}}",
+    "installedOk": "安装完成：{{action}} → {{path}}",
+    "externalConflict": "检测到未识别的同名程序（{{path}}），覆盖后将替换为 CC Select 内置版本。",
+    "overwrite": "确认覆盖",
+    "permissionHint": "安装目录无写权限：{{hint}}",
+    "fallbackHint": "提示：{{hint}}",
+    "installFailed": "安装失败",
+    "loadFailed": "读取桌面信息失败"
+  },
+  "settings": {
+    "autoUpdateCheck": "启动时自动检查更新",
+    "saveFailed": "保存失败",
+    "syncFailed": "系统设置同步失败（如自启被策略禁用），已保持原状态",
+    "trayResident": "关闭窗口时驻留托盘（关闭后点击托盘图标恢复）",
+    "autoStart": "登录时自动启动"
+  }
+}

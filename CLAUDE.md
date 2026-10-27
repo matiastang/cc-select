@@ -80,14 +80,21 @@ This is the same `eval "$(tool ...)"` pattern used by `nvm`, `pyenv`, and `diren
 │   ├── updater/                # Self-update engine (GitHub Releases check/download/verify/replace)
 │   ├── version/                # Build-time version injection
 │   ├── web/                    # Local HTTP server + REST API + embedded frontend assets
+│   ├── probe/                  # Connectivity test (minimal /v1/messages + error classification)
+│   ├── usage/                  # R11 usage-limit query (adapter registry: headers/GLM/Kimi)
 │   └── frontend/               # React/TypeScript web configuration UI
+│       └── src/
+│           ├── components/ui/  # shadcn-style kit (Radix + Tailwind 3.4, in-repo)
+│           ├── features/       # Module-per-domain UI (providers/mode-routes/security/desktop/general/about)
+│           └── navigation/     # Hash router + module registry (single source for web+desktop)
 └── docs/                       # Requirements, architecture, design, and acceptance docs
 ```
 
 ## Key design decisions (already made)
 
 - **Language**: Go (single static binary, cross-compilation, fast startup).
-- **GUI**: Local web server (`cc-select gui`) + browser, not a desktop app.
+- **GUI**: dual-form single frontend — local web (`cc-select gui`) + Wails v3 desktop share one codebase (specs/003 FR-015). Design system: shadcn/ui pattern (Radix + Tailwind 3.4 + lucide), tokens in `src/style.css` CSS variables.
+- **Presets**: single-source `internal/presets/presets.json` (embedded fallback + GitHub-raw remote hot-update, 24h TTL, schema-validated whole-bundle; `make check` runs presets-lint).
 - **Storage**: JSON files (`providers.json` + per-provider `settings.json`). Sensitive values should ideally be stored via keychain placeholders; the keychain infrastructure exists but the CLI/Web flows currently write plaintext tokens to profile `settings.json`.
 - **Shell support**: zsh/bash share one emitter; PowerShell emitter exists; fish is not yet supported.
 - **OS support**: macOS, Linux, Windows (PowerShell only; CMD is explicitly unsupported).

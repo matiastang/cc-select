@@ -26,9 +26,15 @@ export type PresetDetail = Preset & {
   envTemplate: Record<string, string>;
 };
 
+export type PresetsMeta = {
+  source: "builtin" | "cache" | "remote";
+  fetchedAt: string | null;
+};
+
 export type PresetListResponse = {
   presets: Preset[];
   categories: PresetCategory[];
+  meta?: PresetsMeta; // v0.1.1：预设来源（向后兼容增补）
 };
 
 export const PRESETS_API = "/api/v1/presets";

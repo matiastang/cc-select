@@ -332,3 +332,42 @@
 
 **判定**：启动即见真实模型（Mode A/B/P 均注入）；热切后选择器不重启跟随刷新；`/model` 选择 100% 生效（代理清单内透传）；终端隔离零串扰；并发写入零字段丢失；刷新失败不阻断路由。
 **已知限制**（非缺陷）：`model` 字段是 CC 启动期键、不热重载——热切后本会话「当前模型」标记保持旧值直至用户在 `/model` 选择或重启（列表刷新不受影响）。
+
+## AC18. Wails v3 桌面客户端（v0.1.0 / Issue #12：desktop-client）
+
+> 需求见 [requirements.md v0.1.0](./requirements.md)；契约与验证脚本见 [specs/003](../specs/003-desktop-client/)（`spec.md` 五个 User Story、`contracts/`、`quickstart.md`）。
+> 前置：`make desktop-build`（或下载 Release 产物）；冒烟平台 macOS arm64（Windows/Linux 走 CI 产物验证）。
+
+| 步骤 | 预期 |
+|---|---|
+| 1. 双击启动桌面 App | 直接进入与 Web GUI 同源的配置界面，全程无终端/浏览器（US1；自动化：bridge/info 契约测试 + 桌面测试全绿证明内容层同构） |
+| 2. App 内新增 provider，另开终端 `ccs use <id>` | 切换成功——App 与 CLI 读写同一份 `~/.cc-select/`（US1；零回归：既有单测/集成/e2e 全绿） |
+| 3. Desktop 区点「安装 ccs 到 PATH」→ 新终端 `cc-select --version` | 版本与 App 内置一致；重复安装幂等；外部同名二进制需确认覆盖；无权限回落 `~/.bin` 并提示（US2；自动化：cliinstall 六用例 + install 端点五用例） |
+| 4. 构造 mock release（0.1.1 + SHA256SUMS）后启动 0.1.0 | 更新卡片出现；一键更新→校验→原子替换→提示重启→重启后为新版、数据无损；断网温和降级（US3；自动化：updatebridge 八用例；全流程冒烟走 Release 首发验证） |
+| 5. 关闭主窗口 | 默认驻留托盘（图标可重开窗口）；设置「关闭即退出」后关窗进程结束、托盘消失（US4；自动化：tray 契约 + settings 回滚用例） |
+| 6. 托盘点任意 provider | 剪贴板为 `ccs use <id>` + 系统通知；**双终端不同 provider 场景下各自 `ccs current` 不变**（R1 红线；自动化：tray 响应无切换动作字段断言） |
+| 7. 开启「登录自启」 | 注册 OS 自启（mac 登录项/win 注册表/linux XDG）；自启失败（如策略禁用）→ 开关回滚、prefs 不落盘（US5；自动化：autostart 两用例 + settings 503 回滚） |
+| 8. 重复双击 App | 单实例：第二进程退出，既有窗口聚焦（FR-011） |
+| 9. web 形态回归：`ccs gui` | 行为与 v0.0.7 完全一致；Desktop 设置区不渲染（info 404 探测，FR-015；自动化：前端 web 模式用例） |
+
+**判定**：桌面开箱即配置（同数据同前端）；CLI 安装四态完整；更新一键完成且失败不损坏；托盘零状态变更（R1）；自启失败整体回滚；既有功能零回归。
+**已知限制**（非缺陷）：macOS 首发未签名（右键打开，A2）；`wails3 dev` 热重载模式下 Desktop 专属端点不可达（见 desktop/README.md 边界说明）；Windows/Linux 人工冒烟依赖 CI 产物。
+
+## AC19. UI/UX 改版与快速上手（v0.1.1 / R11：specs/004-ui-ux-redesign）
+
+> 需求见 [requirements.md v0.1.1](./requirements.md)；spec/契约见 [specs/004](../specs/004-ui-ux-redesign/)。
+> 双形态（`ccs gui` 与 Wails 桌面）同源验证；自动化 = Go 单测 + vitest + Playwright（19 用例）。
+
+| 步骤 | 预期 |
+|---|---|
+| 1. 打开 GUI（web/桌面两形态） | 侧边栏六模块导航（web 无「桌面端」）；窄于 880px 折叠为顶部 tab；深浅色三态无破色（US1/US2；自动化：navigation.spec + AppShell/overlay 用例） |
+| 2. 首页仅官方 provider | 空状态引导出现，CTA 打开预设画廊（FR-007；自动化：ui-extras.spec） |
+| 3. 画廊选 MiniMax → 填 API key → 保存 | ≤3 步建 provider，全程零 JSON；高级配置默认折叠（US3/SC-001；自动化：add-wizard vitest + providers.spec 画廊流） |
+| 4. 画廊/通用模块查看预设来源 | 徽标显示 内置/缓存/远端 与更新时间；「刷新预设」手动拉取，失败回落并提示（US5；自动化：source 四情形单测 + RemotePresetsCard 用例） |
+| 5. 通用模块关闭远端预设 | 立即回落内置且零网络请求；再开启按缓存复用（FR-014；自动化：开关单测 + prefs 往返） |
+| 6. 向导 Step1 点「测试连接」 | 未填 key 禁用；错 key 显示认证失败分类，成功显示延迟与模型回显（US6；自动化：probe 分类单测 + ProbeButton 用例） |
+| 7. provider 卡片「刷新用量」 | GLM 显示 5h 窗口百分比（percent-only）；Kimi 开放平台显示余额；无头服务商显示「不支持查询」占位；错误可重试（US7/R11；自动化：usage 适配器单测 + UsagePanel 用例） |
+| 8. 三平台桌面产物走查 | 六模块 + 深浅色 + 向导全流程正常（FR-022/023；quickstart §4 人工清单——发布门禁） |
+
+**判定**：导航模块化且 web/桌面同源；添加 ≤3 步；远端预设四情形（更新/不可达/损坏/禁用）行为正确；探测与限额查询仅手动触发、token 不出后端、错误脱敏；既有 12 条 v0.0.x 用例零回归。
+**已知限制**（非缺陷）：GLM/Kimi 配额端点无官方 SLA（spec 收缩条款）；usage 头探测对未透传限流头的服务商如实显示不支持。

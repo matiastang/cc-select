@@ -13,7 +13,7 @@ i18n
     fallbackLng: DEFAULT_LOCALE,
     supportedLngs: SUPPORTED_LOCALES,
     defaultNS: "common",
-    ns: ["common", "providers", "shell", "update"],
+    ns: ["common", "providers", "shell", "update", "desktop", "general"],
     interpolation: {
       escapeValue: false, // React already escapes DOM output
     },
