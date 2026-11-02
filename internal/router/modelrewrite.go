@@ -85,7 +85,8 @@ func passBody(w http.ResponseWriter, r *http.Request, next http.Handler, body []
 // 把请求体 model 解析为转发值；ok=false 表示原样透传。
 //
 // 规则（按序，首个命中）：
-//  1. 精确等于 provider 清单某 id（含 [1m] 形态）→ 透传（用户在 /model 的选择）；
+//  1. 精确等于 provider 清单某原始 id（含 [1m] 形态）→ 透传；原始 id 未命中时，
+//     按去上下文后缀形态再匹配清单，承接 CC 已剥离后缀的 /model 选择；
 //  2. 含子串 opus/sonnet/haiku（不区分大小写）→ 对应槽位变量；槽空 → 回落主模型；
 //  3. 其余（含热切后旧 provider 的 id）→ 主模型（v1「无条件主模型」兼容）；
 //  4. 主模型为空（未配 ANTHROPIC_MODEL）→ 透传（v1 逐字节兼容）。
@@ -99,10 +100,17 @@ func resolveTargetModel(providerID, reqModel string) (string, bool) {
 	}
 	plan := config.ModelPlanFromEnv(env)
 
-	// R1：清单内 → 透传。
+	// R1：清单内原始 id → 透传。
 	for _, e := range plan.Entries {
 		if e.ID == reqModel {
 			return "", false
+		}
+	}
+	// R1b：CC 会把所选 id 的本地上下文后缀剥离后再发请求；
+	// 用去后缀形态再匹配清单，确保非主槽位不会误回落主模型。
+	for _, e := range plan.Entries {
+		if upstreamID := stripContextSuffix(e.ID); upstreamID != e.ID && upstreamID == reqModel {
+			return upstreamID, true
 		}
 	}
 
@@ -129,5 +137,15 @@ func resolveTargetModel(providerID, reqModel string) (string, bool) {
 	if target == "" {
 		return "", false
 	}
-	return target, true
+	// CC 的 [1m] 是本地上下文窗口标记；改写目标转发上游前必须移除，
+	// 避免 CC 已剥离后缀后，router 又从槽位配置把它加回去。
+	return stripContextSuffix(target), true
+}
+
+func stripContextSuffix(model string) string {
+	const suffix = "[1m]"
+	if len(model) >= len(suffix) && strings.EqualFold(model[len(model)-len(suffix):], suffix) {
+		return model[:len(model)-len(suffix)]
+	}
+	return model
 }
