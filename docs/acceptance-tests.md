@@ -329,6 +329,8 @@
 | 6. `/model` 确认选模型（CC 写 `model` 字段）后立刻 `route switch`，再 `! jq 'keys' $CLAUDE_CONFIG_DIR/settings.json` | `model`/`modelPicker`/`env`/`permissions` 全在，JSON 合法（SC-005；自动化：TestRefreshPicker_*） |
 | 7. settings.json 改坏后 `route switch` | 切换成功（路由表真值）+ stderr 告警，显示保持旧样（自动化：TestRouteSwitch_CorruptSettingsSwitchSucceedsWithWarning） |
 | 8. `ccs use official`（官方 provider） | 无任何注入，`/model` 与现状一致（INV-5；自动化：TestInjectModelPicker_EmptyPlanNoInjection） |
+| 9. 仅配置主模型 `k3.1-pro[1m]`（或 `[1M]`），模拟 CC 发送裸名 `k3.1-pro` + `context-1m-2025-08-07` | 上游收到裸名 `k3.1-pro`，router 不从主模型重新加回后缀；1M beta 请求头原样到达（自动化：TestModelRewrite_StripsContextSuffixOnRewrite） |
+| 10. 配置主模型 `glm-main`、Haiku 槽 `glm-flash[1m]`（或 `[1M]`），模拟 CC 从该槽位发送裸名 `glm-flash` + 1M beta 请求头 | 去后缀清单匹配命中原 Haiku 槽，上游收到 `glm-flash` 而非 `glm-main`；beta 请求头原样到达（自动化：TestModelRewrite_MatchesStrippedContextSuffixSlot） |
 
 **判定**：启动即见真实模型（Mode A/B/P 均注入）；热切后选择器不重启跟随刷新；`/model` 选择 100% 生效（代理清单内透传）；终端隔离零串扰；并发写入零字段丢失；刷新失败不阻断路由。
 **已知限制**（非缺陷）：`model` 字段是 CC 启动期键、不热重载——热切后本会话「当前模型」标记保持旧值直至用户在 `/model` 选择或重启（列表刷新不受影响）。
@@ -366,7 +368,7 @@
 | 4. 画廊/通用模块查看预设来源 | 徽标显示 内置/缓存/远端 与更新时间；「刷新预设」手动拉取，失败回落并提示（US5；自动化：source 四情形单测 + RemotePresetsCard 用例） |
 | 5. 通用模块关闭远端预设 | 立即回落内置且零网络请求；再开启按缓存复用（FR-014；自动化：开关单测 + prefs 往返） |
 | 6. 向导 Step1 点「测试连接」 | 未填 key 禁用；错 key 显示认证失败分类，成功显示延迟与模型回显（US6；自动化：probe 分类单测 + ProbeButton 用例） |
-| 7. provider 卡片「刷新用量」 | GLM 显示 5h 窗口百分比（percent-only）；Kimi 开放平台显示余额；无头服务商显示「不支持查询」占位；错误可重试（US7/R11；自动化：usage 适配器单测 + UsagePanel 用例） |
+| 7. provider 卡片「刷新用量」 | GLM 显示 5h 窗口百分比（percent-only）；Kimi 开放平台显示余额；无头服务商显示「不支持查询」占位；错误可重试（US7/R11；自动化：usage 适配器单测 + UsagePanel 用例）。Mode P（代理）供应商以 providers.json 真值查询——不受 profile 派生产物（仅代理 BASE_URL）影响，不再误报 auth failed（自动化：TestUsageEndpoint_ModePRestoresTruthEnv） |
 | 8. 三平台桌面产物走查 | 六模块 + 深浅色 + 向导全流程正常（FR-022/023；quickstart §4 人工清单——发布门禁） |
 
 **判定**：导航模块化且 web/桌面同源；添加 ≤3 步；远端预设四情形（更新/不可达/损坏/禁用）行为正确；探测与限额查询仅手动触发、token 不出后端、错误脱敏；既有 12 条 v0.0.x 用例零回归。

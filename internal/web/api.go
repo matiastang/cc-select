@@ -276,6 +276,12 @@ func (h *apiHandler) handleUsage(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "read provider env: "+err.Error())
 		return
 	}
+	// Mode P 派生产物保护（specs/001，与 displayedEnv/toDetailDTO 同源）：profile 被
+	// use(proxy) 覆写为仅代理 BASE_URL 时，真值在 providers.json——查询须用真值，
+	// 否则适配器按 127.0.0.1 错配兜底，且无 token 裸打本地 router 必 401（auth failed）。
+	if truth := a.Config.Providers[id].Env; len(truth) > 0 && isProxyArtifactEnv(env) {
+		env = truth
+	}
 	// 钥匙串开启时 env 真值是 $keychain: 占位——解析后再探测，否则必然 401。
 	env = profile.ResolveKeychainEnv(env)
 

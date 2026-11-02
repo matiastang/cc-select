@@ -29,6 +29,7 @@ type upstreamRecorder struct {
 	URL         string
 	authz       []string
 	apiKeys     []string
+	betaHeaders []string
 	bodies      []string
 	paths       []string
 	respStatus  int
@@ -43,6 +44,7 @@ func newUpstream(t *testing.T, rec *upstreamRecorder) *httptest.Server {
 		b, _ := io.ReadAll(r.Body)
 		rec.authz = append(rec.authz, r.Header.Get("Authorization"))
 		rec.apiKeys = append(rec.apiKeys, r.Header.Get("x-api-key"))
+		rec.betaHeaders = append(rec.betaHeaders, r.Header.Get("anthropic-beta"))
 		rec.bodies = append(rec.bodies, string(b))
 		rec.paths = append(rec.paths, r.URL.Path)
 		if rec.handlerFunc != nil {

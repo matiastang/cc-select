@@ -132,6 +132,49 @@ func TestModelRewrite_LegacyModelFromProfile(t *testing.T) {
 	}
 }
 
+func TestModelRewrite_StripsContextSuffixOnRewrite(t *testing.T) {
+	for _, suffix := range []string{"[1m]", "[1M]"} {
+		t.Run(suffix, func(t *testing.T) {
+			upstream := &upstreamRecorder{respStatus: 200, respBody: `{"ok":true}`}
+			srv := newUpstream(t, upstream)
+			setTempProviders(t, `{"providers":{"glm":{"id":"glm","env":{"ANTHROPIC_BASE_URL":"`+srv.URL+`","ANTHROPIC_MODEL":"k3.1-pro`+suffix+`"}}}}`)
+
+			// Claude Code 识别后缀后发送裸模型名，并通过 beta header 声明 1M。
+			req := rewriteReq(t, `{"model":"k3.1-pro","x":1}`, "application/json")
+			req.Header.Set("anthropic-beta", "context-1m-2025-08-07")
+			ModelRewrite(NewForward(nil)).ServeHTTP(httptest.NewRecorder(), req)
+
+			if len(upstream.bodies) != 1 || !strings.Contains(upstream.bodies[0], `"model":"k3.1-pro"`) {
+				t.Errorf("fallback 不得把本地上下文后缀重新发给上游: %v", upstream.bodies)
+			}
+			if len(upstream.betaHeaders) != 1 || upstream.betaHeaders[0] != "context-1m-2025-08-07" {
+				t.Errorf("1M beta header 应原样透传: %v", upstream.betaHeaders)
+			}
+		})
+	}
+}
+
+func TestModelRewrite_MatchesStrippedContextSuffixSlot(t *testing.T) {
+	for _, suffix := range []string{"[1m]", "[1M]"} {
+		t.Run(suffix, func(t *testing.T) {
+			upstream := &upstreamRecorder{respStatus: 200, respBody: `{"ok":true}`}
+			srv := newUpstream(t, upstream)
+			setTempProviders(t, `{"providers":{"glm":{"id":"glm","env":{"ANTHROPIC_BASE_URL":"`+srv.URL+`","ANTHROPIC_MODEL":"glm-main","ANTHROPIC_DEFAULT_HAIKU_MODEL":"glm-flash`+suffix+`"}}}}`)
+
+			req := rewriteReq(t, `{"model":"glm-flash","x":1}`, "application/json")
+			req.Header.Set("anthropic-beta", "context-1m-2025-08-07")
+			ModelRewrite(NewForward(nil)).ServeHTTP(httptest.NewRecorder(), req)
+
+			if len(upstream.bodies) != 1 || !strings.Contains(upstream.bodies[0], `"model":"glm-flash"`) {
+				t.Errorf("CC 剥离后缀后仍应命中原槽位，不得回落主模型: %v", upstream.bodies)
+			}
+			if len(upstream.betaHeaders) != 1 || upstream.betaHeaders[0] != "context-1m-2025-08-07" {
+				t.Errorf("1M beta header 应原样透传: %v", upstream.betaHeaders)
+			}
+		})
+	}
+}
+
 // T010：映射化改写契约表全量（specs/002 contracts/proxy-model-routing.md R1~R6）。
 // 槽位数据：main=glm-5.3[1m]、opus=glm-5.2[1m]、haiku=glm-5.3-Flash、sonnet 未配置。
 func TestModelRewrite_MappingContract(t *testing.T) {
@@ -146,19 +189,19 @@ func TestModelRewrite_MappingContract(t *testing.T) {
 		// R1：清单内精确透传（含 [1m] 形态）。
 		{"R1 清单内 main 透传", glmEnv, "glm-5.3[1m]", ""},
 		{"R1 清单内 haiku 透传", glmEnv, "glm-5.3-Flash", ""},
-		// R2：opus 家族 → Opus 槽。
-		{"R2 完整 id claude-opus-5", glmEnv, "claude-opus-5", "glm-5.2[1m]"},
-		{"R2 别名 opus", glmEnv, "opus", "glm-5.2[1m]"},
-		{"R2 别名 opus[1m]", glmEnv, "opus[1m]", "glm-5.2[1m]"},
+		// R2：opus 家族 → Opus 槽（CC 的上下文后缀不发给上游）。
+		{"R2 完整 id claude-opus-5", glmEnv, "claude-opus-5", "glm-5.2"},
+		{"R2 别名 opus", glmEnv, "opus", "glm-5.2"},
+		{"R2 别名 opus[1m]", glmEnv, "opus[1m]", "glm-5.2"},
 		// R3：sonnet 家族 → sonnet 槽空 → 回落 main。
-		{"R3 sonnet 槽空回落 main", glmEnv, "claude-sonnet-5", "glm-5.3[1m]"},
-		{"R3 别名 sonnet", glmEnv, "sonnet", "glm-5.3[1m]"},
+		{"R3 sonnet 槽空回落 main", glmEnv, "claude-sonnet-5", "glm-5.3"},
+		{"R3 别名 sonnet", glmEnv, "sonnet", "glm-5.3"},
 		// R4：haiku 家族 → Haiku 槽（后台小任务路径）。
 		{"R4 别名 haiku", glmEnv, "haiku", "glm-5.3-Flash"},
 		{"R4 完整 id claude-haiku-4-5", glmEnv, "claude-haiku-4-5-20251001", "glm-5.3-Flash"},
 		// R5：未知 id（热切后旧 provider 的模型）→ 主模型（v1 兼容）。
-		{"R5 未知 id 回落 main", glmEnv, "glm-4.6", "glm-5.3[1m]"},
-		{"R5 default 别名", glmEnv, "default", "glm-5.3[1m]"},
+		{"R5 未知 id 回落 main", glmEnv, "glm-4.6", "glm-5.3"},
+		{"R5 default 别名", glmEnv, "default", "glm-5.3"},
 		// R6：未配置 ANTHROPIC_MODEL → 全路径透传（v1 回归）。
 		{"R6 无 main 透传", `"env":{}`, "claude-opus-5", ""},
 		{"R6 无 main 未知 id 也透传", `"env":{}`, "whatever", ""},

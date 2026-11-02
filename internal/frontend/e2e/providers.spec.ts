@@ -109,9 +109,15 @@ test("编辑已有 provider：表单回填磁盘内容并可保存", async ({ pa
   );
   await expect(page.getByTestId("provider-json-textarea")).toContainText("orig-model");
 
-  // 修改 model 并保存。
+  // 修改 model 并保存，等待 PUT 完成后再读取，避免与异步保存产生竞态。
   await page.getByTestId("env-field-ANTHROPIC_MODEL").fill("edited-model");
+  const updateResponse = page.waitForResponse(
+    (response) =>
+      response.url() === `${server.baseURL}/api/v1/providers/e2e-edit` &&
+      response.request().method() === "PUT",
+  );
   await page.getByTestId("provider-save-button").click();
+  expect((await updateResponse).ok()).toBe(true);
 
   const res = await page.request.get(`${server.baseURL}/api/v1/providers/e2e-edit`);
   const body = await res.json();

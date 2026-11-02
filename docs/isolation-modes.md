@@ -439,7 +439,7 @@ Mode P 下 Claude Code 的 `/model` 默认只显示内置 Anthropic 目录（含
 
 - **启动即见真实模型**：`use` 构建 profile 时注入 `modelPicker`（模型清单由 provider env 的 `ANTHROPIC_MODEL` + 三个 `ANTHROPIC_DEFAULT_*_MODEL` 去重派生，`replaceBuiltInOptions` 隐藏内置目录）。Mode A/B/P 三模式统一注入；Mode P 额外注入 `model=<主模型>`，使 ✔/横幅/请求体三者一致。需 **Claude Code ≥ 2.1.242**（旧版注入无害但无效果，`use` 提示升级）。
 - **热切跟随刷新**：`route switch` 成功后经继承的 `$CLAUDE_CONFIG_DIR` 定位**发射 profile** 的 settings.json（写新 provider 的目录运行中会话不可见），字段级合并 + 原子写刷新 `modelPicker`/`model`；`modelPicker` 热重载已实验实证（2026-08-29），不重启会话即见新列表。刷新失败仅告警，路由表真值不受影响。
-- **选择生效**：代理改写升级为映射化规则——清单内 id 原样透传（`/model` 选择 100% 生效），`opus`/`sonnet`/`haiku` 目录形态按槽位映射，未知 id 回落主模型（v1 兼容），未配 `ANTHROPIC_MODEL` 全路径透传。注入与改写共用同一 `ModelPlan` 派生，「能选的」永远等于「能生效的」。
+- **选择生效**：代理改写升级为映射化规则——清单内原始 id 精确透传；CC 剥离所选 id 的 `[1m]` / `[1M]` 后，router 按去后缀形态再次匹配清单，保证非主槽位仍命中原槽位；`opus`/`sonnet`/`haiku` 目录形态按槽位映射，未知 id 回落主模型（v1 兼容），未配 `ANTHROPIC_MODEL` 全路径透传。槽位映射或主模型回落时，模型值末尾的上下文后缀会作为 Claude Code 本地标记移除，避免 CC 剥离后 router 重新加回；1M beta 请求头原样透传。注入与改写共用同一 `ModelPlan` 派生，「能选的」永远等于「能生效的」。
 - **已知限制**：`model` 是 CC 启动期键（不热重载）——热切后本会话「当前模型」标记保持旧值，直至用户在 `/model` 选择或重启（列表刷新不受影响）。
 
 → 详见 [specs/002](../specs/002-model-picker-sync/)（spec / contracts / research D1–D9）与 [acceptance-tests AC17](./acceptance-tests.md#ac17-claude-code-内查看并切换真实模型r10model-picker-sync)。
