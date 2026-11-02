@@ -366,7 +366,7 @@
 | 4. 画廊/通用模块查看预设来源 | 徽标显示 内置/缓存/远端 与更新时间；「刷新预设」手动拉取，失败回落并提示（US5；自动化：source 四情形单测 + RemotePresetsCard 用例） |
 | 5. 通用模块关闭远端预设 | 立即回落内置且零网络请求；再开启按缓存复用（FR-014；自动化：开关单测 + prefs 往返） |
 | 6. 向导 Step1 点「测试连接」 | 未填 key 禁用；错 key 显示认证失败分类，成功显示延迟与模型回显（US6；自动化：probe 分类单测 + ProbeButton 用例） |
-| 7. provider 卡片「刷新用量」 | GLM 显示 5h 窗口百分比（percent-only）；Kimi 开放平台显示余额；无头服务商显示「不支持查询」占位；错误可重试（US7/R11；自动化：usage 适配器单测 + UsagePanel 用例） |
+| 7. provider 卡片「刷新用量」 | GLM 显示 5h 窗口百分比（percent-only）；Kimi 开放平台显示余额；无头服务商显示「不支持查询」占位；错误可重试（US7/R11；自动化：usage 适配器单测 + UsagePanel 用例）。Mode P（代理）供应商以 providers.json 真值查询——不受 profile 派生产物（仅代理 BASE_URL）影响，不再误报 auth failed（自动化：TestUsageEndpoint_ModePRestoresTruthEnv） |
 | 8. 三平台桌面产物走查 | 六模块 + 深浅色 + 向导全流程正常（FR-022/023；quickstart §4 人工清单——发布门禁） |
 
 **判定**：导航模块化且 web/桌面同源；添加 ≤3 步；远端预设四情形（更新/不可达/损坏/禁用）行为正确；探测与限额查询仅手动触发、token 不出后端、错误脱敏；既有 12 条 v0.0.x 用例零回归。

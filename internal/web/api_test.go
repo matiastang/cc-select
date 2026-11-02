@@ -2,18 +2,11 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
-
-	"github.com/cc-select/cc-select/internal/prefs"
-	"github.com/cc-select/cc-select/internal/presets"
-	"github.com/cc-select/cc-select/internal/usage"
-
-	"github.com/cc-select/cc-select/internal/secrets"
-
-	"github.com/cc-select/cc-select/internal/config"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -21,8 +14,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cc-select/cc-select/internal/prefs"
+	"github.com/cc-select/cc-select/internal/presets"
+	"github.com/cc-select/cc-select/internal/probe"
 	"github.com/cc-select/cc-select/internal/profile"
+	"github.com/cc-select/cc-select/internal/router"
 	"github.com/cc-select/cc-select/internal/routes"
+	"github.com/cc-select/cc-select/internal/secrets"
+	"github.com/cc-select/cc-select/internal/usage"
+
+	"github.com/cc-select/cc-select/internal/config"
 )
 
 // newTestServer 用临时配置建一个 API-only 测试服务，预置一个 glm provider（含明文 token 的 profile）。
@@ -1558,5 +1559,91 @@ func TestUsageEndpoint(t *testing.T) {
 	resp404.Body.Close()
 	if resp404.StatusCode != 404 {
 		t.Fatalf("missing provider status=%d, want 404", resp404.StatusCode)
+	}
+}
+
+// recordUsageAdapter 记录查询 env 的测试适配器（恒匹配，不发网络请求）。
+type recordUsageAdapter struct {
+	base  *string
+	token *string
+}
+
+func (recordUsageAdapter) ID() string        { return "record" }
+func (recordUsageAdapter) Match(string) bool { return true }
+func (a recordUsageAdapter) Query(_ context.Context, env map[string]string, _ *probe.Options) (*usage.Report, error) {
+	if a.base != nil {
+		*a.base = env["ANTHROPIC_BASE_URL"]
+	}
+	if a.token != nil {
+		*a.token = env["ANTHROPIC_AUTH_TOKEN"]
+	}
+	return &usage.Report{Supported: true, Windows: []usage.Window{{Type: usage.WindowBalance}}}, nil
+}
+
+// TestUsageEndpoint_ModePRestoresTruthEnv —— specs/001「Mode P 派生产物保护」在用量
+// 查询路径的回归：profile 被 use(proxy) 覆写为仅代理 BASE_URL 时，真值在 providers.json，
+// 查询必须用真值——否则适配器按 127.0.0.1 错配兜底，且无 token 裸打本地 router 必 401。
+func TestUsageEndpoint_ModePRestoresTruthEnv(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "providers.json")
+	t.Setenv("CC_SELECT_CONFIG", cfg)
+	// HOME 隔离 + 钉住代理地址：isProxyArtifactEnv 经 router.ResolveAddr 读
+	// ~/.cc-select/router.json，指到临时目录后回落 CC_SELECT_PROXY_ADDR，不受真机状态影响。
+	home := t.TempDir()
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", home)
+	} else {
+		t.Setenv("HOME", home)
+	}
+	t.Setenv("CC_SELECT_PROXY_ADDR", router.DefaultAddr)
+
+	// providers.json：Mode P 真值上抬后的形态（env 真值在此）。
+	truth := map[string]string{
+		"ANTHROPIC_BASE_URL":   "https://api.kimi.com/coding/",
+		"ANTHROPIC_AUTH_TOKEN": "tok-kimi",
+		"ANTHROPIC_MODEL":      "k3.1-pro",
+	}
+	b, err := json.Marshal(map[string]any{
+		"providers": map[string]config.Provider{"kimi": {ID: "kimi", Name: "Kimi", Env: truth}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cfg, b, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// profile：use(proxy) 派生产物（仅代理 BASE_URL，无 token）。
+	profile.Ensure("kimi", map[string]string{
+		"ANTHROPIC_BASE_URL": "http://" + router.DefaultAddr,
+	})
+
+	var gotBase, gotToken string
+	oldSel, oldOverride := usageSelect, usageEnvOverride
+	usageEnvOverride = nil
+	usageSelect = func(string) usage.Adapter { return recordUsageAdapter{base: &gotBase, token: &gotToken} }
+	defer func() { usageSelect, usageEnvOverride = oldSel, oldOverride }()
+
+	h := newAPIHandler()
+	srv := httptest.NewServer(h.routes())
+	defer srv.Close()
+
+	resp, err := http.Post(srv.URL+"/api/v1/usage/kimi", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out struct {
+		Supported bool   `json:"supported"`
+		Error     string `json:"error"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&out)
+	if resp.StatusCode != 200 || !out.Supported {
+		t.Fatalf("usage = %d supported=%v err=%q", resp.StatusCode, out.Supported, out.Error)
+	}
+	if gotBase != truth["ANTHROPIC_BASE_URL"] {
+		t.Errorf("适配器应按真值 base URL 选择, got %q", gotBase)
+	}
+	if gotToken != truth["ANTHROPIC_AUTH_TOKEN"] {
+		t.Errorf("查询应携带真值 token, got %q", gotToken)
 	}
 }
