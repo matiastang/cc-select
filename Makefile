@@ -10,6 +10,8 @@
 #      （不能用 $(OS)：git bash 也运行在 Windows，$(OS) 同为 Windows_NT，会误选 cmd 分支。）
 .PHONY: all build frontend dev test integration e2e vet scripts-check install clean \
   fmt fmt-check check mod-tidy-check \
+  quality quality-go quality-go-new quality-frontend quality-frontend-staged \
+  quality-coverage quality-dup quality-dead quality-vuln \
   frontend-typecheck frontend-lint frontend-format-check frontend-check \
   desktop-cli desktop-build desktop-package desktop-clean
 
@@ -122,9 +124,9 @@ frontend-format-check:
 frontend-typecheck:
 	cd internal/frontend && npm run typecheck
 
-# 前端 Lint
-frontend-lint:
-	cd internal/frontend && npm run lint
+# 前端 Lint（specs/005 起）：经 qualitygate 基线过滤（同一份 eslint 配置，规则超集；
+# 裸 `npm run lint` 不识基线，存量违规会误报——本地调试可直接跑 eslint，门禁一律走 make）。
+frontend-lint: quality-frontend
 
 # 前端静态检查（类型 + Lint + 格式）
 frontend-check: frontend-typecheck frontend-lint frontend-format-check
@@ -135,7 +137,77 @@ frontend-check: frontend-typecheck frontend-lint frontend-format-check
 presets-lint:
 	go test ./internal/presets/ -run 'TestEmbeddedBundlePassesValidation|TestPresetCatalogContents' -count=1
 
-check: fmt-check vet frontend-typecheck frontend-lint frontend-format-check scripts-check mod-tidy-check presets-lint
+# ---------------------------------------------------------------------------
+# 代码质量门禁（specs/005-quality-gates，需求 R12）。本地与 CI 复用同一目标（FR-002）。
+# 基线 quality-baseline.json 是存量豁免的唯一真值；阈值语义见 docs/quality-gates.md。
+# ---------------------------------------------------------------------------
+
+# Go 全量门禁（CI/本地全量）：golangci-lint（.golangci.yml 白名单）+ 基线过滤 + 文件行数。
+# CGO 显式开回 1：desktop（wails）类型检查需要（与上方 vet 同因，全局 export 是 0）。
+quality-go:
+	CGO_ENABLED=1 go run ./tools/qualitygate golangci --baseline quality-baseline.json
+	go run ./tools/qualitygate filelines --root . --max 1000 \
+		--exclude internal/frontend/node_modules --baseline quality-baseline.json
+
+# Go 增量门禁（pre-commit）：golangci 只报 HEAD 之后的新增行；文件行数全量（瞬时，
+# 存量经基线整文件豁免，不受行号漂移影响）。
+quality-go-new:
+	CGO_ENABLED=1 go run ./tools/qualitygate golangci --baseline quality-baseline.json --new-from-rev HEAD
+	go run ./tools/qualitygate filelines --root . --max 1000 \
+		--exclude internal/frontend/node_modules --baseline quality-baseline.json
+
+# 前端门禁（全量/CI）：eslint 规模复杂度规则 + 基线过滤（qualitygate 自执行 eslint）。
+quality-frontend:
+	go run ./tools/qualitygate eslint --baseline quality-baseline.json
+
+# 前端增量门禁（pre-commit）：仅 staged 前端源文件。
+quality-frontend-staged:
+	go run ./tools/qualitygate eslint --baseline quality-baseline.json --staged
+
+# 重复代码计数棘轮（specs/005-quality-gates FR-012）：jscpd v5（锁版 devDependencies，
+# 经 node 直调 run-jscpd.js 仓库根执行——Go 扫描不能从 frontend cwd 发起，../ 模式不工作）。
+# 排除测试与 node_modules；门禁 = 克隆块数棘轮（基线 research §0 实测：Go 10 / 前端 5）。
+quality-dup:
+	node internal/frontend/node_modules/jscpd/run-jscpd.js --pattern "**/*.go" --min-tokens 60 \
+		--ignore "**/*_test.go,**/node_modules/**" --reporters json --output internal/frontend/node_modules/.quality-go --silent
+	go run ./tools/qualitygate ratchet --baseline quality-baseline.json --metric jscpd-go \
+		--input internal/frontend/node_modules/.quality-go/jscpd-report.json
+	cd internal/frontend && npm run quality:dup
+	go run ./tools/qualitygate ratchet --baseline quality-baseline.json --metric jscpd-frontend \
+		--input internal/frontend/node_modules/.quality/jscpd-report.json
+
+# 死代码计数棘轮（FR-014）：前端 knip（Go 侧 unused 已含于 quality-go 基线过滤）。
+# knip 有 finding 时 exit 1 属正常输出（; 而非 &&），ratchet 才是判据；子 shell 隔离 cd。
+quality-dead:
+	(cd internal/frontend && npm run --silent quality:dead > node_modules/.quality/knip-report.json); \
+	go run ./tools/qualitygate ratchet --baseline quality-baseline.json --metric knip-frontend \
+		--input internal/frontend/node_modules/.quality/knip-report.json
+
+# 依赖漏洞扫描（specs/005-quality-gates FR-013，需联网；CI lint job 执行）。
+# govulncheck：调用图口径——可触达才阻塞，未触达警告（qualitygate 包装，退出码不可靠）。
+# npm audit：生产依赖 high+（无调用链分析的近似口径，research §8 已记录）。
+quality-vuln:
+	go run ./tools/qualitygate govuln ./...
+	cd internal/frontend && npm audit --audit-level=high --omit=dev
+
+# 质量门禁聚合入口（quickstart/CI 单独运行用）。
+quality: quality-go quality-frontend quality-dup quality-dead
+
+# 覆盖率棘轮（specs/005-quality-gates FR-011）：Go 语句覆盖率 ≥ 基线（quality-baseline.json
+# coverage.go-statements-min）；前端阈值内置于 vitest（npm run coverage 自带门禁）。
+# CI 在 test job 的 Linux runner 执行；本地可手动运行。profile 写 bin/（已 gitignore）。
+# $(go list | grep -v)：排除 node_modules 内 flatted 的 Go 移植（jscpd 依赖带入，无 go.mod
+# 边界，-coverprofile 插桩会触发 "no such tool covdata" 失败）。sh 语法，与 scripts-check 同口径。
+quality-coverage:
+	-mkdir bin
+	go test $$(go list ./internal/... | grep -v /node_modules/) -coverprofile=bin/coverage-go.out -count=1
+	go run ./tools/qualitygate coverage --baseline quality-baseline.json \
+		--metric go-statements-min --input bin/coverage-go.out
+	cd internal/frontend && npm run coverage
+
+# 统一静态检查入口（本地和 CI 都使用）。quality 含全量门禁（golangci/eslint 经基线
+# 过滤 + 重复/死代码棘轮）；eslint 不再经 frontend-lint 重复执行。
+check: fmt-check vet frontend-typecheck frontend-format-check scripts-check mod-tidy-check presets-lint quality
 
 # 安装到 GOPATH/bin：go install 跨平台编译并装入，无需 ln/copy。
 install:

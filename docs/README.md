@@ -35,6 +35,7 @@
 | 9 | [release.md](./release.md) | 维护者如何发版、配置 Token、验证包管理器 manifest。 |
 | 10 | [roadmap.md](./roadmap.md) | 按什么顺序交付。 |
 | 11 | [acceptance-tests.md](./acceptance-tests.md) | 怎么验证"做对了"。 |
+| 12 | [quality-gates.md](./quality-gates.md) | 代码质量门禁运维真值：阈值语义、豁免与修基线流程（v0.1.3 R12）。 |
 
 ---
 

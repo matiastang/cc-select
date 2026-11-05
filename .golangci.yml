@@ -1,0 +1,42 @@
+# golangci-lint v2 配置——代码质量门禁（specs/005-quality-gates，需求 R12）。
+#
+# 阈值来源：specs/005-quality-gates/research.md §0（2026-11-06 当前代码基线实测，
+# Q22 棘轮策略：从宽松起步，只收紧不放松）。维护规则见 docs/quality-gates.md。
+#
+# 版本锁定：go.mod 的 tool 指令（v2.15.0），本地与 CI 经 `go tool golangci-lint` 运行，
+# 不存在版本漂移。
+version: "2"
+
+linters:
+  # 严格白名单：default: none 是 v2 正确写法（enable-only 键不生效，实测见 research §1）。
+  # 刻意不启用 errcheck/staticcheck 等默认集——与 R12 规模/复杂度目标正交，属后续显式决策。
+  default: none
+  enable:
+    - cyclop    # 圈复杂度（FR-005）
+    - funlen    # 函数长度（FR-004）
+    - lll       # 行长（FR-006）
+    - dupl      # 重复代码（FR-012 的 Go token 级互补）
+    - unused    # 死代码（FR-014 的 Go 侧）
+  settings:
+    cyclop:
+      max-complexity: 15   # 基线：存量 3 条（26/19/17），登记 quality-baseline.json
+    funlen:
+      lines: 100           # 口径≈非空行（104 物理行函数实测未触发，见 research R3）；存量 0 条
+      statements: 60
+    lll:
+      line-length: 160     # 按 rune 计；120 会引入 34 条存量噪声（research §2）
+    dupl:
+      threshold: 150       # tokens；存量 1 对（shell emitter 文档注释结构相似）
+  exclusions:
+    paths:
+      # flatted 的 Go 移植嵌在 node_modules 且无 go.mod，会被 ./... 扫入（实测 cyclop 误报）。
+      - internal/frontend/node_modules
+    rules:
+      # 测试函数天然长：规模/复杂度类豁免（与前端 test override 口径一致，FR-002）。
+      # unused 保留对测试生效（实测 2 条真死代码）。
+      - path: _test\.go
+        linters:
+          - funlen
+          - cyclop
+          - lll
+          - dupl

@@ -1,0 +1,17 @@
+{
+  // 死代码检测配置（specs/005-quality-gates FR-014）。
+  // ignoreBinaries.go：e2e/global-setup.ts 用 go 命令现场构建 CLI 二进制（有契约理由的
+  // 保留，评审可见）；ignoreExportsUsedInFile：仅文件内使用的导出不另计。
+  // 豁免补充流程见 docs/quality-gates.md。
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/main.tsx",
+    "e2e/**/*.{ts,tsx}",
+    "playwright.config.ts",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
+  "ignoreBinaries": ["go"],
+  "ignoreExportsUsedInFile": true
+}

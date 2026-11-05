@@ -12,9 +12,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # cache-dependency-path 含 go.sum：go.mod 的 tool 指令（golangci-lint/govulncheck，
+      # specs/005-quality-gates）依赖随 go.sum 锁定，GOCACHE 缓存命中可跳过工具编译。
       - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
+          cache-dependency-path: go.sum
 
       # make check → vet 含 desktop（wails/cgo），需 webkit/gtk 头文件
       # （与 release.yml Linux 打包同一依赖集）。
@@ -32,6 +35,10 @@ jobs:
 
       - name: Run static checks
         run: make check
+
+      # 依赖漏洞扫描（specs/005-quality-gates FR-013）：govulncheck 可触达口径 + npm audit 生产依赖 high+。
+      - name: Dependency vulnerability scan
+        run: make quality-vuln
 
   test:
     strategy:
@@ -59,6 +66,17 @@ jobs:
 
       - name: Test
         run: go test ./internal/...
+
+      # 覆盖率棘轮（specs/005-quality-gates FR-011）：仅 Linux 跑一次，避免三平台重复。
+      # mkdir：go test -coverprofile 不建父目录（CI 检出无 bin/，首跑即败的教训）。
+      # go list | grep -v 排除 node_modules 的 flatted Go 移植（无 go.mod 边界，插桩失败）。
+      # 前端阈值由 vitest thresholds 在下方 coverage 运行中自校验。
+      - name: Coverage ratchet (Go)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p bin
+          go test $(go list ./internal/... | grep -v /node_modules/) -coverprofile=bin/coverage-go.out -count=1
+          go run ./tools/qualitygate coverage --baseline quality-baseline.json --metric go-statements-min --input bin/coverage-go.out
 
       # 集成测试（跨进程 shell 行为），仅 Unix 跑（Windows PowerShell 集成另配）。
       - name: Integration tests
