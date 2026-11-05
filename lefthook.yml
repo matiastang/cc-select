@@ -9,6 +9,14 @@ pre-commit:
     go-mod-tidy:
       glob: "go.*"
       run: make mod-tidy-check
+    # 质量门禁（specs/005-quality-gates R12）：增量检查，只拦本次变更引入的违规；
+    # 存量经 quality-baseline.json 豁免。阈值与 CI 同源（make quality-go-new）。
+    quality-go:
+      glob: "**/*.go"
+      run: make quality-go-new
+    quality-frontend:
+      glob: "internal/frontend/src/**/*.{ts,tsx}"
+      run: make quality-frontend-staged
     frontend-typecheck:
       glob: "internal/frontend/src/**/*.{ts,tsx}"
       run: make frontend-typecheck
