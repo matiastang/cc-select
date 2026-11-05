@@ -1,0 +1,31 @@
+{
+  "_comment": "质量基线（棘轮载体）：存量违规显式豁免 + 计数棘轮 + 覆盖率/文件行数阈值。修改规则：只允许删条目/调小计数/上调阈值；反向 diff 须在 PR 评审说明理由。维护手册见 docs/quality-gates.md（specs/005-quality-gates/contracts/quality-gates.md Contract 3）。",
+  "version": 1,
+  "findings": {
+    "golangci": [
+      { "file": "internal/cli/add.go", "line": 211, "rule": "cyclop", "message": "calculated cyclomatic complexity for function readProviderInput" },
+      { "file": "desktop/cliinstall.go", "line": 113, "rule": "cyclop", "message": "calculated cyclomatic complexity for function installEmbeddedCLI" },
+      { "file": "internal/presets/validate.go", "line": 44, "rule": "cyclop", "message": "calculated cyclomatic complexity for function Validate" },
+      { "file": "internal/shell/powershell.go", "line": 1, "rule": "dupl", "message": "" },
+      { "file": "internal/shell/zsh.go", "line": 1, "rule": "dupl", "message": "" },
+      { "file": "internal/router/server.go", "line": 148, "rule": "lll", "message": "" },
+      { "file": "desktop/bridge_test.go", "line": 20, "rule": "unused", "message": "field reply is unused" },
+      { "file": "internal/usage/usage_test.go", "line": 14, "rule": "unused", "message": "func optsFor is unused" }
+    ],
+    "filelines": [
+      { "file": "internal/web/api.go", "line": 0, "rule": "file-lines", "message": "" }
+    ],
+    "eslint": []
+  },
+  "counters": {
+    "jscpd-go": { "count": 10, "metric": "clones" },
+    "jscpd-frontend": { "count": 5, "metric": "clones" },
+    "knip-frontend": { "count": 15, "metric": "issues" }
+  },
+  "coverage": {
+    "go-statements-min": 76
+  },
+  "fileLines": {
+    "go-max": 1000
+  }
+}
