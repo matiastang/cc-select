@@ -32,6 +32,8 @@ func main() {
 		code = runRatchet(os.Args[2:], os.Stdout, os.Stderr)
 	case "coverage":
 		code = runCoverageGate(os.Args[2:], os.Stdout, os.Stderr)
+	case "govuln":
+		code = runGovulnGate(os.Args[2:], os.Stdout, os.Stderr)
 	case "-h", "--help", "help":
 		usage()
 	default:

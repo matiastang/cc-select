@@ -36,6 +36,10 @@ jobs:
       - name: Run static checks
         run: make check
 
+      # 依赖漏洞扫描（specs/005-quality-gates FR-013）：govulncheck 可触达口径 + npm audit 生产依赖 high+。
+      - name: Dependency vulnerability scan
+        run: make quality-vuln
+
   test:
     strategy:
       fail-fast: false

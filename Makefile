@@ -11,7 +11,7 @@
 .PHONY: all build frontend dev test integration e2e vet scripts-check install clean \
   fmt fmt-check check mod-tidy-check \
   quality quality-go quality-go-new quality-frontend quality-frontend-staged \
-  quality-coverage quality-dup quality-dead \
+  quality-coverage quality-dup quality-dead quality-vuln \
   frontend-typecheck frontend-lint frontend-format-check frontend-check \
   desktop-cli desktop-build desktop-package desktop-clean
 
@@ -182,6 +182,13 @@ quality-dead:
 	(cd internal/frontend && npm run --silent quality:dead > node_modules/.quality/knip-report.json); \
 	go run ./tools/qualitygate ratchet --baseline quality-baseline.json --metric knip-frontend \
 		--input internal/frontend/node_modules/.quality/knip-report.json
+
+# 依赖漏洞扫描（specs/005-quality-gates FR-013，需联网；CI lint job 执行）。
+# govulncheck：调用图口径——可触达才阻塞，未触达警告（qualitygate 包装，退出码不可靠）。
+# npm audit：生产依赖 high+（无调用链分析的近似口径，research §8 已记录）。
+quality-vuln:
+	go run ./tools/qualitygate govuln ./...
+	cd internal/frontend && npm audit --audit-level=high --omit=dev
 
 # 质量门禁聚合入口（quickstart/CI 单独运行用）。
 quality: quality-go quality-frontend quality-dup quality-dead
