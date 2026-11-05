@@ -28,6 +28,8 @@ func main() {
 		code = runGolangciGate(os.Args[2:], os.Stdout, os.Stderr)
 	case "eslint":
 		code = runESLintGate(os.Args[2:], os.Stdout, os.Stderr)
+	case "ratchet":
+		code = runRatchet(os.Args[2:], os.Stdout, os.Stderr)
 	case "-h", "--help", "help":
 		usage()
 	default:
