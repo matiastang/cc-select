@@ -10,6 +10,7 @@
 #      （不能用 $(OS)：git bash 也运行在 Windows，$(OS) 同为 Windows_NT，会误选 cmd 分支。）
 .PHONY: all build frontend dev test integration e2e vet scripts-check install clean \
   fmt fmt-check check mod-tidy-check \
+  quality-go quality-go-new \
   frontend-typecheck frontend-lint frontend-format-check frontend-check \
   desktop-cli desktop-build desktop-package desktop-clean
 
@@ -134,6 +135,25 @@ frontend-check: frontend-typecheck frontend-lint frontend-format-check
 # 改坏预设无法过 CI/本地检查。
 presets-lint:
 	go test ./internal/presets/ -run 'TestEmbeddedBundlePassesValidation|TestPresetCatalogContents' -count=1
+
+# ---------------------------------------------------------------------------
+# 代码质量门禁（specs/005-quality-gates，需求 R12）。本地与 CI 复用同一目标（FR-002）。
+# 基线 quality-baseline.json 是存量豁免的唯一真值；阈值语义见 docs/quality-gates.md。
+# ---------------------------------------------------------------------------
+
+# Go 全量门禁（CI/本地全量）：golangci-lint（.golangci.yml 白名单）+ 基线过滤 + 文件行数。
+# CGO 显式开回 1：desktop（wails）类型检查需要（与上方 vet 同因，全局 export 是 0）。
+quality-go:
+	CGO_ENABLED=1 go run ./tools/qualitygate golangci --baseline quality-baseline.json
+	go run ./tools/qualitygate filelines --root . --max 1000 \
+		--exclude internal/frontend/node_modules --baseline quality-baseline.json
+
+# Go 增量门禁（pre-commit）：golangci 只报 HEAD 之后的新增行；文件行数全量（瞬时，
+# 存量经基线整文件豁免，不受行号漂移影响）。
+quality-go-new:
+	CGO_ENABLED=1 go run ./tools/qualitygate golangci --baseline quality-baseline.json --new-from-rev HEAD
+	go run ./tools/qualitygate filelines --root . --max 1000 \
+		--exclude internal/frontend/node_modules --baseline quality-baseline.json
 
 check: fmt-check vet frontend-typecheck frontend-lint frontend-format-check scripts-check mod-tidy-check presets-lint
 
