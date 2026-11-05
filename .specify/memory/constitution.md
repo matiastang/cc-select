@@ -1,4 +1,17 @@
 <!--
+Sync Impact Report (v1.2.3, 2026-11-06)
+- Version change: 1.2.2 → 1.2.3 (PATCH: Technology Constraints 字段值补充，非原则变更)
+- Modified: Technology Constraints —— 补充代码质量门禁工具链事实（specs/005-quality-gates，
+  需求 R12）：golangci-lint v2.15.0 与 govulncheck v1.9.0 经 go.mod tool 指令锁版；
+  jscpd 5.4.2 / knip 6.44.1 为前端 devDependencies；基线棘轮载体 quality-baseline.json；
+  自研门禁工具 tools/qualitygate（TDD，不入产品构建）。Go 1.26 系列补丁升至 1.26.10
+  （消除标准库已知漏洞，govulncheck 口径清零；wails beta.34 兼容性不受影响，仍为 1.26 系）。
+- 未动任何原则（I–VIII）。
+- Source: docs/requirements.md v0.1.3 R12（用户确认 Q23/Q24）+ specs/005-quality-gates 实现。
+- Follow-up TODOs: none。
+-->
+
+<!--
 Sync Impact Report (v1.2.2, 2026-10-26)
 - Version change: 1.2.1 → 1.2.2 (PATCH: Technology Constraints 字段值补充，非原则变更)
 - Modified: Technology Constraints —— 依赖清单补充前端设计系统事实：tailwindcss 3.4（v4 因
@@ -117,6 +130,7 @@ Sync Impact Report (v1.0.0, 2026-08-28)
 ## Technology Constraints（技术约束）
 
 - 语言/运行时：Go 1.26（v1.2.1：wails/v3 beta.34 要求；CLI 仍为无 CGO 单二进制）；依赖从简（cobra、zalando/go-keyring、标准库 `net/http` + `embed`、react-i18next 等，真值见 go.mod 与 docs/tech-stack.md）。前端设计系统（v1.2.2，Q14）：tailwindcss 3.4 + Radix 无头原语 + lucide-react（组件源码仓库自有，shadcn/ui 模式）。
+- 质量门禁工具链（v1.2.3，R12）：golangci-lint v2.15.0 + govulncheck v1.9.0（go.mod `tool` 指令锁版，`go tool` 调用）；jscpd 5.4.2 + knip 6.44.1（前端 devDependencies）；自研 tools/qualitygate（基线过滤 + 计数棘轮 + 文件行数，有单测，不入产品构建）；存量豁免/阈值单一真值为 quality-baseline.json，棘轮只紧不松——运维真值见 docs/quality-gates.md。
 - 简单性/YAGNI：标准库优先、单二进制、避免重依赖；引入复杂度 MUST 给出理由。
 - 构建/发布：Makefile + GoReleaser + GitHub Actions；dev build 与 release 均未签名，Smart App Control（SAC）限制是已记录的已知问题（docs/windows-support.md §7），不是待修 bug。
 - i18n 约定：根目录 `README.md` 为默认版本；翻译放 `docs/language/README.<lang>.md`；每次改 README MUST 同步更新各语言切换器相对路径。
@@ -140,4 +154,4 @@ Sync Impact Report (v1.0.0, 2026-08-28)
 - 合规审查：PR review 与 `/speckit-analyze` 检查宪法符合性；引入复杂度或偏离选型 MUST 在 PR 描述中给出理由。
 - 运行期开发指引：见仓库根 CLAUDE.md；文档治理规则：见 docs/README.md。
 
-**Version**: 1.2.2 | **Ratified**: 2026-08-28 | **Last Amended**: 2026-10-26
+**Version**: 1.2.3 | **Ratified**: 2026-08-28 | **Last Amended**: 2026-11-06
