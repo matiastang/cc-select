@@ -266,6 +266,41 @@
 - 修复 Mode P 下用量查询直接访问本地 router 时，派生配置未还原真值导致的 401。
 - 修复 Claude Code 剥离 `[1m]` / `[1M]` 上下文后缀后，非主槽位模型误回落主模型，以及 router 转发时重新附加后缀的问题；1M beta 请求头保持原样透传。
 
+### v0.1.3
+
+#### R12. 代码质量门禁：git commit 与 CI 双层校验（规模 / 复杂度等工程化约束）
+
+> 用户原话：当前项目中需要添加一个校验约束，希望的是添加 git commit 和 git ci 的时候都需要有一些校验。主要校验的就是项目中的一些代码规范，比如：每个文件的代码行数、函数的圈复杂度，等保证项目质量的工程化手段。
+
+**场景**：随版本迭代，单文件 / 单函数的体积与分支复杂度会持续增长（劣化），仅靠人工评审难以持续拦截。需要在 git commit（本地）与 GitHub Actions CI（远端）两个执行点建立自动化质量校验，防止项目可维护性变差。
+
+**验收性要求**：
+
+- **双层执行点**：本地 `git commit`（lefthook pre-commit，沿用现有 hooks 管理器，不引入 husky）与 CI（GitHub Actions）均执行质量校验；本地快速反馈，CI 为权威门禁。
+- **规模约束**：文件行数、函数长度超限时校验失败，报告须指明文件路径 / 函数位置、实测值与阈值。
+- **复杂度约束**：圈复杂度（或认知复杂度）超限的函数被拦截并指明位置。
+- **增量门禁**：pre-commit 只校验本次改动的文件，存量代码不因规则引入而全量报红；CI 全量校验时须有存量豁免 / 基线机制（棘轮策略：阈值从当前基线起步，只收紧不放松）。
+- **两端一致**：本地与 CI 复用同一套 make 目标与配置，阈值单一来源，不漂移。
+- **不破坏既有门禁**：现有 gofmt / vet / mod-tidy、前端 typecheck / eslint / prettier、commitlint、scripts-check、presets-lint、测试流水线全部保留且不受影响。
+
+**已确认决策（2026-11-06，用户逐项确认）**：
+
+1. **增量项范围（Q23）**：四项候选扩展**全部纳入本期**——覆盖率阈值门禁（vitest `coverage.thresholds` + Go coverprofile 阈值校验）、重复代码检测（jscpd / dupl）、依赖漏洞扫描（govulncheck / npm audit）、死代码与未使用导出检测（golangci-lint `unused` / knip）。
+2. **Go 侧工具链（Q24）**：**golangci-lint**（社区标准聚合器），配 `.golangci.yml` 统一阈值：`cyclop`（圈复杂度）/ `funlen`（函数长度）/ `dupl`（重复代码）/ `lll`（行长）/ `unused`（死代码）等。
+
+**非目标（本期不做）**：
+
+- 不做架构边界 / 依赖方向约束（depguard / dependency-cruiser），列为后续版本候选。
+- 不引入 SonarQube 等重量级质量平台。
+
+**开放问题**：
+
+| 编号 | 问题 | 决策 |
+|---|---|---|
+| Q22 | 阈值取值（文件行数 / 函数长度 / 圈复杂度 / 覆盖率基线） | **已定案（2026-11-06 实现）**：先测当前代码基线、按棘轮策略从宽松起步（cyclop 15 / funlen 100·60 / lll 160 / dupl 150 / 文件行数 1000 / eslint 500·150·15·4·4 / 覆盖率 Go≥75、前端 79/80/77/79），后续只收紧不放松。实测依据见 [specs/005-quality-gates/research.md](../specs/005-quality-gates/research.md)，维护规则见 [quality-gates.md](./quality-gates.md)。 |
+
+**实现完成（2026-11-06，specs/005 T001–T029 全勾）**：双层门禁已落地——本地 pre-commit（lefthook，增量）+ CI（`make check` 含全量门禁、test job 覆盖率棘轮、lint job 漏洞扫描）。存量违规经 `quality-baseline.json` 显式豁免（棘轮只紧不松）。工具链：golangci-lint v2.15.0 / govulncheck v1.9.0（go tool 锁版）、eslint 5 条规模复杂度规则、jscpd 5.4.2、knip 6.44.1、自研 tools/qualitygate（TDD，含单测）。Go 工具链随标准库漏洞清零升至 1.26.10（Q24 的 staticcheck/errcheck 等默认集未启用：与 R12 规模/复杂度目标正交且存量噪声大，属后续显式决策——research §1）。运维真值见 [quality-gates.md](./quality-gates.md)，验收见 [acceptance-tests.md](./acceptance-tests.md) AC20。回归全绿：make check / quality-coverage / Go 单测+集成 17 包 / vitest 118 / Playwright 19。
+
 ## 变更记录
 
 | 日期 | 变更 | 来源 |
@@ -288,4 +323,6 @@
 | 2026-10-26 | 新增 v0.1.1 需求 R11：限额查询显示（5h/周限制，provider 支持即可查，仅手动刷新）；可行性分析完成并经用户逐项确认 Q14–Q21 决策（shadcn/ui 模式 / 侧边栏导航 / toast+空状态 / GitHub 风格 / 预设补齐 MiniMax+通义 / 远端热更新本期即做 / 连通性测试纳入 / 旗舰默认模型）。 | 用户确认 |
 | 2026-10-26 | **v0.1.1 实现完成**（specs/004 T001–T026 全勾）：模块化导航 + 设计系统（Tailwind 3.4/Radix/lucide）、画廊+三步向导、预设单源化（+MiniMax/通义千问，GLM 保鲜 5.3 系）与远端热更新（锁定仓库/HTTPS/整包校验）、连通性测试、R11 限额查询（通用头探测+GLM/Kimi 适配）。循环评审两轮：3 高 + 6 中已清零。回归全绿：Go 单测/集成（含 desktop）/vitest 118/Playwright 19。AC19 就绪。 | 开发完成 |
 | 2026-11-02 | **v0.1.2 版本更新**：修复 Mode P 用量查询访问本地 router 的 401；修复 1M 上下文后缀模型的槽位匹配与上游转发，保留 beta 请求头透传；补充对应验收与路由契约。 | 开发完成 |
+| 2026-11-06 | 新增 v0.1.3 需求 R12：代码质量门禁（git commit + CI 双层校验文件行数 / 函数长度 / 圈复杂度等规模复杂度约束，增量门禁 + 棘轮策略）；用户确认 Q23（四项增量扩展全纳入）与 Q24（golangci-lint）。 | 用户确认 |
+| 2026-11-06 | **v0.1.3 实现完成**（specs/005 T001–T029 全勾）：双层质量门禁（pre-commit 增量 + CI 全量）落地，存量基线豁免 + 棘轮只紧不松；golangci-lint / eslint 5 规则 / jscpd / knip / govulncheck / npm audit / 覆盖率阈值全接入；tools/qualitygate TDD 交付；Go 升 1.26.10 清零标准库漏洞；AC20 与 docs/quality-gates.md 就绪；循环评审 0 中等严重问题；回归全绿（check / coverage / 集成 17 包 / vitest 118 / e2e 19）。 | 开发完成 |
 
