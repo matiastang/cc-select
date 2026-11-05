@@ -68,11 +68,15 @@ jobs:
         run: go test ./internal/...
 
       # 覆盖率棘轮（specs/005-quality-gates FR-011）：仅 Linux 跑一次，避免三平台重复。
+      # mkdir：go test -coverprofile 不建父目录（CI 检出无 bin/，首跑即败的教训）。
       # go list | grep -v 排除 node_modules 的 flatted Go 移植（无 go.mod 边界，插桩失败）。
       # 前端阈值由 vitest thresholds 在下方 coverage 运行中自校验。
       - name: Coverage ratchet (Go)
         if: runner.os == 'Linux'
-        run: go test $(go list ./internal/... | grep -v /node_modules/) -coverprofile=bin/coverage-go.out -count=1 && go run ./tools/qualitygate coverage --baseline quality-baseline.json --metric go-statements-min --input bin/coverage-go.out
+        run: |
+          mkdir -p bin
+          go test $(go list ./internal/... | grep -v /node_modules/) -coverprofile=bin/coverage-go.out -count=1
+          go run ./tools/qualitygate coverage --baseline quality-baseline.json --metric go-statements-min --input bin/coverage-go.out
 
       # 集成测试（跨进程 shell 行为），仅 Unix 跑（Windows PowerShell 集成另配）。
       - name: Integration tests
