@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
@@ -78,6 +79,59 @@ func TestParseGolangciOutput_EmptyAndGarbage(t *testing.T) {
 		input := "some/random text without findings\n"
 		if _, err := parseGolangciOutput(strings.NewReader(input)); err != nil {
 			t.Fatalf("垃圾行不应报错: %v", err)
+		}
+	})
+}
+
+func TestReportFindingsRecycle(t *testing.T) {
+	t.Parallel()
+
+	baseline := &Baseline{
+		Version: 1,
+		Findings: map[string][]Finding{
+			"golangci": {
+				{File: "a.go", Line: 10, Rule: "cyclop"},
+				{File: "b.go", Line: 5, Rule: "funlen"},
+			},
+		},
+	}
+	var out bytes.Buffer
+
+	t.Run("全部命中无回收提示", func(t *testing.T) {
+		findings := []Finding{
+			{File: "a.go", Line: 10, Rule: "cyclop", Message: "x"},
+			{File: "b.go", Line: 5, Rule: "funlen", Message: "y"},
+		}
+		out.Reset()
+		if code := reportFindings("golangci", findings, baseline, &out, &bytes.Buffer{}); code != 0 {
+			t.Fatalf("exit=%d, want 0", code)
+		}
+		if strings.Contains(out.String(), "可删除") {
+			t.Fatalf("全部命中不应提示回收:\n%s", out.String())
+		}
+	})
+
+	t.Run("失效条目提示可删除", func(t *testing.T) {
+		findings := []Finding{{File: "a.go", Line: 10, Rule: "cyclop", Message: "x"}}
+		out.Reset()
+		if code := reportFindings("golangci", findings, baseline, &out, &bytes.Buffer{}); code != 0 {
+			t.Fatalf("exit=%d, want 0", code)
+		}
+		if !strings.Contains(out.String(), "b.go:5 [funlen]") || !strings.Contains(out.String(), "可删除") {
+			t.Fatalf("应提示 b.go:5 funlen 可删除:\n%s", out.String())
+		}
+	})
+
+	t.Run("新增违规仍 exit 1 且同时提示回收", func(t *testing.T) {
+		findings := []Finding{
+			{File: "c.go", Line: 1, Rule: "lll", Message: "z"},
+		}
+		out.Reset()
+		if code := reportFindings("golangci", findings, baseline, &out, &bytes.Buffer{}); code != 1 {
+			t.Fatalf("exit=%d, want 1", code)
+		}
+		if !strings.Contains(out.String(), "可删除") {
+			t.Fatalf("应同时提示回收:\n%s", out.String())
 		}
 	})
 }

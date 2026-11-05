@@ -94,13 +94,23 @@ func runGolangciGate(args []string, stdout, stderr io.Writer) int {
 	return reportFindings("golangci", findings, baseline, stdout, stderr)
 }
 
-// reportFindings 是 golangci/eslint 共用的过滤与报告：
-// 基线命中的存量静默通过并计数；基线外违规逐条输出 → exit 1（US1/US3 核心语义）。
+// reportFindings 是 golangci/eslint 共用的过滤与报告（US1/US3 核心语义）：
+// 基线命中的存量豁免并计数；基线外违规逐条输出 → exit 1；
+// 基线中未被任何现违反命中的条目（已修复的存量）提示可删除——棘轮向下的唯一合法路径。
 func reportFindings(tool string, findings []Finding, baseline *Baseline, stdout, stderr io.Writer) int {
 	var fresh []Finding
 	baselined := 0
+	matched := make([]bool, len(baseline.Findings[tool]))
 	for _, f := range findings {
-		if baseline.HasFinding(tool, f) {
+		hit := false
+		for i, b := range baseline.Findings[tool] {
+			if b.matches(f) {
+				matched[i] = true
+				hit = true
+				break
+			}
+		}
+		if hit {
 			baselined++
 			continue
 		}
@@ -113,6 +123,7 @@ func reportFindings(tool string, findings []Finding, baseline *Baseline, stdout,
 		} else {
 			fmt.Fprintf(stdout, "%s: 通过（无违规）\n", tool)
 		}
+		reportRecyclable(tool, baseline, matched, stdout)
 		return 0
 	}
 
@@ -121,8 +132,26 @@ func reportFindings(tool string, findings []Finding, baseline *Baseline, stdout,
 	for _, f := range fresh {
 		fmt.Fprintf(stdout, "  %s:%d [%s] %s\n", f.File, f.Line, f.Rule, f.Message)
 	}
+	reportRecyclable(tool, baseline, matched, stdout)
 	fmt.Fprintf(stdout, "修复指引见 docs/quality-gates.md（单点豁免 / 修基线规则）。\n")
 	return 1
+}
+
+// reportRecyclable 输出失效基线条目（对应违规已不存在，棘轮向下可删除）。
+func reportRecyclable(tool string, baseline *Baseline, matched []bool, stdout io.Writer) {
+	var recyclable []Finding
+	for i, b := range baseline.Findings[tool] {
+		if !matched[i] {
+			recyclable = append(recyclable, b)
+		}
+	}
+	if len(recyclable) == 0 {
+		return
+	}
+	fmt.Fprintf(stdout, "%s: 基线中 %d 条已失效（对应违规不存在），可删除条目收紧基线:\n", tool, len(recyclable))
+	for _, f := range recyclable {
+		fmt.Fprintf(stdout, "  可删除: %s:%d [%s]\n", f.File, f.Line, f.Rule)
+	}
 }
 
 // repoRoot 返回仓库根（qualitygate 可能在任意 cwd 下被调用；go.mod 所在即根）。

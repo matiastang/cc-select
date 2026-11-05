@@ -9,15 +9,6 @@ import (
 	"strings"
 )
 
-// jscpdReport 只取 jscpd JSON 报告所需字段。
-type jscpdReport struct {
-	Statistics struct {
-		Total struct {
-			Clones int `json:"clones"`
-		} `json:"total"`
-	} `json:"statistics"`
-}
-
 // knipFileIssue 是 knip JSON 输出的单文件条目（分类数组全部计入问题总数）。
 type knipFileIssue struct {
 	Binaries                 []json.RawMessage `json:"binaries"`
