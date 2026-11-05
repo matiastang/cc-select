@@ -29,10 +29,11 @@ func TestParseJscpdClones(t *testing.T) {
 func TestCountKnipIssues(t *testing.T) {
 	t.Parallel()
 
-	input := `[
+	// knip --reporter json 的真实结构：{"issues":[...]}（对象包裹数组）。
+	input := `{"issues":[
 		{"file":"e2e/global-setup.ts","binaries":[{"name":"go"}],"exports":[],"types":[]},
 		{"file":"src/a.ts","binaries":[],"exports":[{"name":"A"},{"name":"B"}],"types":[{"name":"T"}]}
-	]`
+	]}`
 	n, err := countKnipIssues(strings.NewReader(input))
 	if err != nil {
 		t.Fatalf("countKnipIssues: %v", err)

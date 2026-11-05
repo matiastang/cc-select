@@ -66,13 +66,16 @@ func parseJscpdClones(r io.Reader) (int, error) {
 }
 
 // countKnipIssues 统计 knip JSON 输出的问题总数（所有分类数组长度求和）。
+// knip --reporter json 的结构是 {"issues": [<per-file issue>...]}。
 func countKnipIssues(r io.Reader) (int, error) {
-	var files []knipFileIssue
-	if err := json.NewDecoder(r).Decode(&files); err != nil {
+	var rep struct {
+		Issues []knipFileIssue `json:"issues"`
+	}
+	if err := json.NewDecoder(r).Decode(&rep); err != nil {
 		return 0, fmt.Errorf("解析 knip JSON: %w", err)
 	}
 	n := 0
-	for _, f := range files {
+	for _, f := range rep.Issues {
 		n += len(f.Binaries) + len(f.Catalog) + len(f.Dependencies) + len(f.DevDependencies) +
 			len(f.Duplicates) + len(f.EnumMembers) + len(f.Exports) + len(f.Files) +
 			len(f.NamespaceMembers) + len(f.OptionalPeerDependencies) + len(f.Types) +
