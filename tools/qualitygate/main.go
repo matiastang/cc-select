@@ -26,6 +26,8 @@ func main() {
 		code = runFileLines(os.Args[2:], os.Stdout, os.Stderr)
 	case "golangci":
 		code = runGolangciGate(os.Args[2:], os.Stdout, os.Stderr)
+	case "eslint":
+		code = runESLintGate(os.Args[2:], os.Stdout, os.Stderr)
 	case "-h", "--help", "help":
 		usage()
 	default:

@@ -10,7 +10,7 @@
 #      （不能用 $(OS)：git bash 也运行在 Windows，$(OS) 同为 Windows_NT，会误选 cmd 分支。）
 .PHONY: all build frontend dev test integration e2e vet scripts-check install clean \
   fmt fmt-check check mod-tidy-check \
-  quality-go quality-go-new \
+  quality-go quality-go-new quality-frontend quality-frontend-staged \
   frontend-typecheck frontend-lint frontend-format-check frontend-check \
   desktop-cli desktop-build desktop-package desktop-clean
 
@@ -154,6 +154,14 @@ quality-go-new:
 	CGO_ENABLED=1 go run ./tools/qualitygate golangci --baseline quality-baseline.json --new-from-rev HEAD
 	go run ./tools/qualitygate filelines --root . --max 1000 \
 		--exclude internal/frontend/node_modules --baseline quality-baseline.json
+
+# 前端门禁（全量/CI）：eslint 规模复杂度规则 + 基线过滤（qualitygate 自执行 eslint）。
+quality-frontend:
+	go run ./tools/qualitygate eslint --baseline quality-baseline.json
+
+# 前端增量门禁（pre-commit）：仅 staged 前端源文件。
+quality-frontend-staged:
+	go run ./tools/qualitygate eslint --baseline quality-baseline.json --staged
 
 check: fmt-check vet frontend-typecheck frontend-lint frontend-format-check scripts-check mod-tidy-check presets-lint
 
