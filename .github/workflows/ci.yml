@@ -12,9 +12,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # cache-dependency-path 含 go.sum：go.mod 的 tool 指令（golangci-lint/govulncheck，
+      # specs/005-quality-gates）依赖随 go.sum 锁定，GOCACHE 缓存命中可跳过工具编译。
       - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
+          cache-dependency-path: go.sum
 
       # make check → vet 含 desktop（wails/cgo），需 webkit/gtk 头文件
       # （与 release.yml Linux 打包同一依赖集）。

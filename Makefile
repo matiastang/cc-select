@@ -10,7 +10,7 @@
 #      （不能用 $(OS)：git bash 也运行在 Windows，$(OS) 同为 Windows_NT，会误选 cmd 分支。）
 .PHONY: all build frontend dev test integration e2e vet scripts-check install clean \
   fmt fmt-check check mod-tidy-check \
-  quality-go quality-go-new quality-frontend quality-frontend-staged \
+  quality quality-go quality-go-new quality-frontend quality-frontend-staged \
   frontend-typecheck frontend-lint frontend-format-check frontend-check \
   desktop-cli desktop-build desktop-package desktop-clean
 
@@ -123,9 +123,9 @@ frontend-format-check:
 frontend-typecheck:
 	cd internal/frontend && npm run typecheck
 
-# 前端 Lint
-frontend-lint:
-	cd internal/frontend && npm run lint
+# 前端 Lint（specs/005 起）：经 qualitygate 基线过滤（同一份 eslint 配置，规则超集；
+# 裸 `npm run lint` 不识基线，存量违规会误报——本地调试可直接跑 eslint，门禁一律走 make）。
+frontend-lint: quality-frontend
 
 # 前端静态检查（类型 + Lint + 格式）
 frontend-check: frontend-typecheck frontend-lint frontend-format-check
@@ -163,7 +163,10 @@ quality-frontend:
 quality-frontend-staged:
 	go run ./tools/qualitygate eslint --baseline quality-baseline.json --staged
 
-check: fmt-check vet frontend-typecheck frontend-lint frontend-format-check scripts-check mod-tidy-check presets-lint
+# 质量门禁聚合入口（quickstart/单独运行用；CI 走 check，已含 quality-go 与 frontend-lint）。
+quality: quality-go quality-frontend
+
+check: fmt-check vet frontend-typecheck frontend-lint frontend-format-check scripts-check mod-tidy-check presets-lint quality-go
 
 # 安装到 GOPATH/bin：go install 跨平台编译并装入，无需 ln/copy。
 install:

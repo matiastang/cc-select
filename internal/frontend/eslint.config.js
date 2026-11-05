@@ -23,14 +23,8 @@ export default tseslint.config(
       // 规模与复杂度门禁（specs/005-quality-gates R12，FR-003~006）。
       // 阈值与 Go 侧对齐（research.md §0/§3 实测基线，棘轮只紧不松）；
       // 维护规则见 docs/quality-gates.md。
-      "max-lines": [
-        "error",
-        { max: 500, skipBlankLines: true, skipComments: true },
-      ],
-      "max-lines-per-function": [
-        "error",
-        { max: 150, skipBlankLines: true, skipComments: true },
-      ],
+      "max-lines": ["error", { max: 500, skipBlankLines: true, skipComments: true }],
+      "max-lines-per-function": ["error", { max: 150, skipBlankLines: true, skipComments: true }],
       complexity: ["error", 15],
       "max-depth": ["error", 4],
       "max-params": ["error", 4],
