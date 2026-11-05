@@ -31,7 +31,7 @@
   "counters": {
     "jscpd-go": { "count": 10, "metric": "clones" },
     "jscpd-frontend": { "count": 5, "metric": "clones" },
-    "knip-frontend": { "count": 15, "metric": "issues" }
+    "knip-frontend": { "count": 11, "metric": "issues" }
   },
   "coverage": {
     "go-statements-min": 75
