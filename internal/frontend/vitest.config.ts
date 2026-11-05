@@ -13,8 +13,13 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
-      include: ["src/ShellIntegrationBanner.tsx"],
+      // 全量 src（修复 R11 遗留的收窄：原 include 仅单文件，覆盖率恒为全 0，
+      // 门禁因此失真——specs/005-quality-gates research §0.2）。
+      include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/**/*.{test,spec}.{ts,tsx}", "src/test-setup.ts", "src/main.tsx"],
+      // 覆盖率棘轮（specs/005-quality-gates FR-011）：当前实测基线向下取整起步，
+      // 只升不降。维护规则见 docs/quality-gates.md。
+      thresholds: { statements: 79, branches: 80, functions: 77, lines: 79 },
     },
   },
 });
