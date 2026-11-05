@@ -15,7 +15,18 @@
     "filelines": [
       { "file": "internal/web/api.go", "line": 0, "rule": "file-lines", "message": "" }
     ],
-    "eslint": []
+    "eslint": [
+      { "file": "src/features/about/CheckUpdateButton.tsx", "line": 28, "rule": "complexity", "message": "Function 'CheckUpdateButton' has a complexity of" },
+      { "file": "src/features/desktop/DesktopSettings.tsx", "line": 26, "rule": "max-lines-per-function", "message": "Function 'DesktopSettings' has too many lines" },
+      { "file": "src/features/desktop/DesktopSettings.tsx", "line": 26, "rule": "complexity", "message": "Function 'DesktopSettings' has a complexity of" },
+      { "file": "src/features/providers/EnvFieldEditor.tsx", "line": 46, "rule": "max-lines-per-function", "message": "Function 'EnvFieldEditor' has too many lines" },
+      { "file": "src/features/providers/EnvFieldEditor.tsx", "line": 46, "rule": "complexity", "message": "Function 'EnvFieldEditor' has a complexity of" },
+      { "file": "src/features/providers/JsonForm.tsx", "line": 45, "rule": "max-lines-per-function", "message": "Function 'JsonForm' has too many lines" },
+      { "file": "src/features/providers/JsonForm.tsx", "line": 45, "rule": "complexity", "message": "Function 'JsonForm' has a complexity of" },
+      { "file": "src/features/providers/JsonForm.tsx", "line": 119, "rule": "complexity", "message": "Async arrow function has a complexity of" },
+      { "file": "src/features/providers/ShellIntegrationBanner.tsx", "line": 27, "rule": "max-lines-per-function", "message": "Function 'ShellIntegrationBanner' has too many lines" },
+      { "file": "src/navigation/registry.ts", "line": 29, "rule": "max-params", "message": "Function 'module' has too many parameters" }
+    ]
   },
   "counters": {
     "jscpd-go": { "count": 10, "metric": "clones" },
