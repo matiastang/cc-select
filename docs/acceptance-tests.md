@@ -373,3 +373,29 @@
 
 **判定**：导航模块化且 web/桌面同源；添加 ≤3 步；远端预设四情形（更新/不可达/损坏/禁用）行为正确；探测与限额查询仅手动触发、token 不出后端、错误脱敏；既有 12 条 v0.0.x 用例零回归。
 **已知限制**（非缺陷）：GLM/Kimi 配额端点无官方 SLA（spec 收缩条款）；usage 头探测对未透传限流头的服务商如实显示不支持。
+
+---
+
+## AC20. 代码质量门禁（v0.1.3 / R12：specs/005-quality-gates）
+
+> 需求见 [requirements.md v0.1.3](./requirements.md)；运维真值见 [quality-gates.md](./quality-gates.md)。
+> 全部用例为注入式验证（quickstart 场景 1–5），已于实现期逐一实测通过。
+
+| 步骤 | 预期 |
+|---|---|
+| 1. 注入 cc>15 的函数并 `git commit` | 提交被拦截，报告含 `文件:行 [cyclop] 实测值, max is 15`（US1；实测 `internal/version/inject_complexity.go:4 [cyclop] ... is 21`） |
+| 2. 注入 >1000 行的 .go 文件并提交 | 提交被拦截，报告含实测行数与阈值（US1；实测 1203 > 1000） |
+| 3. 注入 >150 行的前端函数并提交 | staged 门禁拦截，报告含函数名与实测（US1；实测 `max-lines-per-function (164)`） |
+| 4. 全部合规的提交 | 通过，质量检查环节 ≤10s（US1/SC-004；实测 golangci 增量 2–4s） |
+| 5. `--no-verify` 绕过后推 PR | CI lint job 失败，日志与本地同口径（US2/SC-003；同一 quality-baseline.json + 同一锁版工具） |
+| 6. 对含基线条目的文件做无关修改 | 提交通过（存量不阻塞增量，US3-1；实测 add.go 注释改动 → `make quality-go-new` exit 0） |
+| 7. 删除基线条目但保留违规 | 全量扫描拦截该违规（棘轮不可逆，US3-3；实测 validate.go 移除条目后立即报 `基线外违规`） |
+| 8. 修复存量后重扫 | 工具输出「基线中 N 条已失效，可删除」（棘轮向下提示，US3-4） |
+| 9. 跨文件复制粘贴 ≥60 token 代码块 | `make quality-dup` 失败：`ratchet jscpd-go: 劣化 11 > 基线 10`（US5；实测） |
+| 10. 注入无引用导出 | knip 计数上升被拦截：`劣化 16 > 基线`（US7；实测，现基线 11） |
+| 11. `make quality-coverage` | Go `75.5% ≥ 阈值 75%` ✓；前端 vitest thresholds（79/80/77/79）✓（US4/SC-006） |
+| 12. `make quality-vuln` | `govuln: 无可触达漏洞 ✓` + `npm audit: found 0 vulnerabilities`（US6；Go 1.26.10 后标准库漏洞清零） |
+| 13. `make check` 全量 | 既有检查（gofmt/vet/tidy/typecheck/format/scripts/presets）+ 新门禁全绿，零业务代码改动（SC-002 零清算） |
+
+**判定**：每类注入违规 100% 被本地提交或 CI 至少一层拦截且报告含定位信息（SC-001）；基线 diff 方向只紧不松（SC-005）；本地与 CI 同一 make 目标与基线文件（SC-003）。
+**已知限制**（非缺陷）：见 [quality-gates.md §5](./quality-gates.md#5-已知限制记录在案非缺陷)——funlen 非空行口径、npm audit 无调用链近似、`--new-from-rev` 行号漂移提示、quality-coverage 为 sh 语法。
