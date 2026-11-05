@@ -30,6 +30,8 @@ func main() {
 		code = runESLintGate(os.Args[2:], os.Stdout, os.Stderr)
 	case "ratchet":
 		code = runRatchet(os.Args[2:], os.Stdout, os.Stderr)
+	case "coverage":
+		code = runCoverageGate(os.Args[2:], os.Stdout, os.Stderr)
 	case "-h", "--help", "help":
 		usage()
 	default:

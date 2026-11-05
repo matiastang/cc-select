@@ -10,7 +10,7 @@
 #      （不能用 $(OS)：git bash 也运行在 Windows，$(OS) 同为 Windows_NT，会误选 cmd 分支。）
 .PHONY: all build frontend dev test integration e2e vet scripts-check install clean \
   fmt fmt-check check mod-tidy-check \
-  quality quality-go quality-go-new quality-frontend quality-frontend-staged \
+  quality quality-go quality-go-new quality-frontend quality-frontend-staged quality-coverage \
   frontend-typecheck frontend-lint frontend-format-check frontend-check \
   desktop-cli desktop-build desktop-package desktop-clean
 
@@ -165,6 +165,18 @@ quality-frontend-staged:
 
 # 质量门禁聚合入口（quickstart/单独运行用；CI 走 check，已含 quality-go 与 frontend-lint）。
 quality: quality-go quality-frontend
+
+# 覆盖率棘轮（specs/005-quality-gates FR-011）：Go 语句覆盖率 ≥ 基线（quality-baseline.json
+# coverage.go-statements-min）；前端阈值内置于 vitest（npm run coverage 自带门禁）。
+# CI 在 test job 的 Linux runner 执行；本地可手动运行。profile 写 bin/（已 gitignore）。
+# $(go list | grep -v)：排除 node_modules 内 flatted 的 Go 移植（jscpd 依赖带入，无 go.mod
+# 边界，-coverprofile 插桩会触发 "no such tool covdata" 失败）。sh 语法，与 scripts-check 同口径。
+quality-coverage:
+	-mkdir bin
+	go test $$(go list ./internal/... | grep -v /node_modules/) -coverprofile=bin/coverage-go.out -count=1
+	go run ./tools/qualitygate coverage --baseline quality-baseline.json \
+		--metric go-statements-min --input bin/coverage-go.out
+	cd internal/frontend && npm run coverage
 
 check: fmt-check vet frontend-typecheck frontend-lint frontend-format-check scripts-check mod-tidy-check presets-lint quality-go
 

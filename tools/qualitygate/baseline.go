@@ -10,8 +10,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -57,12 +59,20 @@ func LoadBaseline(path string) (*Baseline, error) {
 	if err != nil {
 		return nil, fmt.Errorf("读取基线: %w", err)
 	}
+	b, err := LoadBaselineReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("基线 %s: %w", path, err)
+	}
+	return b, nil
+}
 
+// LoadBaselineReader 是 LoadBaseline 的流式内核（测试与复用入口）。
+func LoadBaselineReader(r io.Reader) (*Baseline, error) {
 	var b Baseline
-	dec := json.NewDecoder(strings.NewReader(string(data)))
+	dec := json.NewDecoder(r)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&b); err != nil {
-		return nil, fmt.Errorf("解析基线 %s: %w", path, err)
+		return nil, fmt.Errorf("解析基线: %w", err)
 	}
 
 	if b.Version != BaselineVersion {

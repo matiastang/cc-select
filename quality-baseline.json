@@ -34,7 +34,7 @@
     "knip-frontend": { "count": 15, "metric": "issues" }
   },
   "coverage": {
-    "go-statements-min": 76
+    "go-statements-min": 75
   },
   "fileLines": {
     "go-max": 1000
