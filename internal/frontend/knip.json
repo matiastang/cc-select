@@ -12,8 +12,6 @@
     "vitest.config.ts"
   ],
   "project": ["src/**/*.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
-  "ignoreBinaries": [
-    "go"
-  ],
+  "ignoreBinaries": ["go"],
   "ignoreExportsUsedInFile": true
 }
