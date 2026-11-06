@@ -121,7 +121,7 @@ This is the same `eval "$(tool ...)"` pattern used by `nvm`, `pyenv`, and `diren
 
 This repo is initialized with [Spec Kit](https://github.com/github/spec-kit) (specify-cli pinned to **v0.16.5**, skills mode in `.claude/skills/`, slash commands `/speckit-*`).
 
-- Use the full SDD flow (`/speckit-specify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement`, optionally `/speckit-clarify` / `/speckit-analyze`) only for features expected to take **more than one day or cross modules** (roadmap phases 6–9 granularity). Small fixes go through the normal workflow directly.
+- Use the full SDD flow (`/speckit-specify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement`, optionally `/speckit-clarify` / `/speckit-analyze`) only for features expected to take **more than one day or cross modules** (roadmap phase 6+ granularity, e.g. specs/003 desktop client, specs/004 UI redesign). Small fixes go through the normal workflow directly.
 - Boundary: `docs/` is the project-level source of truth; `specs/` is the per-feature workspace. After a spec is accepted, flow conclusions back into `docs/` per the update rules in `docs/README.md` — never maintain long-term truth in `specs/`.
 - New user requirements always enter via `docs/requirements.md` first; then decide whether to spin up a spec.
 - The project constitution lives at `.specify/memory/constitution.md`, distilled from CLAUDE.md + `docs/`. On conflict, `docs/` wins; amend the constitution accordingly.

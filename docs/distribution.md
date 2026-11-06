@@ -1,15 +1,15 @@
 # 分发与安装
 
 > 本文回答需求 [R5](./requirements.md#r5-安装体验对标现有工具)：用户怎么一键装上、怎么用上 `ccs` 命令和配置页。
-> 上游：GUI 已定 **Web 路线**（[Q2](./requirements.md#待用户确认的开放问题含已定决策)），OS 跨三平台（[Q6](./requirements.md#待用户确认的开放问题含已定决策)）。桌面 App + Cask 作为**备选**保留。
+> 上游：GUI 已定 **双形态并存**（本地 Web + Wails v3 桌面 App，[Q2](./requirements.md#待用户确认的开放问题含已定决策)），OS 跨三平台（[Q6](./requirements.md#待用户确认的开放问题含已定决策)）。桌面 App 的包管理器分发（Cask/winget）作为后续可选渠道（见 §4）。
 
 ---
 
-## 1. 选定方案：CLI 含 Web 配置页，无桌面 App
+## 1. 选定方案：CLI（含 Web 配置页）+ 可选桌面 App
 
-因 GUI 选了本地 Web 服务（`cc-select gui`），**不再需要安装桌面 App**——用户只装一个 CLI，配置页随 `cc-select gui` 命令启动。这比安装独立桌面 App 更轻：一条命令装好，一条命令开配置页。
+GUI 为双形态：本地 Web 服务（`cc-select gui`）内置于 CLI，开箱即用；Wails v3 桌面 App（v0.1.0 起，Issue #12）作为**可选**增强从 GitHub Releases 单独下载（见 ⑤）。不装桌面 App 也功能完整——一条命令装好，一条命令开配置页；装了则双击即开、可托盘常驻。
 
-安装分两步（三平台通用思路）：
+安装分两步（三平台通用思路；桌面 App 为可选增强，见 ⑤）：
 
 ### ① 装 CLI（含 gui 能力）
 
@@ -48,6 +48,20 @@ cc-select gui        # 开浏览器配置页
 两个仓库的 manifest 均由 `.goreleaser.yaml` 中的 `brews` / `scoops` 发布器在 Release 工作流中**自动更新**：GoReleaser 在发布 GitHub Release 后，自动计算各平台 archive 的 SHA-256，提交并推送更新后的 Formula / manifest 到对应仓库。日常无需手动维护。
 
 > 注意：即使通过包管理器安装，首次仍需执行 `cc-select init`（或打开 `cc-select gui` 一键安装）注入 `ccs` shell 函数。
+
+### ⑤ 桌面 App（可选，v0.1.0 起）
+
+桌面 App 与 CLI 发布在**同一个 GitHub Release**，产物以 `cc-select-desktop_` 前缀区分（命名契约见 [specs/003 contracts/release-assets](../specs/003-desktop-client/contracts/release-assets.md)）：
+
+| 平台 | 产物 | 首启提示 |
+|---|---|---|
+| macOS（Apple Silicon） | `cc-select-desktop_<v>_darwin_arm64.zip`（内含 unsigned `.app`） | Gatekeeper：右键 → 打开 |
+| Windows x64 | `cc-select-desktop_<v>_windows_x64.zip`（NSIS 安装器） | SmartScreen：更多信息 → 仍要运行 |
+| Linux x64 | `cc-select-desktop_<v>_linux_x64.AppImage` | 依赖系统 WebKitGTK，缺失时应用内报错指引 |
+
+- 桌面 App 与 CLI / Web 共享同一份 `~/.cc-select/` 数据与语言偏好；支持托盘常驻、开机自启、应用内一键安装 `ccs` 到 PATH、应用内自更新（同一 Releases 通道）。
+- macOS 桌面端当前仅出 arm64 包（specs/003 决策 A1，限定 Apple Silicon）；CLI 侧 darwin amd64/arm64 均有。
+- 使用指引见 [README - Desktop app](../README.md#desktop-app)（en/zh/ja 同步）。
 
 ---
 
@@ -92,6 +106,9 @@ cc-select gui        # 开浏览器配置页
 
 `cc-select update` 命令与 Web 配置页 Header 的更新按钮共用 `internal/updater` 内核
 （CLI/Web 同源，同 `rcinteg` 模式），从 GitHub Releases 原地更新二进制。
+桌面 App 的自更新走另一条链路：`desktop/updatebridge.go` 将 update 端点桥接到
+Wails Updater，消费同一 Release 的 `cc-select-desktop_*` 资产与 manifest
+（macOS zip / Windows exe / Linux AppImage 原地替换）；CLI 更新器不管理桌面 App，反之亦然。
 
 ### 用法
 
@@ -130,23 +147,23 @@ Windows 上，替换后的二进制与全新安装一样可能被拦截（见
 
 ---
 
-## 4. 备选：桌面 App + Homebrew Cask（若日后 GUI 改回桌面 App）
+## 4. 桌面 App 的包管理器分发（后续可选）
 
-一些现有全局切换工具（如 cc-switch）走的是桌面 App + Cask 路线。该路线作为本项目的**备选保留**。原理：`brew install --cask <name>` 让 Homebrew 自动「下载 `.dmg` → 挂载 → 拖进 `/Applications`」。
+桌面 App（Wails v3）已随 GitHub Releases 直接分发（见 §1⑤），当前**无需包管理器**即可安装。一些现有全局切换工具（如 cc-switch）额外走 App Store 式的包管理器收录（Homebrew Cask / winget），该渠道作为**后续可选增强**保留。原理：`brew install --cask <name>` 让 Homebrew 自动「下载 `.dmg` → 挂载 → 拖进 `/Applications`」。
 
 | Homebrew 类型 | 装什么 | 装到哪 |
 |---|---|---|
 | `brew install <formula>` | 命令行程序 | `/opt/homebrew/bin` |
 | `brew install --cask <cask>` | **GUI 桌面 App**（.dmg/.app） | `/Applications` |
 
-若日后选定桌面 App（Tauri/Electron/Wails），则：
+若日后收录，则：
 
 ```bash
 brew install --cask cc-select        # macOS
 winget install cc-select             # Windows
 ```
 
-> 这套机制与具体 GUI 框架无关——能产出 `.dmg/.app`（macOS）、`.msi`（Windows）、`.deb/.rpm`（Linux）即可。Cask formula 需在发布首个带安装包的 Release 后向 [homebrew-cask](https://github.com/Homebrew/homebrew-cask) 提 PR 收录。
+> 这套机制与具体 GUI 框架无关——能产出 `.dmg/.app`（macOS）、`.msi`（Windows）、`.deb/.rpm`（Linux）即可（当前首发产物为 zip / AppImage，`.dmg`/`.msi`/deb/rpm 见 specs/003 契约「首发明确不做」）。Cask formula 需在发布首个带安装包的 Release 后向 [homebrew-cask](https://github.com/Homebrew/homebrew-cask) 提 PR 收录。
 
 ---
 

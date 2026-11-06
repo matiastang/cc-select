@@ -18,9 +18,10 @@ git push origin v0.1.0
 
 1. 构建前端（`npm ci && npm run build`）。
 2. 调用 GoReleaser 交叉编译并上传二进制到 GitHub Releases。
-3. 生成 `checksums.txt` 和 changelog。
-4. 将 Homebrew Formula 提交到 `matiastang/homebrew-cc-select`。
-5. 将 Scoop manifest 提交到 `matiastang/scoop-cc-select`。
+3. 构建 Wails v3 桌面客户端（v0.1.0 起）：三平台 matrix（macos-arm64 / windows-x64 / ubuntu）经 `wails3 task package` 打包，上传 `cc-select-desktop_*` 产物（zip / AppImage）、`SHA256SUMS` 与 Updater 用的 `manifest.json`；CI 断言命名正则、sha256 一致与体积门禁（契约见 [specs/003 contracts/release-assets](../specs/003-desktop-client/contracts/release-assets.md)）。
+4. 生成 `checksums.txt` 和 changelog。
+5. 将 Homebrew Formula 提交到 `matiastang/homebrew-cc-select`。
+6. 将 Scoop manifest 提交到 `matiastang/scoop-cc-select`。
 
 > 官方安装/更新脚本（`scripts/install.sh` 与 `scripts/install.ps1`）随主仓库代码一起发布，无需额外推送。用户始终通过 `raw.githubusercontent.com` 获取最新版脚本，脚本内部再查询 GitHub Releases 下载对应二进制。
 
@@ -98,6 +99,12 @@ Release workflow 完成后，按以下清单检查：
   - `cc-select_<version>_linux_arm64.tar.gz`
   - `cc-select_<version>_windows_amd64.zip`
   - `checksums.txt`
+- 确认桌面端产物包含（v0.1.0 起）：
+  - `cc-select-desktop_<version>_darwin_arm64.zip`
+  - `cc-select-desktop_<version>_windows_x64.zip`
+  - `cc-select-desktop_<version>_linux_x64.AppImage`
+  - `cc-select-desktop_<version>_manifest.json`
+  - `SHA256SUMS`
 
 ### 3.2 Homebrew Tap
 

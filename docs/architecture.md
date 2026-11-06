@@ -25,7 +25,7 @@ Claude Code 默认只读一份全局配置 `~/.claude/settings.json`。当用户
 ┌─────────────────────────────────────────────────────────┐
 │  GUI 配置界面  (provider 的增删改查,可视化表单)            │
 │   - 列出所有 provider,点击编辑(URL/Key/Model 输入框)      │
-│   - 起本地 Web 服务,自动打开浏览器                         │
+│   - 双形态同源:ccs gui 起本地 Web / Wails 桌面 App         │
 └───────────────────────────┬─────────────────────────────┘
                             │ 读写
                             ▼
@@ -88,7 +88,7 @@ shell 集成机制（`eval` 注入）不变，只是注入的变量从"一堆 AN
 | 环境变量隔离机制 | macOS/Linux 用 `export`/`unset`；Windows PowerShell 用 `$env:VAR`（process scope，**与 `export` 同义**）。详见 [Windows 评估](./windows-support.md)。 |
 | shell 集成 | 已实现 zsh / bash（共用 emitter）、PowerShell；`init` 按 shell 类型分发（zsh/bash/fish/PowerShell）。fish 待后续接入。 |
 | 存储位置 | 配置目录按 OS 惯例（`~/.cc-select/` 可统一，或 Windows 用 `%USERPROFILE%`）。 |
-| Web GUI | HTTP 服务 + 浏览器跨平台天然一致，无额外成本。 |
+| GUI（Web/桌面双形态） | Web：HTTP 服务 + 浏览器跨平台天然一致；桌面：Wails v3 三平台出包（Linux 依赖系统 WebKitGTK，缺失时应用内报错指引）。 |
 
 > **Windows 评估结论：可行 ✅**。Windows 上 shell 级隔离与 Unix 同构——PowerShell 的 `$env:VAR`（process scope，不持久）等价于 `export`，子进程同样继承；Claude Code 官方支持 native Windows + `ANTHROPIC_BASE_URL` 路由。PowerShell 集成与 `$PROFILE` 写入（含 UTF-8 BOM 处理）已由 CI 的「Windows PowerShell integration」步骤覆盖。唯一限制：**仅支持 PowerShell，不支持 CMD**（CMD 无函数/profile 机制，只有全局污染的 `setx`）。详见 [Windows 支持评估](./windows-support.md)。
 
@@ -142,16 +142,19 @@ shell 集成机制（`eval` 注入）不变，只是注入的变量从"一堆 AN
 
 GUI 专门做 provider 的可视化配置（增删改查）。
 
-**选定形态：本地 Web 服务 + 浏览器**（满足 [R4](./requirements.md#r4-图形化界面配置服务商)/[Q2](./requirements.md#待用户确认的开放问题含已定决策)）。`cc-select gui` 起一个本地 HTTP 服务，自动打开浏览器访问配置页；该页通过 HTTP API 读写共享配置存储。
+**选定形态：双形态并存**（满足 [R4](./requirements.md#r4-图形化界面配置服务商)/[Q2](./requirements.md#待用户确认的开放问题含已定决策)，2026-10-26 起生效）：① **本地 Web 服务**——`cc-select gui` 起本地 HTTP 服务，自动打开浏览器访问配置页；② **Wails v3 桌面 App**（v0.1.0，Issue #12）——双击即开原生窗口，支持托盘常驻 / 开机自启 / 应用内自更新。两者是**同一前端、同一份配置存储**，界面与数据零分叉。
 
 | 方案 | 状态 | 说明 | 优点 | 缺点 |
 |---|---|---|---|---|
-| **本地 Web 服务 + 浏览器** | ✅ **选定** | `cc-select gui` 起服务，自动开浏览器 | 无需打包桌面 App、跨平台天然、与 CLI 语言解耦 | 非常驻，每次要起服务 |
-| 桌面 App（Tauri/Electron/Wails） | 🔁 备选 | 独立窗口 / 系统托盘 | 体验最好，可常驻 | 需打包，体积较大 |
+| **本地 Web 服务 + 浏览器** | ✅ **保留** | `cc-select gui` 起服务，自动开浏览器 | 无需打包桌面 App、跨平台天然、与 CLI 语言解耦 | 非常驻，每次要起服务 |
+| **Wails v3 桌面 App** | ✅ **转正（v0.1.0）** | `desktop/` 原生窗口 + 系统托盘 | 体验最好，可常驻 | 需打包，体积较大（zip ≤40MB 门禁） |
+| Tauri / Electron | 🔁 备选 | — | — | 未采用：Wails 与 Go 同栈，可直接复用 `internal/*` |
 
-> 选定 Web 路线的关键收益：**GUI 与 CLI 实现语言解耦**——任何语言都能起 HTTP 服务 + 读写 JSON，因此语言选型（[Q1](./requirements.md#待用户确认的开放问题含已定决策)）可独立按 CLI 开发效率决定，不被 GUI 绑架。日后若要切换为桌面 App，因配置存储已是共享文件（见 §4），GUI 形态可平滑替换，对 CLI 零影响。
+> 决策沿革：最初只选 Web 路线，关键收益是 **GUI 与 CLI 实现语言解耦**——语言选型（[Q1](./requirements.md#待用户确认的开放问题含已定决策)）可独立按 CLI 开发效率决定，不被 GUI 绑架。后按用户需求（Issue #12）将桌面形态转正：因配置存储本就是共享文件（见 §4），且 Wails 允许直接复用 Go 业务包与既有 Web handler，扩展桌面形态对 CLI 零影响、对 Web 形态零改动。
 
-当前 Web 配置页提供：
+**桌面端架构**（`desktop/`，设计契约见 [specs/003](../specs/003-desktop-client/)）：桌面包只做"壳"——窗口、资产服务、托盘、更新与系统集成，业务逻辑全部复用 `internal/*` 包。桥接层（`desktop/bridge.go`）在既有 `internal/web.Handler()`（API + 静态资产，零改动复用）之上叠加桌面专属语义：`/api/v1/desktop/*` 命名空间（info / settings / cli / tray）与 update 端点桥接到 Wails Updater。桌面专属能力：系统托盘（点击 provider 复制 `ccs use <id>` 命令，切换仍在终端执行以保持 per-shell 隔离）、应用内一键安装 `ccs` 到 PATH（内嵌 CLI 二进制）、开机自启、应用内自更新（与 CLI 同一 GitHub Releases 通道）。桌面偏好（托盘常驻 / 自启 / 自动检查更新）存于同一份 `prefs.json`。
+
+当前配置界面（Web 与桌面同源，同一前端）提供：
 - provider 列表（脱敏显示 env 键名，敏感值不返回前端）；
 - 创建/编辑 provider：
   - **Preset 下拉**：选择内置供应商 preset 自动填充 Base URL、默认模型、模型映射等 env 字段；

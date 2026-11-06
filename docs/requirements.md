@@ -50,7 +50,7 @@
 
 - **配置 provider**（填 URL / key / model）走 GUI，提供可视化表单。
 - 切换仍走命令行（`ccs`），两者分工：GUI 配置、命令行切换。
-- **GUI 形态已定为本地 Web 网页**（`cc-select gui` 起本地 HTTP 服务、浏览器打开）。理由：轻量、跨平台天然、与 CLI 实现语言解耦。**桌面 App（Tauri/Electron 等）作为备选保留**，日后可切换（见 Q2）。
+- **GUI 形态为双形态并存**（2026-10-26 更新，见 Q2）：本地 Web 网页（`cc-select gui` 起本地 HTTP 服务、浏览器打开）+ Wails v3 桌面 App（v0.1.0，Issue #12，双击即用、可托盘常驻）。Web 形态轻量、跨平台天然、与 CLI 实现语言解耦；桌面形态体验更好。
 
 → GUI 形态见 [架构设计 - GUI 配置界面](./architecture.md#5-gui-配置界面)，分发见 [分发与安装](./distribution.md)。
 
@@ -59,8 +59,8 @@
 > 用户原话：我记得命令行装了 cc-switch 并没有手动安装应用，自动就装了 App，这个怎么实现的？我们的方案能实现吗？
 
 - 期望 `cc-select` 也能"命令行一键安装"。
-- 因 GUI 选 Web 路线，安装方式相应变化：CLI 走包管理器/单二进制，Web GUI 随 `cc-select gui` 命令启动，**无需安装桌面 App**。
-- 桌面 App + Homebrew Cask 那套作为**备选保留**，若日后 GUI 改回桌面 App 可启用。
+- 安装分两层：CLI 走包管理器/单二进制（Web GUI 随 `cc-select gui` 内置，无需单独安装）；Wails v3 桌面 App（v0.1.0 起）为**可选**增强，从 GitHub Releases 下载（v0.1.2 起三平台产物齐备）。
+- 桌面 App 的包管理器分发（Homebrew Cask / winget）作为后续可选渠道保留。
 
 → 安装方案见 [分发与安装](./distribution.md)。
 

@@ -1,6 +1,6 @@
-# cc-select 前端（Web 配置页）
+# cc-select 前端（Web 配置页，桌面端同源）
 
-本地 Web 配置页的 React 前端。构建产物会被 Go 二进制 `//go:embed` 打包（见 `internal/web/embed.go`）。
+本地 Web 配置页的 React 前端。构建产物会被 Go 二进制 `//go:embed` 打包（见 `internal/web/embed.go`）。同一份构建产物同时服务 Web（`cc-select gui`）与 Wails v3 桌面 App **双形态**——桌面端经 `desktop/` 桥接层复用 `internal/web` 的同一 handler（API + 静态资产），前端不分叉（specs/004 决策）。
 
 ## 开发
 
@@ -42,4 +42,4 @@ npm run test:e2e                  # 或在仓库根：make e2e
 
 - `vite.config.ts` 把 `outDir` 指向 `../web/assets`，`base: "./"` 保证相对路径。
 - 未构建前端时，`internal/web/assets/index.html` 是占位 fallback（最小可用，纯 fetch 渲染）。
-- 该前端仅为 MVP 配置页；更复杂的交互（拖拽排序、定价展示等）后续再加。
+- 该前端已承载预设画廊、三步向导、连通性测试、限额查询等交互（v0.1.1 改版，specs/004）；设计系统为 shadcn/ui 模式（Radix + Tailwind），组件源码在 `src/components/ui/`。

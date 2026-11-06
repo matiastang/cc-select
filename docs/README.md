@@ -77,7 +77,7 @@
 协作规则：
 
 1. **用户新诉求仍先进 [requirements.md](./requirements.md)**，再决定是否为其发起一个 spec（`/speckit-specify`）。
-2. **SDD 全流程仅用于预计超过一天或跨模块的特性**（对应 [roadmap](./roadmap.md) 阶段 6–9 粒度）；小修小补直接走常规流程。
+2. **SDD 全流程仅用于预计超过一天或跨模块的特性**（对应 [roadmap](./roadmap.md) 阶段 6 及以上粒度，如 specs/003 桌面客户端、specs/004 UI 改版）；小修小补直接走常规流程。
 3. **回流义务**：特性验收后，其结论（新行为、新决策、新验收点）按上方「更新协作规范」的影响链更新 docs/ 对应文档；specs/ 目录不承载长期真值。
 4. **宪法从属**：`.specify/memory/constitution.md` 由本目录提炼而来；两者冲突时**以 docs/ 为准**，并随即修订宪法。
 5. Spec Kit 工具链（uv + Python 3.11）仅在初始化/升级脚手架时需要；阅读 `specs/` 与日常 SDD 流程不需要。
@@ -87,6 +87,6 @@
 ## 当前状态速览
 
 - **项目阶段**：MVP 实现已完成，进入迭代完善期（见 [roadmap.md](./roadmap.md)）。
-- **已确定选型**：Go、本地 Web 服务 GUI、JSON 存储 + profile 目录、`CLAUDE_CONFIG_DIR` 切换机制、zsh/bash/PowerShell 支持、en/zh 多语言（见 [tech-stack.md](./tech-stack.md)）。
+- **已确定选型**：Go、Web + Wails v3 桌面双形态 GUI（v0.1.0 起）、JSON 存储 + profile 目录、`CLAUDE_CONFIG_DIR` 切换机制、zsh/bash/PowerShell 支持、en/zh 多语言（见 [tech-stack.md](./tech-stack.md)）。
 - **剩余主要工作**：PS1 提示符集成、fish shell 支持、API key 存储方式统一（keychain 占位 vs 明文）。Windows PowerShell 集成、Web 一键安装 shell 集成、i18n 已由 CI / 实现覆盖。
 - **本文档集由** `technical-design.md`（单篇长文档）拆分而来；旧文件已删除。

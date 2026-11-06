@@ -15,7 +15,7 @@
 | 目标 OS（[Q6](./requirements.md#待用户确认的开放问题含已定决策)） | **macOS / Linux / Windows** | ✅ 已定 | — |
 | 语言（[Q1](./requirements.md#待用户确认的开放问题含已定决策)） | **Go**（单二进制、跨平台编译省心、启动快） | ✅ 已定 | Node+TS / Rust（纯脚本已排除） |
 
-> 关键：因 GUI 选了 Web 路线，**语言与 GUI 解耦**——任何语言都能起 HTTP 服务 + 读写 JSON。故语言可独立按 CLI 开发效率决定，不被 GUI 绑架。
+> 关键：选型时 GUI 走 Web 路线，**语言与 GUI 解耦**——任何语言都能起 HTTP 服务 + 读写 JSON，故语言可独立按 CLI 开发效率决定，不被 GUI 绑架。日后桌面形态转正时选定 Wails（与 Go 同栈），CLI / Web / 桌面三端直接复用同一套 `internal/*` 业务包，该解耦决策的可扩展性得到验证。
 
 ---
 
@@ -34,13 +34,13 @@
 
 即：cc-switch 是一个 **Rust（Tauri）+ React** 的轻量桌面 App，通过改写 `~/.claude/settings.json` 实现全局切换。
 
-> 注：cc-switch 是桌面 App + 全局切换路线，与本项目**选定 Web 路线 + shell 级隔离不同**。其前端实现（React + 表单 UI）可作为 Web 配置页 UI 的参考，但 GUI 形态与切换语义本身不照搬。
+> 注：cc-switch 是桌面 App + **全局切换**路线，与本项目 **Web + 桌面双形态 + shell 级隔离**不同。其前端实现（React + 表单 UI）可作为配置页 UI 的参考，但切换语义本身不照搬。
 
 ---
 
 ## 2. 语言选型（Q1，已定：Go）
 
-GUI 已定 Web 路线，与语言解耦，故语言按 **MVP 关键动作**权衡：① 生成 shell 函数（zsh/PowerShell）② 起 Web 配置页 ③ 跨三平台分发 ④ 读写 JSON ⑤ eval/iex 注入。
+选型时 GUI 已定 Web 路线，与语言解耦，故语言按 **MVP 关键动作**权衡：① 生成 shell 函数（zsh/PowerShell）② 起 Web 配置页 ③ 跨三平台分发 ④ 读写 JSON ⑤ eval/iex 注入。后续桌面 App 选定 Wails v3（Go 同栈），三端复用同一套 Go 业务包，进一步验证了该决策。
 
 ### 2.1 针对 MVP 的对比
 
